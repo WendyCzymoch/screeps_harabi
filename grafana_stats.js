@@ -44,7 +44,11 @@ Overlord.exportStats = function () {
     roomStats.controllerProgressTotal = room.controller.progressTotal;
     roomStats.controllerLevel = room.controller.level;
     if (room.terminal) {
-      for (const resourceType in resources) {
+      for (const resourceType in room.terminal.store) {
+        if (resourceType === RESOURCE_ENERGY) {
+          continue
+        }
+        resources[resourceType] = resources[resourceType] || 0
         resources[resourceType] += room.terminal.store[resourceType]
       }
     }

@@ -36,11 +36,31 @@ class SimpleAllies {
    */
   initRun(roomName) {
     // Reset the data of myRequests for roomName
+    this.reset(roomName)
+    if (Math.random() < 0.01) {
+      for (const requestType of requestTypes) {
+        const requests = this.myRequests[requestType] || []
+        this.myRequests[requestType] = requests.filter(request => {
+          const roomName = request.roomName
+          const room = Game.rooms[roomName]
+          if (!room || !room.isMy || room.getIsWrecked()) {
+            return false
+          }
+          return true
+        })
+      }
+    }
+    this.readAllySegment();
+
+    Memory.simpleAlliesCache = Memory.simpleAlliesCache || {}
+    Memory.simpleAlliesCache[this.currentAlly] = this.allySegmentData
+  }
+
+  reset(roomName) {
     for (const requestType of requestTypes) {
       const requests = this.myRequests[requestType] || []
       this.myRequests[requestType] = requests.filter(request => request.roomName !== roomName)
     }
-    this.readAllySegment();
   }
 
   /**

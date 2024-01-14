@@ -226,7 +226,7 @@ Overlord.checkPowerBanks = function (targetRoomName) {
     if (room.terminal.store[RESOURCE_POWER] > 30000) {
       return false
     }
-    const route = this.getRoute(targetRoomName, room.name)
+    const route = this.findRoutesWithPortal(targetRoomName, room.name)
     if (route === ERR_NO_PATH || route.length > POWERBANK_DISTANCE_THRESHOLD) {
       return false
     }
@@ -273,7 +273,7 @@ Overlord.checkPowerBanks = function (targetRoomName) {
     }
 
     data.recordLog(`POWERBANK: ${candidateRoom.name} start powerBank mining at ${targetRoomName}`, targetRoomName)
-    this.registerTask('powerBank', powerBankRequest)
+    this.registerTask(powerBankRequest)
   }
 }
 

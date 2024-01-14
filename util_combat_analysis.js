@@ -38,12 +38,15 @@ Room.prototype.getInvulnerables = function (targets) {
 
   const result = []
 
-  const damage = (this.frontLineTowersDamageMin || (this.structures.tower.length * 300)) * 0.9
+  // const damage = (this.frontLineTowersDamageMin || (this.structures.tower.length * 300)) * 0.9
 
-  const damageArray = new Uint16Array(2500)
-  damageArray.fill(damage)
+  const damageArray = this.getTowerDamageArray()
 
   for (const creep of targets) {
+    const packed = packCoord(creep.pos.x, creep.pos.y)
+
+    const damage = packed
+
     if (this.controller.safeMode || creep.owner.username === 'Invader') {
       continue
     }
@@ -140,10 +143,10 @@ getCanBeKilled = function (creepBody, damage, heal) {
   let body = _.cloneDeep(creepBody)
 
   i = 0
-  while (true) {
+  while (i < 10) {
+    i++
     const hitsBefore = getHits(body)
     body = applyDamageAndHeal(body, damage, heal)
-    i++
     const hitsAfter = getHits(body)
     if (hitsAfter <= 0) {
       return true

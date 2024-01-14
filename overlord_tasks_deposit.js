@@ -14,6 +14,7 @@ Overlord.manageDepositTasks = function () {
     if (!roomInCharge) {
       data.recordLog(`DEPOSIT: stopped deposit mining at ${targetRoomName}. no room in charge`, targetRoomName)
       this.deleteTask(depositRequest)
+      return
     }
 
     if (depositRequest.completed === true) {
@@ -62,7 +63,7 @@ Overlord.checkDeposits = function (targetRoomName) {
       if (room.terminal && room.terminal.store[deposit.depositType] > 10000) {
         continue
       }
-      const route = this.getRoute(targetRoomName, room.name)
+      const route = this.findRoutesWithPortal(targetRoomName, room.name)
       if (route === ERR_NO_PATH || route.length > DEPOSIT_DISTANCE_THRESHOLD) {
         continue
       }
@@ -85,7 +86,7 @@ Overlord.checkDeposits = function (targetRoomName) {
         continue
       }
       depositRequest.maxCooldown = maxCooldown
-      Overlord.registerTask('deposit', depositRequest)
+      Overlord.registerTask(depositRequest)
       return
     }
   }
@@ -95,7 +96,7 @@ Room.prototype.getDepositMaxCooldown = function (depositRequest) {
   const price = Business.getMaxBuyOrder(depositRequest.depositType, this.name).finalPrice
   const amount = WORKER_SIZE * (1500 - depositRequest.distance * 2.2)
   const cost = WORKER_ENERGY_COST * Business.energyPrice
-  return Math.ceil(price * amount / cost / RETURN_RATIO)
+  return Math.min(50, Math.ceil(price * amount / cost / RETURN_RATIO))
 }
 
 const DepositRequest = function (room, deposit) {

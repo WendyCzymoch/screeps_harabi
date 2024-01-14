@@ -45,19 +45,26 @@ global.STRUCTURE_TYPES = [
 
 global.BUILD_PRIORITY = {
     spawn: 0,
+
     link: 1,
     storage: 1,
+
     tower: 2,
-    extension: 3,
+
+    terminal: 3,
+
+    extension: 4,
     road: 4,
-    extractor: 5,
+
     container: 5,
-    lab: 6,
-    terminal: 6,
-    wall: 7,
-    rampart: 7,
-    observer: 7,
-    powerSpawn: 8,
+
+    extractor: 6,
+
+    lab: 7,
+    rampart: 8,
+
+    observer: 9,
+    powerSpawn: 9,
     nuker: 9,
     factory: 9,
 }
@@ -87,7 +94,8 @@ global.CREEP_ROELS = [
     'roomDefender',
     'distributor',
     'powerBankAttacker',
-    'powerBankHealer'
+    'powerBankHealer',
+    'guard',
 ]
 
 global.SELF_DIRECTED_CREEP_ROELS = [
@@ -102,7 +110,8 @@ global.SELF_DIRECTED_CREEP_ROELS = [
     'colonyDefender',
     'colonyCoreDefender',
     'wallMaker',
-    'researcher'
+    'researcher',
+    'guard'
 ]
 
 global.CROSS = [
@@ -127,11 +136,11 @@ global.ECONOMY_STANDARD = {
     1: 10000,
     2: 10000,
     3: 10000,
-    4: 10000,
-    5: 20000,
-    6: 40000,
-    7: 80000,
-    8: 160000,
+    4: 20000,
+    5: 40000,
+    6: 80000,
+    7: 160000,
+    8: 320000,
 }
 
 global.BASIC_MINERALS = ['H', 'O', 'Z', 'K', 'U', 'L', 'X']
@@ -251,7 +260,7 @@ global.BOOSTS_EFFECT = {
 }
 
 global.USEFULL_COMPOUNDS = [
-    // for defense
+    // for defense, ant
     'XUH2O',
     'UH2O',
     'UH',
@@ -261,15 +270,25 @@ global.USEFULL_COMPOUNDS = [
     'XLHO2',
     'XZHO2',
     'XGHO2',
+
+    'KHO2',
+    'LHO2',
+    'ZHO2',
+
+    'KO',
+    'LO',
+    'ZO',
+
+    // for worm
+    'ZH',
+    'ZH2O',
+    'XZH2O',
 ]
 
 if (SHARD !== 'swc') {
     USEFULL_COMPOUNDS.push(
         // for defense (reparing)
         'XLH2O',
-
-        // for dismantler
-        'XZH2O',
 
         // for upgrade
         'XGH2O',
@@ -422,7 +441,7 @@ global.RESOURCES_TO_TERMINAL = {
     RESOURCE_CATALYZED_GHODIUM_ALKALIDE: "XGHO2",
 }
 
-global.INVADER_BODY_PARTS = ['attack', 'ranged_attack', 'heal', 'work']
+global.INVADER_BODY_PARTS = ['attack', 'ranged_attack', 'heal', 'work', 'claim']
 
 global.COLOR_NEON_CYAN = '#4deeea'
 global.COLOR_NEON_GREEN = '#74ee15'

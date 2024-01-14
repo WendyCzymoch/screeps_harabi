@@ -1,58 +1,76 @@
 require('allies')
 require('constants')
+
 require('overlord')
-require('creep_combatants')
-require('creep_blinky')
+
+require('creep_prototype_attacker')
+require('creep_prototype_blinky')
+require('creep_prototype_combat')
+require('creep_prototype_harass')
+require('creep_prototype_hauler')
+require('creep_prototype_powerCreep')
+require('creep_prototype_researcher')
+require('creep_prototype')
+
+const creepAction = require('creepAction')
+
+require('dashboard')
 require('data')
-require('function_visualizeRoomInfo')
-require('global_business')
+
+require('flag_claim')
+require('flag_clearAll')
+require('flag_dismantleRoom')
+require('flag_harass')
+require('flag_intersharding')
+require('flag_lootRoom')
+require('flag_prototype')
+require('flag_reconstruction')
+require('flag_war')
+
 require('global_function')
+
 require('grafana_stats')
-require('hasRespawned')
-require('manager_attack')
-require('manager_base')
-require('manager_claim')
-require('manager_defense')
-require('manager_defenseNuke')
-require('manager_dismantleRoom')
-require('manager_harass_portal')
-require('manager_harass')
-require('manager_clearAll')
-require('manager_lootRoom')
-require('manager_quad')
-require('manager_reconstruction')
-require('manager_room')
-require('manager_remote')
-require('manager_scout')
-require('manager_tower')
-require('manager_traffic')
-require('manager_war')
-require('overlord_allies')
+
+require('market_business')
+
+require('overlord_harass')
+require('overlord_manage_resources')
 require('overlord_metric')
-require('overlord_military')
 require('overlord_tasks_deposit')
+require('overlord_tasks_duo')
+require('overlord_tasks_guard')
+require('overlord_tasks_quad')
 require('overlord_tasks_powerBank')
+require('overlord_tasks_siege')
 require('overlord_tasks')
-require('prototype_creep_attacker')
-require('prototype_creep_hauler')
-require('prototype_creep_powerCreep')
-require('prototype_creep_researcher')
-require('prototype_room')
-require('prototype_roomPosition')
-require('prototype_roomVisual')
-require('prototype_source')
-require('prototype_structures')
-require('prototype_structures_terminal')
-require('prototype_creep')
-require('prototype_flag_intersharding')
-require('prototype_flag')
-require('prototype_room_boost_management')
-require('prototype_room_energy_management')
-require('prototype_room_factory_operation')
-require('prototype_room_lab_operation')
-require('prototype_room_spawn_management')
-require('prototype_room_work_management')
-require('prototype_room_powerSpawn_operation')
+
+require('quad_prototype')
+
+require('room_manager_base')
+require('room_manager_defense')
+require('room_manager_defenseNuke')
+require('room_manager_energy')
+require('room_manager_factory')
+require('room_manager_lab_boost')
+require('room_manager_lab_reaction')
+require('room_manager_powerSpawn')
+require('room_manager_remote')
+require('room_manager_scout')
+require('room_manager_spawn')
+require('room_manager_tower')
+require('room_manager_traffic')
+require('room_manager_work')
+require('room_manager')
+
+require('room_prototype')
+
+require('roomPosition_prototype')
+require('roomVisual_prototype')
+
+require('source_prototype')
+require('structure_prototype')
+require('terminal_prototype')
+
 require('util_base_planner')
 require('util_combat_analysis')
 require('util_defenseCostMatrix')
@@ -61,6 +79,7 @@ require('util_distance_transform')
 require('util_flood_fill')
 require('util_heap')
 require('util_min-cut')
+require('util')
 
 // Any modules that you use that modify the game's prototypes should be require'd
 // before you require the profiler.
@@ -88,7 +107,6 @@ module.exports.loop = () => {
                 overlord: {}
             }
         }
-
 
         // bucket check. 8000 5000 2000
         if (data.enoughCPU && Game.cpu.bucket < 5000) { // stop market, highwaymining
@@ -119,6 +137,9 @@ module.exports.loop = () => {
             console.log(`Global reset happens at ${Game.time}`)
             Memory.globalReset = Game.time
         }
+
+        // Overlord 동작
+        Overlord.classifyCreeps()
 
         // flag 실행
 
@@ -186,10 +207,6 @@ module.exports.loop = () => {
                 flag.conductWar()
                 continue
             }
-            if (name.includes('siege')) {
-                flag.siegeRoom()
-                continue
-            }
             if (name.includes('nuke')) {
                 flag.nukeRoom()
                 flag.remove()
@@ -205,16 +222,7 @@ module.exports.loop = () => {
             }
         }
 
-        // Overlord 동작
-        Overlord.classifyCreeps()
-
         Overlord.runTasks()
-
-        if (Memory.siege) {
-            for (const roomName of Object.keys(Memory.siege)) {
-                siege(roomName, Memory.siege[roomName])
-            }
-        }
 
         if (Game.cpu.bucket < 100 || Game.cpu.getUsed() > 500) {
             return
@@ -223,6 +231,13 @@ module.exports.loop = () => {
         // 방마다 roomManager 동작
         for (const room of Object.values(Game.rooms)) {
             room.runRoomManager()
+        }
+
+        // independent creeps 동작
+
+        for (const creep of Overlord.classifyCreeps().independents) {
+            const role = creep.memory.role
+            creepAction[role](creep)
         }
 
         // powerCreep 실행

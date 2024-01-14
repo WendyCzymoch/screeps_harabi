@@ -1,17 +1,103 @@
-global.getRoomType = function (roomName) {
-    const roomCoord = getRoomCoord(roomName)
-    const x = roomCoord.x
-    const y = roomCoord.y
-    if (x % 10 === 0 && y % 10 === 0) {
-        return 'crossing'
+/* Posted March 31st, 2018 by @semperrabbit*/
+
+/**
+ * global.hasRespawned()
+ * 
+ * @author:  SemperRabbit
+ * @version: 1.1
+ * @date:    180331
+ * @return:  boolean whether this is the first tick after a respawn or not
+ * 
+ * The checks are set as early returns in case of failure, and are ordered
+ * from the least CPU intensive checks to the most. The checks are as follows:
+ * 
+ *      If it has returned true previously during this tick, return true again
+ *      Check Game.time === 0 (returns true for sim room "respawns")
+ *      There are no creeps
+ *      There is only 1 room in Game.rooms
+ *      The 1 room has a controller
+ *      The controller is RCL 1 with no progress
+ *      The controller is in safemode with the initial value
+ *      There is only 1 StructureSpawn
+ *
+ * The only time that all of these cases are true, is the first tick of a respawn.
+ * If all of these are true, you have respawned.
+ * 
+ * v1.1 (by qnz): - fixed a condition where room.controller.safeMode can be SAFE_MODE_DURATION too
+ *                - improved performance of creep number check (https://jsperf.com/isempty-vs-isemptyobject/23)
+ */
+global.hasRespawned = function hasRespawned() {
+    // check for multiple calls on same tick    
+    if (Memory.respawnTick && Memory.respawnTick === Game.time) {
+        return true;
     }
 
-    if (x % 10 === 0 || y % 10 === 0) {
+    // server reset or sim
+    if (Game.time === 0) {
+        Memory.respawnTick = Game.time;
+        return true;
+    }
+
+    // check for 0 creeps
+    for (const creepName in Game.creeps) {
+        return false;
+    }
+
+    // check for only 1 room
+    const rNames = Object.keys(Game.rooms);
+    if (rNames.length !== 1) {
+        return false;
+    }
+
+    // check for controller, progress and safe mode
+    const room = Game.rooms[rNames[0]];
+    if (!room.controller || !room.controller.my || room.controller.level !== 1 || room.controller.progress ||
+        !room.controller.safeMode || room.controller.safeMode <= SAFE_MODE_DURATION - 1) {
+        return false;
+    }
+
+    // check for 1 spawn
+    if (Object.keys(Game.spawns).length > 1) {
+        return false;
+    }
+
+    // if all cases point to a respawn, you've respawned
+    Memory.respawnTick = Game.time;
+    return true;
+}
+
+global.resetRemote = function (roomName) {
+    const myRooms = Overlord.myRooms
+    for (const room of myRooms) {
+        if (roomName && room.name !== roomName) {
+            continue
+        }
+        delete room.memory.remotes
+        delete room.memory.activeRemotes
+        delete room.memory.coreRemotes
+    }
+}
+
+/**
+ * function to get room type with its name
+ * @param {string} roomName 
+ * @returns {string} type of room. highway / normal / center / sourceKeeper
+ */
+global.getRoomType = function (roomName) {
+    const roomCoord = getRoomCoord(roomName)
+    const x = (roomCoord.x) % 10
+    const y = (roomCoord.y) % 10
+
+    if (x === 0 || y === 0) {
         return 'highway'
     }
 
     if (x < 4 || x > 6 || y < 4 || y > 6) {
         return 'normal'
+    }
+
+    if (x === 5 && y === 5) {
+        return 'center'
     }
 
     return 'sourceKeeper'
@@ -182,9 +268,8 @@ global.visual = function () {
     return "show basePlan"
 }
 
-global.resetMap = function (roomName) {
+global.resetScout = function (roomName) {
     if (roomName === undefined) {
-        Memory.map = {}
         for (const myRoom of Overlord.myRooms) {
             delete myRoom.memory.scout
             const scouters = Overlord.getCreepsByRole(myRoom.name, 'scouter')
@@ -192,27 +277,19 @@ global.resetMap = function (roomName) {
                 scouter.suicide()
             }
         }
-        return 'reset map'
+        return 'reset scout'
     } else {
         roomName = roomName.toUpperCase()
         const room = Game.rooms[roomName]
         if (!room || !room.isMy) {
             return 'invalid roomName'
         }
-        Memory.map = Memory.map || {}
-        const map = Memory.map
-        for (const mapRoomName in Memory.map) {
-            const roomInfo = map[mapRoomName]
-            if (roomInfo && roomInfo.host === roomName) {
-                delete map[mapRoomName]
-            }
-        }
         delete room.memory.scout
         const scouter = Overlord.getCreepsByRole(roomName, 'scouter')[0]
         if (scouter) {
             scouter.suicide()
         }
-        return `reset map of ${roomName}`
+        return `reset scout of ${roomName}`
     }
 }
 
@@ -230,60 +307,34 @@ global.mapInfo = function () {
     return `show map visual : ${Memory.showMapInfo}`
 }
 
-global.siege = function (roomName, options = {}) {
-    const ticks = options.ticks || 50000
-
-    const baseName = options.base ? options.base.toUpperCase() : undefined
-
-    const type = options.type || 'blinkie'
-
-    roomName = roomName.toUpperCase()
-
-    if (!Game.rooms[roomName]) {
-        Overlord.observeRoom(roomName)
-        Memory.siege = Memory.siege || {}
-        Memory.siege[roomName] = options
-        return
-    }
-
-    if (Memory.siege && Memory.siege[roomName]) {
-        delete Memory.siege[roomName]
-    }
-
-    const name = `${roomName} ${type} siege `
-
-    const endTick = Game.time + ticks
-
-    for (let x = 15; x < 50; x += 5) {
-        const pos = new RoomPosition(x, 25, roomName)
-        const found = pos.lookFor(LOOK_FLAGS)
-
-        if (found.length) {
-            continue
-        }
-
-        pos.createFlag(name)
-
-        Memory.flags = Memory.flags || {}
-        Memory.flags[name] = Memory.flags[name] || {}
-        Memory.flags[name].endTick = endTick
-
-        if (baseName !== undefined) {
-            Memory.flags[name].base = baseName
-        }
-
-        return
-    }
-}
-
 global.logSend = function (resourceType) {
     const outgoingTransactions = Game.market.outgoingTransactions
 
+    let i = 0
     for (const transaction of outgoingTransactions) {
+        i++
         if (resourceType && transaction.resourceType !== resourceType) {
             continue
         }
-        console.log(`${transaction.from} sent ${transaction.amount} of ${transaction.resourceType} to ${transaction.to}`)
+        console.log(`tick${transaction.time}: ${transaction.from} sent ${transaction.amount} of ${transaction.resourceType} to ${transaction.recipient ? transaction.recipient.username : 'NPC'}(${transaction.to})`)
+        if (i > 50) {
+            break
+        }
+    }
+}
+
+global.logReceive = function (resourceType) {
+    const incomingTransactions = Game.market.incomingTransactions
+    let i = 0
+    for (const transaction of incomingTransactions) {
+        i++
+        if (resourceType && transaction.resourceType !== resourceType) {
+            continue
+        }
+        console.log(`tick${transaction.time}: ${transaction.to} got ${transaction.amount} of ${transaction.resourceType} from ${transaction.sender ? transaction.sender.username : 'NPC'}(${transaction.from})`)
+        if (i > 50) {
+            break
+        }
     }
 }
 
@@ -299,4 +350,21 @@ global.setRampartsHits = function (roomName, threshold = undefined) {
         delete room.memory.rampartsHitsPerRcl
     }
     return
+}
+
+global.parseBody = function (str) {
+    const shorts = { "m": "move", "w": "work", "c": "carry", "a": "attack", "r": "ranged_attack", "h": "heal", "t": "tough", "cl": "claim" };
+    let res = [];
+    for (let i = 0; i < str.length;) {
+        let count = str[i++];
+        if (str[i] >= '0' && str[i] <= '9') {
+            count += str[i++];
+        }
+        let label = str[i++];
+        if (str[i] === 'l') {
+            label += str[i++];
+        }
+        while (count--) res.push(shorts[label]);
+    }
+    return res;
 }

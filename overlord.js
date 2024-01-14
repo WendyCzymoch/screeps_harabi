@@ -1,5 +1,4 @@
-const EXPIRATION_PERIOD = 20000
-const creepAction = require('creepAction')
+INTEL_EXPIRATION_TICK = 60000
 
 global.Overlord = {
   get memory() {
@@ -8,14 +7,8 @@ global.Overlord = {
     }
     return Memory.overlord = {}
   },
-  get Heap() {
+  get heap() {
     return Heap.overlord
-  },
-  get map() {
-    if (Game._map) {
-      return Game._map
-    }
-    return Game._map = Memory.map = Memory.map || {}
   },
   get myRooms() {
     if (Game._myRooms) {
@@ -70,33 +63,34 @@ Overlord.mapInfo = function () {
   if (Memory.showMapInfo === 0) {
     return
   }
-  if (!Memory.mapInfoTime || Game.time - Memory.mapInfoTime > 500) {
-    Memory.showMapInfo = 0
-    return
-  }
-  const map = this.map
-  for (const roomName of Object.keys(map)) {
-    const info = map[roomName]
+
+  for (const roomName in Memory.rooms) {
+    const intel = Overlord.getIntel(roomName)
+
+    if (intel.lastScout === undefined || (Game.time > intel.lastScout + INTEL_EXPIRATION_TICK)) {
+      delete Memory.rooms[roomName]
+      continue
+    }
+
     const center = new RoomPosition(25, 25, roomName)
 
-    if (!info.lastScout || Game.time > info.lastScout + EXPIRATION_PERIOD) {
-      delete map[roomName]
-    }
-
-    if (info.lastScout !== undefined) {
-      Game.map.visual.text(`⏳${info.lastScout + EXPIRATION_PERIOD - Game.time}`, new RoomPosition(center.x - 20, center.y + 15, center.roomName), { fontSize: 7, align: 'left' })
-    }
-
-    if (info.isClaimCandidate) {
+    if (intel.isClaimCandidate) {
       Game.map.visual.text(`🚩`, new RoomPosition(center.x - 15, center.y, center.roomName), { fontSize: 7, })
-      Game.map.visual.text(`⚡${info.numSource}/2`, new RoomPosition(center.x + 12, center.y, center.roomName), { fontSize: 7, })
-      Game.map.visual.text(`💎${info.mineralType}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
-    } else if (info.isRemoteCandidate) {
-      Game.map.visual.text(`⚡${info.numSource}/2`, new RoomPosition(center.x + 12, center.y - 15, center.roomName), { fontSize: 7, })
-      Game.map.visual.text(`⛏️`, new RoomPosition(center.x - 15, center.y - 15, center.roomName), { fontSize: 7, })
+      Game.map.visual.text(`⚡${intel.numSource}/2`, new RoomPosition(center.x + 12, center.y, center.roomName), { fontSize: 7, })
+      Game.map.visual.text(`💎${intel.mineralType}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
     }
-    if (info.inaccessible && info.inaccessible > Game.time) {
-      Game.map.visual.text(`🚫${info.inaccessible - Game.time}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, color: '#f000ff' })
+
+    if (intel.inaccessible && intel.inaccessible > Game.time) {
+      Game.map.visual.text(`🚫${intel.inaccessible - Game.time}`, new RoomPosition(center.x, center.y - 13, center.roomName), { fontSize: 7, color: '#f000ff' })
+    }
+
+    if (intel.reservationOwner) {
+      Game.map.visual.text(`${intel.reservationOwner}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
+    }
+
+    if (intel.owner && !intel.isMy) {
+      Game.map.visual.text(`${intel.owner}`, center, { fontSize: 7, backgroundColor: '#000000', opacity: 1 })
+
     }
 
     // 내 방인지 체크
@@ -112,37 +106,8 @@ Overlord.mapInfo = function () {
           Game.map.visual.circle(new RoomPosition(25, 25, room.memory.scout.next), { fill: '#ffe700' })
         }
       }
-    } else {
-      Game.map.visual.text(`🚶${info.distance}`, new RoomPosition(center.x + 15, center.y + 15, center.roomName), { fontSize: 7 })
     }
   }
-}
-
-Overlord.cleanRoomMemory = function () {
-  Memory.info = Memory.info || {}
-
-  const remotesList = []
-  let numRemotes = 0
-  for (const myRoom of this.myRooms) {
-    if (!myRoom.memory.remotes) {
-      continue
-    }
-    for (const remoteName of Object.keys(myRoom.memory.remotes)) {
-      remotesList.push(remoteName)
-      numRemotes += Object.keys(myRoom.memory.remotes[remoteName].infraPlan).length
-    }
-  }
-
-  Memory.info.numRemotes = numRemotes
-  Object.keys(Memory.rooms).forEach( //메모리에 있는 방이름마다 검사
-    function (roomName) {
-      if (!Game.rooms[roomName] && !remotesList.includes(roomName)) { //해당 이름을 가진 방이 존재하지 않으면
-        delete Memory.rooms[roomName]; //메모리를 지운다
-      }
-    }
-  )
-  console.log('cleaned room memory')
-  return
 }
 
 Overlord.observeRoom = function (roomName) {
@@ -151,52 +116,6 @@ Overlord.observeRoom = function (roomName) {
   if (observer) {
     observer.observeRoom(roomName)
   }
-}
-
-Overlord.classifyCreeps = function () {
-  if (Game._classifiedCreeps !== undefined) {
-    return Game._classifiedCreeps
-  }
-
-  const creeps = Object.values(Game.creeps)
-  const result = {}
-  for (const roomName of Object.keys(Game.rooms)) {
-    result[roomName] = {}
-    for (const creepRole of CREEP_ROELS) {
-      result[roomName][creepRole] = []
-    }
-    result[roomName].wounded = []
-  }
-
-  for (const creep of creeps) {
-    if (Game.time % 10 === 0 && !creep.memory.notify && creep.ticksToLive < CREEP_LIFE_TIME) {
-      creep.notifyWhenAttacked(false)
-      creep.memory.notify = true
-    }
-
-    if (!result[creep.assignedRoom]) {
-      result[creep.assignedRoom] = {}
-    }
-
-    if (creep.hits < creep.hitsMax) {
-      if (!result[creep.assignedRoom].wounded) {
-        result[creep.assignedRoom].wounded = []
-      }
-      result[creep.assignedRoom].wounded.push(creep)
-    }
-
-    if (creep.memory.role) {
-      if (!creep.spawning && SELF_DIRECTED_CREEP_ROELS.includes(creep.memory.role)) {
-        creepAction[creep.memory.role](creep)
-      }
-
-      if (!result[creep.assignedRoom][creep.memory.role]) {
-        result[creep.assignedRoom][creep.memory.role] = []
-      }
-      result[creep.assignedRoom][creep.memory.role].push(creep)
-    }
-  }
-  return Game._classifiedCreeps = result
 }
 
 Overlord.getNumCreepsByRole = function (roomName, role) {
@@ -218,7 +137,7 @@ Overlord.getCreepsByRole = function (roomName, role) {
   if (!creeps[roomName][role]) {
     return []
   }
-  return creeps[roomName][role]
+  return [...creeps[roomName][role]]
 }
 
 Overlord.getCreepsByAssignedRoom = function (roomName) {
@@ -228,10 +147,61 @@ Overlord.getCreepsByAssignedRoom = function (roomName) {
   }
   const result = []
   for (const roleName in creeps[roomName]) {
-    if (creeps[roomName] && creeps[roomName][roleName]) {
-      result.push(...creeps[roomName][roleName])
+    result.push(...creeps[roomName][roleName])
+  }
+  return result
+}
+
+Overlord.classifyCreeps = function () {
+  if (this._classifyCreepsTick === Game.time && this._classifiedCreeps) {
+    return this._classifiedCreeps
+  }
+
+  this._classifyCreepsTick = Game.time
+
+  const creeps = Object.values(Game.creeps)
+  const result = {}
+  for (const roomName of Object.keys(Game.rooms)) {
+    result[roomName] = {}
+    for (const creepRole of CREEP_ROELS) {
+      result[roomName][creepRole] = []
+    }
+    result[roomName].wounded = []
+  }
+  result.independents = []
+
+
+  for (const creep of creeps) {
+    if (Game.time % 10 === 0 && !creep.memory.notify && creep.ticksToLive < CREEP_LIFE_TIME) {
+      creep.notifyWhenAttacked(false)
+      creep.memory.notify = true
+    }
+
+    if (result[creep.assignedRoom] === undefined) {
+      result[creep.assignedRoom] = {}
+    }
+
+    if (creep.hits < creep.hitsMax) {
+      if (result[creep.assignedRoom].wounded === undefined) {
+        result[creep.assignedRoom].wounded = []
+      }
+      result[creep.assignedRoom].wounded.push(creep)
+    }
+
+    if (creep.memory.role) {
+      if (!creep.spawning && SELF_DIRECTED_CREEP_ROELS.includes(creep.memory.role)) {
+        result.independents.push(creep)
+      }
+
+      if (result[creep.assignedRoom][creep.memory.role] === undefined) {
+        result[creep.assignedRoom][creep.memory.role] = []
+      }
+      result[creep.assignedRoom][creep.memory.role].push(creep)
     }
   }
+
+  this._classifiedCreeps = result
+
   return result
 }
 

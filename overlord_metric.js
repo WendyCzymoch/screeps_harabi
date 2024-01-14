@@ -11,71 +11,57 @@ Overlord.findMyRoomsInRange = function (fromRoomName, range) {
   return myRoomsFiltered
 }
 
-Overlord.findClosestMyRoom = function (fromRoomName, level = 0, maxRooms = 16) {
-  const myRooms = Overlord.findMyRoomsInRange(fromRoomName, maxRooms)
+Overlord.findClosestRoom = function (fromRoomName, roomNames, ignoreMap = 1, maxRooms = 16) {
+  const routeLenthCache = {}
+  const roomNamesFiltered = roomNames.filter(roomName => {
+    const route = this.findRoutesWithPortal(fromRoomName, roomName, ignoreMap)
+    if (!Array.isArray(route)) {
+      return false
+    }
+    const length = route.map(segment => segment.length).reduce((acc, curr) => acc + curr, 0)
+    if (length > maxRooms) {
+      return false
+    }
+    routeLenthCache[roomName] = length
+    return true
+  })
+
+  if (roomNamesFiltered.length === 0) {
+    return undefined
+  }
+
+  const roomNamesSorted = roomNamesFiltered.sort((a, b) => {
+    const lengthA = routeLenthCache[a]
+    const lengthB = routeLenthCache[b]
+    return lengthA - lengthB
+  })
+  return roomNamesSorted[0]
+}
+
+Overlord.findClosestMyRoom = function (fromRoomName, level = 0, ignoreMap = 1, maxRooms = 16) {
+  const myRooms = Overlord.myRooms
+  const routeLenthCache = {}
   const myRoomsFiltered = myRooms.filter(room => {
     if (room.controller.level < level) {
       return false
     }
-    if (Game.map.getRoomLinearDistance(fromRoomName, room.name) > 16) {
+    const route = this.findRoutesWithPortal(fromRoomName, room.name, ignoreMap)
+    if (!Array.isArray(route)) {
       return false
     }
+    const length = route.map(segment => segment.length).reduce((acc, curr) => acc + curr, 0)
+    if (length > maxRooms) {
+      return false
+    }
+    routeLenthCache[room.name] = length
     return true
-  }, this)
+  })
   const myRoomsSorted = myRoomsFiltered.sort((a, b) => {
-    const routeA = this.getRoute(fromRoomName, a.name)
-    const routeB = this.getRoute(fromRoomName, b.name)
-    const lengthA = routeA.length || Infinity
-    const lengthB = routeB.length || Infinity
+    const lengthA = routeLenthCache[a.name]
+    const lengthB = routeLenthCache[b.name]
     return lengthA - lengthB
   })
   return myRoomsSorted[0]
-}
-
-Overlord.getRoute = function (startRoomName, endRoomName) {
-  const route = Game.map.findRoute(startRoomName, endRoomName, {
-    routeCallback(roomName, fromRoomName) {
-      // 시작하는 방은 무조건 쓴다
-      if (roomName === startRoomName) {
-        return 1
-      }
-
-      // 목적지는 무조건 간다
-      if (roomName === endRoomName) {
-        return 1
-      }
-
-      // defense 있는 방이면 쓰지말자
-      if (Memory.map[roomName] && Memory.map[roomName].inaccessible > Game.time && Memory.map[roomName].numTower > 0) {
-        return Infinity
-      }
-
-      // 막혀있거나, novice zone이거나, respawn zone 이면 쓰지말자
-      if (Game.map.getRoomStatus(roomName).status !== 'normal') {
-        return Infinity
-      }
-
-      const roomCoord = roomName.match(/[a-zA-Z]+|[0-9]+/g)
-      roomCoord[1] = Number(roomCoord[1])
-      roomCoord[3] = Number(roomCoord[3])
-      const x = roomCoord[1]
-      const y = roomCoord[3]
-      // highway면 cost 1
-      if (x % 10 === 0 || y % 10 === 0) {
-        return 1
-      }
-
-      // 내가 쓰고 있는 방이면 cost 1
-      const isMy = Game.rooms[roomName] && (Game.rooms[roomName].isMy || Game.rooms[roomName].isMyRemote)
-      if (isMy) {
-        return 1
-      }
-
-      // 다른 경우에는 cost 2.5
-      return 2.5;
-    }
-  })
-  return route
 }
 
 Overlord.findPath = function (startPos, goals, options = {}) {
@@ -92,12 +78,20 @@ Overlord.findPath = function (startPos, goals, options = {}) {
 
   let routes = [[startPos.roomName]]
   if (maxRooms > 1) {
-    if (ignoreMap === 0 && Memory.map[targetRoomName] && Memory.map[targetRoomName].inaccessible > Game.time) {
+    const intel = Overlord.getIntel(targetRoomName)
+    if (ignoreMap === 0 && intel.inaccessible && intel.inaccessible > Game.time) {
       return ERR_NO_PATH
     }
 
     routes = this.findRoutesWithPortal(startPos.roomName, targetRoomName, ignoreMap)
   }
+
+  if (routes === ERR_NO_PATH) {
+    return ERR_NO_PATH
+  }
+
+  const startRoomName = startPos.roomName
+  const startRoom = Game.rooms[startRoomName]
 
   const result = []
   let posNow = startPos
@@ -126,39 +120,56 @@ Overlord.findPath = function (startPos, goals, options = {}) {
 
         // 방 안보이면 기본 CostMatrix 쓰자
         if (!room) {
+          const costs = new PathFinder.CostMatrix
+
           const roomType = getRoomType(roomName)
-          if (['highway', 'crossing'].includes(roomType)) {
+
+          if (roomType === 'highway' || roomType === 'center') {
             const memory = Memory.rooms[roomName]
-
-            if (!memory) {
-              return
+            if (memory && memory.portalInfo) {
+              const portalPositions = Object.keys(memory.portalInfo)
+              for (const packed of portalPositions) {
+                const parsed = parseCoord(packed)
+                costs.set(parsed.x, parsed.y, 255)
+              }
             }
-
-            if (!memory.portalInfo) {
-              return
-            }
-
-            const portalPositions = Object.keys(memory.portalInfo)
-
-            const costs = new PathFinder.CostMatrix
-            for (const packed of portalPositions) {
-              const parsed = parseCoord(packed)
-              costs.set(parsed.x, parsed.y, 255)
-            }
-            return costs
           }
-          return
+
+          if (roomType === 'center' || roomType === 'sourceKeeper') {
+            const memory = Memory.rooms[roomName]
+            if (memory && memory.resourceInfo) {
+              for (const infos of Object.values(memory.resourceInfo)) {
+                for (const info of infos) {
+                  const packed = info.packed
+                  const parsed = parseCoord(packed)
+                  const x = parsed.x
+                  const y = parsed.y
+                  const minX = Math.clamp(x - 5, 0, 49)
+                  const maxX = Math.clamp(x + 5, 0, 49)
+                  const minY = Math.clamp(y - 5, 0, 49)
+                  const maxY = Math.clamp(y + 5, 0, 49)
+                  for (let i = minX; i < maxX; i++) {
+                    for (let j = minY; j < maxY; j++) {
+                      costs.set(i, j, 254)
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          return costs
         }
 
         // staySafe가 true면 defenseCostMatrix 사용. 아니면 basicCostmatrix 사용.
-        let costs = (startPos.rooName === roomName && staySafe) ? room.defenseCostMatrix.clone() : room.basicCostmatrix.clone()
+        const costs = ((startRoomName === roomName) && staySafe) ? room.defenseCostMatrix.clone() : room.basicCostmatrix.clone()
         // 방 보이고 ignoreCreeps가 false고 지금 이 방이 creep이 있는 방이면 creep 위치에 cost 255 설정
-        if (ignoreCreeps !== true && thisCreep.room.name === roomName) {
+        if (ignoreCreeps !== true && startRoomName === roomName) {
           const creepCost = ignoreCreeps === false ? 255 : ignoreCreeps
-          for (const creep of thisCreep.room.find(FIND_CREEPS)) {
+          for (const creep of startRoom.find(FIND_CREEPS)) {
             costs.set(creep.pos.x, creep.pos.y, creepCost)
           }
-          for (const powerCreep of thisCreep.room.find(FIND_POWER_CREEPS)) {
+          for (const powerCreep of startRoom.find(FIND_POWER_CREEPS)) {
             costs.set(powerCreep.pos.x, powerCreep.pos.y, creepCost)
           }
         }
@@ -166,7 +177,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
         return costs
       },
       maxRooms: maxRoomsNow,
-      maxOps: maxRoomsNow > 1 ? 40000 : 1000
+      maxOps: maxRoomsNow > 1 ? 40000 : 5000
     })
     if (search.incomplete) {
       return ERR_NO_PATH
@@ -174,12 +185,15 @@ Overlord.findPath = function (startPos, goals, options = {}) {
     result.push(...search.path)
     if (toPortal) {
       const portalInfo = Memory.rooms[routeNowLastRoomName].portalInfo
-      const lastPos = result[result.length - 1]
+      const lastPos = result[result.length - 1] || posNow
 
       for (const pos of lastPos.getAtRange(1)) {
         const packed = packCoord(pos.x, pos.y)
         const info = portalInfo[packed]
         if (!info) {
+          continue
+        }
+        if (info.shard) {
           continue
         }
         const parsed = parseCoord(info.packed)
@@ -189,8 +203,6 @@ Overlord.findPath = function (startPos, goals, options = {}) {
       }
     }
   }
-
-  Game.map.visual.poly(result)
 
   return result
 }
@@ -228,6 +240,10 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
   queue.insert(startRoomName)
 
   while (queue.getSize() > 0) {
+    if (Game.cpu.getUsed() > 500) {
+      return ERR_NO_PATH
+    }
+
     const current = queue.remove()
 
     if (current === goalRoomName) {
@@ -242,9 +258,10 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
 
     const neighbors = Object.values(Game.map.describeExits(current))
     const portalInfo = Memory.rooms[current] ? Memory.rooms[current].portalInfo : undefined
-    if (portalInfo) {
-      const portals = Object.values(portalInfo)
-      const roomName = portals[0] ? portals[0].roomName : undefined
+    const portalInfoValues = portalInfo ? Object.values(portalInfo) : undefined
+    if (portalInfoValues && portalInfoValues.length > 0) {
+      const info = portalInfoValues[0]
+      const roomName = info.shard ? undefined : info.roomName
       if (roomName) {
         neighbors.push(roomName)
       }
@@ -288,7 +305,22 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
   return result
 }
 
+Overlord.getAdjacentRoomNames = function (roomName) {
+  const adjacents = Object.values(Game.map.describeExits(roomName))
+  const portalInfo = Memory.rooms[roomName] ? Memory.rooms[roomName].portalInfo : undefined
+  if (portalInfo) {
+    const portals = Object.values(portalInfo)
+    const roomName = portals[0] ? portals[0].roomName : undefined
+    const shard = portals[0] ? portals[0].shard : undefined
+    if (roomName && !shard) {
+      adjacents.push(roomName)
+    }
+  }
+  return adjacents
+}
+
 function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
+
   if (roomName === startRoomName) {
     return 1
   }
@@ -296,38 +328,60 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
     return 1
   }
 
+  Overlord.heap.roomCost = Overlord.heap.roomCost || {}
+
+  if (Overlord.heap.roomCost[roomName] && Math.random() < 0.9) {
+    return Overlord.heap.roomCost[roomName]
+  }
+
   const room = Game.rooms[roomName]
 
   if (room && (room.isMy || room.isMyRemote)) {
-    return 1
+    return Overlord.heap.roomCost[roomName] = 1
   }
 
-  const info = Memory.map[roomName]
+  const intel = Overlord.getIntel(roomName)
 
-  if (info && allies.includes(info.owner)) {
-    return 1
+  if (allies.includes(intel.owner)) {
+    return Overlord.heap.roomCost[roomName] = 1
   }
 
-  const inaccessible = info ? info.inaccessible : undefined
+  const inaccessible = intel.inaccessible
   if (ignoreMap < 2 && inaccessible && inaccessible > Game.time) {
-    return Infinity
+    return Overlord.heap.roomCost[roomName] = Infinity
   }
 
-  if (info && info.numTower > 0) {
-    return Infinity
+  if (intel.numTower) {
+    return Overlord.heap.roomCost[roomName] = Infinity
   }
 
-  const status = Game.map.getRoomStatus(roomName)
+  const status = Overlord.getRoomStatus(roomName)
 
   if (status && status.status !== 'normal') {
-    return Infinity
+    return Overlord.heap.roomCost[roomName] = Infinity
   }
 
   const roomType = getRoomType(roomName)
 
-  if (['highway', 'crossing'].includes(roomType)) {
-    return 1
+  if (roomType === 'highway') {
+    return Overlord.heap.roomCost[roomName] = 1
   }
 
-  return 2.5
+  return Overlord.heap.roomCost[roomName] = 2.5
+}
+
+Overlord.getIntel = function (roomName) {
+  Memory.rooms[roomName] = Memory.rooms[roomName] || {}
+  Memory.rooms[roomName].intel = Memory.rooms[roomName].intel || {}
+  return Memory.rooms[roomName].intel
+}
+
+Overlord.getRoomStatus = function (roomName) {
+  const intel = this.getIntel(roomName)
+  if (intel.roomStatus && intel.roomStatusTime && Game.time < intel.roomStatusTime + 10000) {
+    return intel.roomStatus
+  }
+
+  intel.roomStatusTime = Game.time
+  return intel.roomStatus = Game.map.getRoomStatus(roomName)
 }
