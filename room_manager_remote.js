@@ -253,7 +253,7 @@ Room.prototype.operateRemote = function (remoteName) {
         return
     } else {
         for (const creep of creeps) {
-            creep.memory.runAway = true
+            creep.memory.runAway = false
         }
         this.addRemoteThreatLevel(remoteName, -1)
     }

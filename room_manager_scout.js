@@ -204,7 +204,7 @@ Room.prototype.updateIntel = function () {
 
   const intelNew = this.analyzeIntel()
 
-  const intel = intelNew
+  const intel = { ...intelBefore, ...intelNew }
 
   this.memory.intel = intel
 }
@@ -217,7 +217,7 @@ Room.prototype.tryRemote = function (roomName) {
     return
   }
 
-  if (intel[scoutKeys.notForRemote] && intel[scoutKeys.notForRemote].includes(this.name)) {
+  if (intel[scoutKeys.notForRemote] !== undefined && intel[scoutKeys.notForRemote].includes(this.name)) {
     return
   }
 
