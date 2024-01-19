@@ -1,3 +1,4 @@
+const { config } = require("./config")
 const { simpleAllies } = require("./simpleAllies")
 
 const MINERAL_AMOUNT_TO_KEEP = 3600
@@ -6,9 +7,9 @@ const MINERAL_AMOUNT_BUFFER = 10000
 const TERMINAL_ENERGY_THRESHOLD_TO_HELP = 10000
 
 const ENERGY_AMOUNT_TO_FUNNEL = 1000
-const ENERGY_LEVEL_TO_FUNNEL = 120
-const ENERGY_LEVEL_TO_HELP = 90
-const ENERGY_LEVEL_TO_BE_HELPED = 60
+const ENERGY_LEVEL_TO_FUNNEL = config.energyLevel.FUNNEL
+const ENERGY_LEVEL_TO_HELP = config.energyLevel.HELP
+const ENERGY_LEVEL_TO_BE_HELPED = config.energyLevel.BE_HELPED
 
 StructureTerminal.prototype.run = function () {
     const roomName = this.room.name
@@ -32,7 +33,7 @@ StructureTerminal.prototype.run = function () {
 
     const bestFunnelRequest = Overlord.getBestFunnelRequest()
 
-    if (Game.rooms[bestFunnelRequest] && Game.rooms[bestFunnelRequest].isMy && Game.rooms[bestFunnelRequest].energyLevel < 200) {
+    if (Game.rooms[bestFunnelRequest] && Game.rooms[bestFunnelRequest].isMy && Game.rooms[bestFunnelRequest].energyLevel < config.energyLevel.STOP_FUNNEL) {
         simpleAllies.requestFunnel(bestFunnelRequest)
     }
 

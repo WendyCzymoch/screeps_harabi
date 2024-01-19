@@ -12,16 +12,12 @@ Object.defineProperties(Room.prototype, {
 Room.prototype.getDistanceTransform = function (visual = false, insides) {
 
   const BOTTOM_LEFT = [
-    { x: -1, y: -1 },
     { x: -1, y: 0 },
-    { x: -1, y: 1 },
     { x: 0, y: -1 }
   ]
 
   const TOP_RIGHT = [
-    { x: 1, y: 1 },
     { x: 1, y: 0 },
-    { x: 1, y: -1 },
     { x: 0, y: +1 }
   ]
 
@@ -40,7 +36,7 @@ Room.prototype.getDistanceTransform = function (visual = false, insides) {
     }
 
     for (const exit of exits) {
-      for (const pos of exit.getInRange(2)) {
+      for (const pos of exit.getInRange(1)) {
         costs.set(pos.x, pos.y, 0)
       }
     }

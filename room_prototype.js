@@ -1,4 +1,5 @@
-const RAMPART_HIT_THRESHOLD = 5000000
+const { config } = require("./config")
+
 const MAX_WORK = 80
 const COST_FOR_HUB_CENTER = 30
 const COST_FOR_UPGRADE_SPOT = 10
@@ -154,6 +155,11 @@ Object.defineProperties(Room.prototype, {
             }
 
             const costs = new PathFinder.CostMatrix
+
+            for (const exit of this.find(FIND_EXIT)) {
+                costs.set(exit.x, exit.y, 20)
+            }
+
             for (const structure of this.structures[STRUCTURE_ROAD]) {
                 costs.set(structure.pos.x, structure.pos.y, 1)
             }
@@ -327,21 +333,21 @@ Room.prototype.getMaxWork = function () {
         // if constructing, maxWork = energyLevel * 5
         if (this.constructionSites.length > 0) {
             this.heap.upgrading = false
-            return this.energyLevel >= 50 ? 10 : 0
+            return this.energyLevel >= config.energyLevel.CONSTRUCT ? 10 : 0
         }
 
-        this.heap.upgrading = this.energyLevel >= 130
+        this.heap.upgrading = this.energyLevel >= config.energyLevel.UPGRADE
 
         return this.heap.upgrading ? 15 : 0
     }
 
-    if (this.energyLevel < 100) {
+    if (this.energyLevel < config.energyLevel.UPGRADE) {
         return 5
     }
 
     const upperLimit = this.getUpgradeUpperLimit()
 
-    const extra = Math.max(0, Math.floor((this.energyLevel - 100) / 20))
+    const extra = Math.max(0, Math.floor((this.energyLevel - config.energyLevel.UPGRADE) / 20))
 
     return Math.min(upperLimit, numWorkEach * (1 + extra))
 }

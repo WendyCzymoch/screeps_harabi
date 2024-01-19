@@ -19,7 +19,7 @@ Overlord.manageGuardTasks = function () {
     }
 }
 
-const GuardRequest = function (room, targetRoomName, enemyInfo) {
+const GuardRequest = function (room, targetRoomName, enemyInfo, options = {}) {
     this.category = 'guard'
     this.id = targetRoomName
     this.time = Game.time
@@ -28,17 +28,23 @@ const GuardRequest = function (room, targetRoomName, enemyInfo) {
     this.roomName = targetRoomName
     this.roomNameInCharge = room.name
 
-    this.enemyInfo = enemyInfo
+    this.enemyStrength = enemyInfo.strength
+    this.moveFirst = (enemyInfo.attack === enemyInfo.rangedAttack)
+
+    if (options.ignoreSourceKeepers) {
+        this.ignoreSourceKeepers = true
+    }
 }
 
 Room.prototype.guardRoom = function (request) {
     const roomName = request.roomName
-    const guards = this.getGuards(roomName)
+
+    const guardGroups = this.getGaurdGroups(roomName)
 
     if (this.memory.militaryThreat) {
         request.completed = true
         request.result = 'threat'
-        for (const guard of guards) {
+        for (const guard of guardGroups.total) {
             guard.memory.targetRoomName = undefined
         }
         return
@@ -47,7 +53,7 @@ Room.prototype.guardRoom = function (request) {
     if (Game.time > request.time + 1000) {
         request.result = 'expire'
         request.completed = true
-        for (const guard of guards) {
+        for (const guard of guardGroups.total) {
             guard.memory.targetRoomName = undefined
         }
         return
@@ -55,30 +61,33 @@ Room.prototype.guardRoom = function (request) {
 
     const targetRoom = Game.rooms[roomName]
 
-    request.numGuards = guards.length
+    request.numGuards = guardGroups.total.length
 
     if (targetRoom) {
-        const hostileCreeps = targetRoom.findHostileCreeps()
+        let hostileCreeps = targetRoom.findHostileCreeps()
+        if (request.ignoreSourceKeepers) {
+            hostileCreeps = hostileCreeps.filter(creep => creep.owner.username !== 'Source Keeper')
+        }
         const enemyInfo = getCombatInfo(hostileCreeps)
-        request.enemyInfo = enemyInfo
+        request.time = Game.time
+        request.enemyStrength = enemyInfo.strength
         request.isEnemy = hostileCreeps.length > 0
-    } else if (request.enemyInfo && (Game.time > (request.enemyInfo.time || 0) + 100)) {
-        request.enemyInfo = new CombatInfo()
+        request.moveFirst = (enemyInfo.attack === enemyInfo.rangedAttack)
+    } else if (request.enemyStrength > 0 && (Game.time > request.time + 100)) {
+        request.enemyStrength = 0
     }
-
-    const enemyInfo = request.enemyInfo
 
     if (!request.cleared && request.isEnemy === false) {
         request.cleared = true
         request.clearedTick = Game.time
-    } else if (request.cleared && request.isEnemy) {
+    } else if (request.cleared && request.isEnemy === true) {
         request.cleared = false
     }
 
     if (request.cleared && (Game.time > request.clearedTick + 10)) {
         request.result = 'cleared'
         request.completed = true
-        for (const guard of guards) {
+        for (const guard of guardGroups.total) {
             guard.memory.targetRoomName = undefined
         }
         return
@@ -86,15 +95,15 @@ Room.prototype.guardRoom = function (request) {
 
     if (request.cleared) {
         request.status = 'cleared'
-        doCleanUp(guards)
+        doCleanUp(guardGroups.active)
         return
     }
 
-    request.gathered = this.gatherGuards(roomName, enemyInfo)
+    request.gathered = this.gatherGuards(roomName, request.enemyStrength, request.moveFirst)
 
     if (request.gathered && request.rallied) {
         request.status = 'combat'
-        doCombat(guards, roomName)
+        doCombat(guardGroups.active, roomName)
         return
     } else {
         request.rallied = false
@@ -102,7 +111,7 @@ Room.prototype.guardRoom = function (request) {
 
     request.status = 'gather'
 
-    request.rallied = this.rallyGuards(guards)
+    request.rallied = this.rallyGuards(guardGroups.active)
 
 
 }
@@ -144,52 +153,78 @@ Room.prototype.rallyGuards = function (guards) {
             result = false
             continue
         }
-        guard.activeHeal()
-        if (guard.room.name !== this.name || isEdgeCoord(guard.pos.x, guard.pos.y)) {
-            guard.moveToRoom(this.name, 2)
-            result = false
-            continue
-        }
         if (guard.pos.getRangeTo(captain) > 2) {
             guard.setWorkingInfo(captain.pos, 2)
             guard.moveMy({ pos: captain.pos, range: 1 })
             result = false
+            continue
         }
+        guard.activeHeal()
+        guard.harasserRangedAttack()
+        if (guard.room.name !== this.name || isEdgeCoord(guard.pos.x, guard.pos.y)) {
+            guard.moveToRoom(this.name, 2)
+            continue
+        }
+
     }
     return result
 }
 
-Room.prototype.getGuards = function (roomName) {
+Room.prototype.getGaurdGroups = function (roomName) {
     const guards = Overlord.getCreepsByRole(this.name, 'guard')
-    return guards.filter(creep => creep.memory.targetRoomName === roomName)
+    const total = []
+    const spawning = []
+    const active = []
+    for (const guard of guards) {
+
+        if (guard.memory.targetRoomName !== roomName) {
+            continue
+        }
+
+        total.push(guard)
+
+        if (guard.spawning) {
+            spawning.push(guard)
+            continue
+        }
+
+        active.push(guard)
+    }
+    return { active, spawning, total }
 }
 
 Room.prototype.getEnemyInfo = function () {
-    if (this.enemyInfo) {
-        return this.enemyInfo
+    if (this._enemyInfo) {
+        return this._enemyInfo
     }
     const hostileCreeps = this.findHostileCreeps()
-    return this.enemyInfo = getCombatInfo(hostileCreeps)
+    return this._enemyInfo = getCombatInfo(hostileCreeps)
 }
 
-Room.prototype.gatherGuards = function (roomName, enemyInfo) {
-    const gaurdsGathered = this.getGuards(roomName)
-    if (gaurdsGathered.some(creep => creep.spawning)) {
-        return false
+Room.prototype.gatherGuards = function (roomName, enemyStrength, moveFirst) {
+    const guardGroups = this.getGaurdGroups(roomName)
+
+    const activeCombatInfo = getCombatInfo(guardGroups.active)
+
+    if (activeCombatInfo.strength > enemyStrength * 1.2) {
+        return true
     }
 
-    const combatInfo = getCombatInfo(gaurdsGathered)
+    const combatInfo = getCombatInfo(guardGroups.total)
 
-    while (enemyInfo && !combatInfo.canWinWithKiting(enemyInfo)) {
-        const moveFirst = enemyInfo.attack === enemyInfo.rangedAttack
-        const idlingGuard = this.getIdlingGuards()[0]
+    const idlingGuards = [...this.getIdlingGuards()]
+    while (combatInfo.strength <= enemyStrength * 1.2) {
+        const idlingGuard = idlingGuards.pop()
         if (idlingGuard) {
-            gaurdsGathered.push(idlingGuard)
             idlingGuard.memory.targetRoomName = roomName
             combatInfo.add(idlingGuard.getCombatInfo())
             continue
         }
         this.requestGuard(roomName, moveFirst)
+        return false
+    }
+
+    if (guardGroups.spawning.length > 0) {
         return false
     }
 
@@ -262,6 +297,7 @@ Creep.prototype.getCombatInfo = function () {
     return new CombatInfo(attack, rangedAttack, heal, hits)
 }
 
+// strength considers melee as 10 / rangedAttack as 10 / heal as 12
 class CombatInfo {
     constructor(attack, rangedAttack, heal, hits) {
         this.time = Game.time
@@ -269,7 +305,7 @@ class CombatInfo {
         this.rangedAttack = rangedAttack || 0
         this.heal = heal || 0
         this.hits = hits || 0
-        this.strength = attack + heal
+        this.strength = (attack / 3) + (rangedAttack * 2 / 3) + heal
     }
 
     canWinWithKiting(combatInfo) {
@@ -285,6 +321,7 @@ class CombatInfo {
         this.rangedAttack += combatInfo.rangedAttack
         this.heal += combatInfo.heal
         this.hits += combatInfo.hits
+        this.strength += combatInfo.strength
     }
 }
 

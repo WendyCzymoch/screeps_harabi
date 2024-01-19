@@ -1,7 +1,7 @@
 const DT_VISUAL = false
-const REGION_VISUAL = true
+const REGION_VISUAL = false
 const MINCUT_COSTS_VISUAL = false
-const MINCUT_VISUAL = false
+const MINCUT_VISUAL = true
 const COSTS_VISUAL = false
 const CANDIDATE_VISUAL = false
 const BASE_PLAN_VISUAL = true
@@ -11,8 +11,6 @@ const FAST_OPTIMIZE = true
 const REGION_SIZE_MIN = 1
 const REGION_SIZE_MAX = 10
 const REGION_NUM_MAX = 15
-
-const DOUBLE_LAYER = false
 
 const REPAIR_POS_RANGE = 4
 const NUM_INSIDE = 140
@@ -148,7 +146,7 @@ Room.prototype.optimizeBasePlan = function () {
 }
 
 Room.prototype.getBasePlanBySpawn = function () {
-  const spawn = this.structures.spawn[0]
+  const spawn = getMinObject(this.structures.spawn, spawn => spawn.pos.x)
   if (!spawn) {
     return ERR_INVALID_TARGET
   }
@@ -712,11 +710,8 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   //mincut
   const outsides = mincut.outsides
 
-  const secondLayer = mincut.secondLayer
-
   const cuts = mincut.cuts
 
-  const insides = mincut.insides
   // fill First anchor
 
   const firstSpawnPos = new RoomPosition(firstAnchor.pos.x, firstAnchor.pos.y - 1, this.name)
@@ -843,8 +838,8 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   ]
 
   let floodFillResults = []
-  const CENTER_SUM = mod(firstAnchor.pos.x + firstAnchor.pos.y + 1, 4)
-  const CENTER_DIFF = mod(firstAnchor.pos.x - firstAnchor.pos.y - 1, 4)
+  const CENTER_SUM = mod(firstAnchor.pos.x + firstAnchor.pos.y - 1, 4)
+  const CENTER_DIFF = mod(firstAnchor.pos.x - firstAnchor.pos.y + 1, 4)
   const ROAD_SUM = mod(CENTER_SUM + 2, 4)
   const ROAD_DIFF = mod(CENTER_DIFF + 2, 4)
 
@@ -957,7 +952,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
       const y = firstSourceLab.y + vector.y
       if (isValidCoord(x, y)) {
         const pos = new RoomPosition(x, y, this.name)
-        if (pos.constructible) {
+        if (!pos.isWall) {
           secondSourceLabCandidates.push(new RoomPosition(x, y, this.name))
         }
       }
@@ -1125,11 +1120,10 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
     }
 
     structures.rampart.push(pos)
-    if (DOUBLE_LAYER === false) {
-      basePlan[`lv${RAMPART_BUILD_LEVEL}`].push(pos.packStructurePlan('road'))
-      costs.set(pos.x, pos.y, ROAD_COST)
-      costsForRoad.set(pos.x, pos.y, ROAD_COST)
-    }
+
+    basePlan[`lv${RAMPART_BUILD_LEVEL}`].push(pos.packStructurePlan('road'))
+    costs.set(pos.x, pos.y, ROAD_COST)
+    costsForRoad.set(pos.x, pos.y, ROAD_COST)
 
     checkRampart.set(pos.x, pos.y, 1)
     costsForGroupingRampart.set(pos.x, pos.y, 2)
@@ -1226,33 +1220,6 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
         costsForRampartRoad.set(pathPos.x, pathPos.y, ROAD_COST)
       }
 
-    }
-  }
-
-  if (DOUBLE_LAYER) {
-    for (const pos of secondLayer) {
-
-      if (checkRampart.get(pos.x, pos.y) > 0) {
-        continue
-      }
-
-      structures.rampart.push(pos)
-      checkRampart.set(pos.x, pos.y, 1)
-    }
-
-    for (const pos of secondLayer) {
-      if (costs.get(pos.x, pos.y) === ROAD_COST) {
-        continue
-      }
-
-      for (const vector of CROSS) {
-        if (checkRampart.get(pos.x + vector.x, pos.y + vector.y) === 0) {
-          basePlan[`lv${RAMPART_BUILD_LEVEL}`].push(pos.packStructurePlan('road'))
-          costs.set(pos.x, pos.y, ROAD_COST)
-          costsForRoad.set(pos.x, pos.y, ROAD_COST)
-          break
-        }
-      }
     }
   }
 
@@ -1407,7 +1374,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
     }
   }
 
-  const numRamparts = Math.floor(structures.rampart.length / (DOUBLE_LAYER ? 2 : 1))
+  const numRamparts = structures.rampart.length
   const rampartEfficiency = Math.max(0, Math.min(1, (RAMPART_NUM_MAX - numRamparts) / (RAMPART_NUM_MAX - RAMPART_NUM_MIN)))
   // rampart가 최대 RAMPART_NUM_MAX개쯤 있다고 생각하고 계산한 비율. 높으면 좋음
   // rampart 최소는 RAMPART_NUM_MIN개라고 생각
@@ -1575,4 +1542,235 @@ Room.prototype.unpackStructurePlan = function (packed) {
 
 function mod(m, n) {
   return ((m % n) + n) % n
+}
+
+Room.prototype.getBasePlanByChunk = function () {
+  const costs = new PathFinder.CostMatrix
+  const terrain = this.getTerrain()
+
+  for (let x = 0; x < 50; x++) {
+    for (let y = 0; y < 50; y++) {
+      if (terrain.get(x, y) === TERRAIN_MASK_WALL) {
+        costs.set(x, y, WALL_COST)
+      } else {
+        costs.set(x, y, 1)
+      }
+    }
+  }
+
+  for (const exitPos of this.find(FIND_EXIT)) {
+    for (const pos of exitPos.getInRange(1)) {
+      if (costs.get(pos.x, pos.y) === WALL_COST) {
+        continue
+      }
+      costs.set(pos.x, pos.y, EXIT_COST)
+    }
+  }
+
+  const mincut = this.getMincutByChunk()
+
+  if (COSTS_VISUAL) {
+    for (let x = 0; x < 50; x++) {
+      for (let y = 0; y < 50; y++) {
+        this.visual.text(mincut.costsForBasePlan.get(x, y), x, y, { font: 0.5 })
+      }
+    }
+  }
+
+  const insidesDT = this.getDistanceTransform(false, mincut.insides)
+  const positionsByLevel = insidesDT.positions
+  const levels = Object.keys(positionsByLevel).sort((a, b) => b - a)
+
+  let candidates = []
+  for (const level of levels) {
+    if (level < 3) {
+      break
+    }
+    candidates.push(...positionsByLevel[level])
+  }
+
+  candidates = _.shuffle(candidates).slice(0, 10)
+
+  const bestPos = getMinObject(candidates, (pos) => {
+    return Math.max(...mincut.cuts.map(cutPos => cutPos.getRangeTo(pos)))
+  })
+
+  const result = this.getBasePlanAfterMincut(bestPos, mincut.costsForBasePlan, mincut, costs)
+
+  this.memory.basePlan = result.basePlan
+  this.heap.basePlan = this.unpackBasePlan(result.basePlan)
+
+  this.visualizeBasePlan()
+}
+
+Room.prototype.getMincutByChunk = function () {
+  const bestChunk = this.getBestChunk()
+  const chunkInsides = bestChunk.insides
+  const cuts = bestChunk.cuts
+
+  const insides = []
+  const outsides = []
+
+  const costsForBasePlan = new PathFinder.CostMatrix
+  const terrain = this.getTerrain()
+
+  for (let x = 0; x < 50; x++) {
+    for (let y = 0; y < 50; y++) {
+      if (terrain.get(x, y) === TERRAIN_MASK_WALL) {
+        costsForBasePlan.set(x, y, WALL_COST)
+        continue
+      }
+      costsForBasePlan.set(x, y, OUTSIDE_COST)
+    }
+  }
+
+  for (const pos of cuts) {
+    costsForBasePlan.set(pos.x, pos.y, CUT_COST)
+  }
+
+  for (const pos of chunkInsides) {
+    costsForBasePlan.set(pos.x, pos.y, INSIDE_COST)
+  }
+
+  for (let x = 0; x < 50; x++) {
+    for (let y = 0; y < 50; y++) {
+      if (costsForBasePlan.get(x, y) === OUTSIDE_COST) {
+        outsides.push(new RoomPosition(x, y, this.name))
+      }
+    }
+  }
+
+  for (const cut of cuts) {
+    for (const near of cut.getInRange(REPAIR_POS_RANGE)) {
+      const cost = costsForBasePlan.get(near.x, near.y)
+      if (cost >= DANGER_POS_COST) {
+        continue
+      }
+
+      const range = near.getRangeTo(cut)
+
+      if (range <= 2) {
+        costsForBasePlan.set(near.x, near.y, DANGER_POS_COST)
+        continue
+      }
+
+      costsForBasePlan.set(near.x, near.y, REPAIR_POS_COST)
+    }
+  }
+
+  for (const pos of chunkInsides) {
+    if ([REPAIR_POS_COST, DANGER_POS_COST].includes(costsForBasePlan.get(pos.x, pos.y))) {
+      continue
+    }
+    for (const near of pos.getAtRange(2)) {
+      if (costsForBasePlan.get(near.x, near.y) === OUTSIDE_COST) {
+        costsForBasePlan.set(pos.x, pos.y, WALL_COST)
+        continue
+      }
+    }
+    for (const near of pos.getAtRange(3)) {
+      if (costsForBasePlan.get(near.x, near.y) === OUTSIDE_COST) {
+        costsForBasePlan.set(pos.x, pos.y, WALL_COST)
+        continue
+      }
+    }
+    insides.push(pos)
+  }
+
+  if (MINCUT_VISUAL) {
+    for (const pos of cuts) {
+      this.visual.rect(pos.x - 0.5, pos.y - 0.5, 1, 1, { fill: COLOR_NEON_YELLOW })
+    }
+
+    for (const pos of outsides) {
+      this.visual.rect(pos.x - 0.5, pos.y - 0.5, 1, 1, { fill: COLOR_NEON_RED })
+    }
+
+    for (const pos of insides) {
+      this.visual.rect(pos.x - 0.5, pos.y - 0.5, 1, 1, { fill: COLOR_NEON_GREEN })
+    }
+  }
+
+
+  return { cuts, outsides, insides, costsForBasePlan }
+}
+
+Room.prototype.getBestChunk = function () {
+  const chunks = this.getChunks()
+  const chunkPositions = chunks.positions
+  const watershed = chunks.watershed
+  const labelCosts = chunks.costs
+
+  const labels = Object.keys(chunkPositions).map(key => Number(key))
+
+  while (chunkPositions[i]) {
+    console.log(chunkPositions[i])
+    labels.push(i)
+    i++
+  }
+
+  console.log(labels)
+
+  const scores = {}
+  for (const key of labels) {
+    const positions = chunkPositions[key]
+    scores[key] = 0
+    if (positions.length < NUM_INSIDE) {
+      scores[key] -= 2
+    }
+  }
+
+  const controllerLabels = new Set()
+  for (const pos of this.controller.pos.getAtRange(1)) {
+    const label = labelCosts.get(pos.x, pos.y)
+    if (label <= 1) {
+      continue
+    }
+    if (label === 255) {
+      continue
+    }
+    controllerLabels.add(label)
+  }
+
+  for (const label of controllerLabels) {
+    scores[label] += 0.75
+  }
+
+  for (const source of this.sources) {
+    const sourceLabels = new Set()
+    for (const pos of source.pos.getAtRange(1)) {
+      const label = labelCosts.get(pos.x, pos.y)
+      if (label <= 1) {
+        continue
+      }
+      if (label === 255) {
+        continue
+      }
+      sourceLabels.add(label)
+    }
+
+    for (const label of sourceLabels) {
+      scores[label] += 0.5
+    }
+  }
+
+  const bestLabel = getMaxObject(labels, label => {
+    if (label === 1) {
+      return -Infinity
+    }
+    return scores[label]
+  })
+  const bestRegion = chunkPositions[bestLabel]
+
+  const cuts = watershed.filter(pos => {
+    for (const adjacent of pos.getAtRange(1)) {
+      const label = labelCosts.get(adjacent.x, adjacent.y)
+      if (label === bestLabel) {
+        return true
+      }
+    }
+    return false
+  })
+
+  return { insides: bestRegion, cuts: cuts }
 }

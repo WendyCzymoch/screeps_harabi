@@ -1,17 +1,22 @@
+const { config } = require("./config")
+
 const TEST = false
 
-const IGNORE_DAMAGE_WHEN_PATHING = true
-const QUAD_COST_VISUAL = false
-const BULLDOZE_COST_VISUAL = false
+const IGNORE_DAMAGE_WHEN_PATHING = config.quad.IGNORE_DAMAGE_WHEN_PATHING
 
-const IMPORTANT_STRUCTURE_TYPES = ['spawn', 'tower']
+const QUAD_COST_VISUAL = config.quad.QUAD_COST_VISUAL
+
+const BULLDOZE_COST_VISUAL = config.quad.BULLDOZE_COST_VISUAL
+
+const IMPORTANT_STRUCTURE_TYPES = config.quad.IMPORTANT_STRUCTURE_TYPES
+
+const HEAL_BUFFER = config.quad.HEAL_BUFFER
 
 const ENEMY_OBSTACLE_OBJECT_TYPES = [...OBSTACLE_OBJECT_TYPES, 'rampart']
 
 const EDGE_COST = 50
 const HALF_EDGE_COST = 10
 
-const HEAL_BUFFER = 100
 
 QUAD_BLINKY_BODY = {
   70: parseBody('11r22m11h'),
@@ -970,7 +975,7 @@ Quad.prototype.getBulldozeQuadCostArray = function () {
       for (const pos of creep.pos.getInRange(1)) {
         const packed = packCoord(pos.x, pos.y)
         if (result[packed] > 0) {
-          result[packed] += 200
+          result[packed] = 0
         }
       }
     }
@@ -1430,27 +1435,6 @@ Quad.prototype.moveInFormation = function (goals) {
       return
     }
   }
-
-  if (this.pos.x === 49) {
-    this.move(RIGHT)
-    return
-  }
-
-  if (this.pos.x === 0) {
-    this.move(LEFT)
-    return
-  }
-
-  if (this.pos.y === 0) {
-    this.move(TOP)
-    return
-  }
-
-  if (this.pos.y === 49) {
-    this.move(BOTTOM)
-    return
-  }
-
 }
 
 Quad.prototype.indivisualMove = function (goals) {

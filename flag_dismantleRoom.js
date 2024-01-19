@@ -65,7 +65,7 @@ Flag.prototype.dismantleRoom = function () {
 
                 // inaccessible로 기록된 방은 쓰지말자
                 const intel = Overlord.getIntel(roomName)
-                if (intel.inaccessible && intel.inaccessible > Game.time) {
+                if (intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
                     return 25
                 }
 

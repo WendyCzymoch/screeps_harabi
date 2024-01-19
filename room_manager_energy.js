@@ -4,6 +4,7 @@ const TERMINAL_ENERGY_BUFFER = 3000
 
 const CONTROLLER_LINK_ENERGY_THRESHOLD = 100
 
+const { config } = require('./config')
 let MinHeap = require('./util_min_heap')
 
 const ENERGY_PRIORITY = {
@@ -31,7 +32,7 @@ Room.prototype.manageEnergy = function () {
     let fetchers = []
     const haulers = this.creeps.hauler.concat(this.creeps.manager)
     const researcher = this.creeps.researcher[0]
-    const colonyHaulers = this.getSupplyingColonyHaulers()
+    const colonyHaulers = this.getSupplyingRemoteHaulers()
 
     if (researcher && researcher.beHauler === true) {
         haulers.push(researcher)
@@ -311,6 +312,7 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
     const storage = this.storage
     const factory = this.structures.factory[0]
     const nuker = this.structures.nuker[0]
+    const terminal = this.terminal
 
     const requests = new Map()
 
@@ -321,7 +323,7 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
             }
         }
 
-        if (!this.getHubCenterPos()) {
+        if (!this.getHubCenterPos() || this.creeps.distributor.length === 0) {
             for (const client of this.structures.spawn) {
                 if (client.store.getFreeCapacity(RESOURCE_ENERGY)) {
                     requests.set(client.id, new Request(client))
@@ -344,6 +346,8 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
 
     if (storage && storage.store.getFreeCapacity(RESOURCE_ENERGY)) {
         requests.set(storage.id, new Request(storage))
+    } else if (terminal && terminal.store.getFreeCapacity(RESOURCE_ENERGY)) {
+        requests.set(terminal.id, new Request(terminal))
     }
 
     if (factory && factory.store.getFreeCapacity(RESOURCE_ENERGY) && factory.store.getUsedCapacity(RESOURCE_ENERGY) < 2000) {
@@ -374,9 +378,9 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
     }
 
     if (nuker) {
-        if (!this.memory.fillNuker && this.energyLevel >= 160) {
+        if (!this.memory.fillNuker && this.energyLevel >= config.energyLevel.FILL_NUKER) {
             this.memory.fillNuker = true
-        } else if (this.memory.fillNuker && this.energyLevel < 150) {
+        } else if (this.memory.fillNuker && this.energyLevel < (config.energyLevel.FILL_NUKER - 10)) {
             this.memory.fillNuker = false
         }
 
@@ -621,10 +625,10 @@ Room.prototype.manageEnergyFetch = function (arrayOfCreeps) {
     }
 }
 
-Room.prototype.getSupplyingColonyHaulers = function () {
+Room.prototype.getSupplyingRemoteHaulers = function () {
     const creeps = this.find(FIND_MY_CREEPS)
     const supplyingColonyHaulers = creeps.filter(creep => {
-        return creep.memory.role === 'colonyHauler' && creep.memory.supplying
+        return ['colonyHauler', 'remoteHauler'].includes(creep.memory.role) && creep.memory.supplying
     })
 
     return supplyingColonyHaulers

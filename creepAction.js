@@ -423,7 +423,7 @@ function colonyHauler(creep) {
             return
         }
 
-        const closeBrokenThings = creep.pos.findInRange(creep.room.structures.damaged, 3).filter(structure => structure.structureType === STRUCTURE_ROAD)
+        const closeBrokenThings = creep.pos.findInRange(creep.room.structures.damaged, 1).filter(structure => structure.structureType === STRUCTURE_ROAD)
         if (closeBrokenThings.length) {
             creep.repair(closeBrokenThings[0])
         }
@@ -565,7 +565,7 @@ function colonyDefender(creep) {
     }
 
     const intel = Overlord.getIntel(creep.room.name)
-    const isEnemyRemote = (intel.reservationOwner && !intel.isAllyRemote && !Overlord.remotes.includes(creep.room.name))
+    const isEnemyRemote = (intel[scoutKeys.reservationOwner] && !intel[scoutKeys.isAllyRemote] && !Overlord.remotes.includes(creep.room.name))
 
     const structuresToWreck = isEnemyRemote
         ? creep.room.find(FIND_STRUCTURES)

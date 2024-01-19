@@ -1,9 +1,8 @@
-const IGNORE_TOWER_DAMAGE = true
-const IGNORE_DAMAGE = true
+const { config } = require("./config")
 
-const VISUALIZE = true
+const IGNORE_TOWER_DAMAGE = config.duo.IGNORE_TOWER_DAMAGE
+const IMPORTANT_STRUCTURE_TYPES = config.duo.IMPORTANT_STRUCTURE_TYPES
 
-const IMPORTANT_STRUCTURE_TYPES = ['spawn', 'tower']
 const EDGE_COST = 20
 
 Creep.prototype.attackRoom = function (request) {

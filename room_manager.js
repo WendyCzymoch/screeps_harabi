@@ -1,9 +1,10 @@
+const { config } = require("./config")
+
 global.SPAWN_CAPACITY_THRESHOLD = 0.9
 const SHOW_RCL_HISTORY = false
 
 Room.prototype.runRoomManager = function () {
     this.updateIntel()
-
     if (!this.isMy) {
         this.checkTombstone()
         return
@@ -33,14 +34,21 @@ Room.prototype.runRoomManager = function () {
     // 여기서부터는 전시에는 안함
     this.heap.powerProcessing = false
     if (!this.memory.militaryThreat) {
+
         this.manageExtractor()
-        this.manageRemotes()
         this.manageFactory()
-        this.managePowerSpawn()
-        this.manageScout()
+
+        this.manageRemotes()
         this.manageClaim()
-        this.fillNuker()
+        this.manageSourceKeeperMining()
+
+        this.manageScout()
         this.defenseNuke()
+
+
+        this.fillNuker()
+        this.managePowerSpawn()
+
     }
 
     this.manageEnergy()
@@ -132,9 +140,9 @@ Room.prototype.checkTombstone = function () {
 
         // 일단 죽은 건 맞으니 inaccessible 붙이자
         const TTL = attacker ? attacker.ticksToLive : 0
-        intel.inaccessible = intel.inaccessible || Game.time
-        intel.inaccessible = Math.max(intel.inaccessible, Game.time + TTL)
-        intel.lastScout = Game.time
+        intel[scoutKeys.inaccessible] = intel[scoutKeys.inaccessible] || Game.time
+        intel[scoutKeys.inaccessible] = Math.max(intel[scoutKeys.inaccessible], Game.time + TTL)
+        intel[scoutKeys.lastScout] = Game.time
 
         if (!deadDefendersId.includes(targetId)) {
             // defender가 아닐 경우 여기서 넘기자.
@@ -144,8 +152,8 @@ Room.prototype.checkTombstone = function () {
         // 여기서부터는 defender 가 죽은거임.
 
         // 다시 와도 되는 시간 설정
-        intel.threat = intel.threat || Game.time
-        intel.threat = Math.max(intel.threat, Game.time + TTL)
+        intel[scoutKeys.threat] = intel[scoutKeys.threat] || Game.time
+        intel[scoutKeys.threat] = Math.max(intel[scoutKeys.threat], Game.time + TTL)
 
         if (username !== 'Invader' && Overlord.remotes.includes(this.name)) {
             if (!deadCreep) {
@@ -168,7 +176,6 @@ Room.prototype.checkTombstone = function () {
                 continue
             }
             const cost = deadCreep.getCost()
-            data.recordLog(`${deadCreep.name} killed. add cost ${cost} to the remote ${this.name}`, baseName)
             hostRoom.addRemoteThreatLevel(this.name, cost)
             return
         }
@@ -178,12 +185,6 @@ Room.prototype.checkTombstone = function () {
 Room.prototype.manageSource = function () {
     let sourceUtilizationRate = 0
     for (const source of this.sources) {
-        if (this.memory.militaryThreat) {
-            const container = source.container
-            if (!container || this.defenseCostMatrix.get(container.pos.x, container.pos.y) >= DANGER_TILE_COST) {
-                continue
-            }
-        }
         // RoomVisual
         this.visual.text(`⛏️${source.info.numWork}/6`,
             source.pos.x + 0.5, source.pos.y - 0.25,
@@ -398,9 +399,9 @@ Room.prototype.managePowerSpawn = function () {
     if (!powerSpawn || !this.terminal) {
         return
     }
-    if (!this.memory.operatePowerSpawn && this.energyLevel >= 200) {
+    if (!this.memory.operatePowerSpawn && this.energyLevel >= config.energyLevel.OPERATE_POWER_SPAWN) {
         this.memory.operatePowerSpawn = true
-    } else if (this.memory.operatePowerSpawn && this.energyLevel < 190) {
+    } else if (this.memory.operatePowerSpawn && this.energyLevel < config.energyLevel.OPERATE_POWER_SPAWN - 10) {
         this.memory.operatePowerSpawn = false
     }
 

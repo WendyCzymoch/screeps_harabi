@@ -1,3 +1,4 @@
+const { config } = require("./config")
 const { EFunnelGoalType } = require("./simpleAllies")
 
 Overlord.getBestFunnelRequest = function () {
@@ -84,7 +85,7 @@ function getMyFunnelRequest() {
       }
     }
 
-    if (minRoom.energyLevel < 200) {
+    if (minRoom.energyLevel < config.energyLevel.STOP_FUNNEL) {
       const result = {
         maxAmount: minAmount,
         goalType: EFunnelGoalType.RCL7,
@@ -106,7 +107,7 @@ function getMyFunnelRequest() {
       }
     }
 
-    if (minRoom.energyLevel < 200) {
+    if (minRoom.energyLevel < config.energyLevel.STOP_FUNNEL) {
       const result = {
         maxAmount: minAmount,
         goalType: EFunnelGoalType.RCL8,

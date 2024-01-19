@@ -52,31 +52,6 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
 
     const mainTargetPos = goals[0].pos
 
-    if (staySafe) {
-        const defenseCostMatrix = this.room.defenseCostMatrix
-        const spawn = this.room.structures.spawn[0]
-        if (defenseCostMatrix.get(this.pos.x, this.pos.y) >= DANGER_TILE_COST && spawn) {
-            return this.moveMy({ pos: spawn.pos, range: 1 }, { staySafe: false, ignoreOrder: true })
-        }
-
-        let isValidTarget = false
-        outer:
-        for (const goal of goals) {
-            for (const pos of goal.pos.getInRange(goal.range)) {
-                if (defenseCostMatrix.get(pos.x, pos.y) < DANGER_TILE_COST) {
-                    isValidTarget = true
-                    break outer
-                }
-            }
-        }
-
-        if (!isValidTarget) {
-            this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' })
-            this.say('🚫', true)
-            return ERR_INVALID_TARGET
-        }
-    }
-
     //도착했으면 기억 지우고 return
     if (this.pos.isInGoal(goals)) {
         this.resetPath()

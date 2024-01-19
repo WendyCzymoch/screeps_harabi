@@ -1,3 +1,5 @@
+const { config } = require("./config")
+
 const POWER_BANK_DAMAGE_THRESHOLD = 600
 const POWER_BANK_DAMAGE_THRESHOLD_WITH_BOOSTED = 1920
 const HAULER_CARRY_CAPACITY = 1250
@@ -95,19 +97,14 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
     const numLostColonyDefender = lostCreeps.colonyDefender || 0
 
     if (numLostPowerBankAttacker > 0) {
-      data.recordLog(`POWERBANK: ${this.name} give up ${targetRoomName}. Attacker is killed.`, targetRoomName)
       powerBankRequest.noMoreSpawn = true
     } else if (numLostPowerBankHealer > 0) {
-      data.recordLog(`POWERBANK: ${this.name} give up ${targetRoomName}. Healer is killed.`, targetRoomName)
       powerBankRequest.noMoreSpawn = true
     } else if (numLostColonyDefender > NUM_LOST_DEFENDERS_THRESHOLD) {
-      data.recordLog(`POWERBANK: ${this.name} give up ${targetRoomName}. More than ${NUM_LOST_DEFENDERS_THRESHOLD} Defenders are killed.`, targetRoomName)
       powerBankRequest.noMoreSpawn = true
     } else if (Game.time > powerBankRequest.decayTime) {
-      data.recordLog(`POWERBANK: ${this.name} give up ${targetRoomName}. Could not destroy Power Bank.`, targetRoomName)
       powerBankRequest.noMoreSpawn = true
     } else if (this.memory.militaryThreat) {
-      data.recordLog(`POWERBANK: ${this.name} give up ${targetRoomName}. There is Military Threat.`, targetRoomName)
       powerBankRequest.noMoreSpawn = true
     } else if (powerBankRequest.destroyed) {
       powerBankRequest.noMoreSpawn = true
@@ -116,7 +113,6 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
     const requiredAttackPower = Overlord.getRequiredAttackPowerForPowerBank(powerBankRequest)
     const threshold = powerBankRequest.boost ? POWER_BANK_DAMAGE_THRESHOLD_WITH_BOOSTED : POWER_BANK_DAMAGE_THRESHOLD
     if (requiredAttackPower > threshold) {
-      data.recordLog(`POWERBANK: ${this.name} give up ${targetRoomName}. Too Late.`, targetRoomName)
       powerBankRequest.noMoreSpawn = true
     }
   }
@@ -240,7 +236,7 @@ Overlord.checkPowerBanks = function (targetRoomName) {
     if (room.isReactingToNukes()) {
       return false
     }
-    if (room.energyLevel < 120) {
+    if (room.energyLevel < config.energyLevel.HIGHWAY) {
       return false
     }
     return true
@@ -272,7 +268,6 @@ Overlord.checkPowerBanks = function (targetRoomName) {
       continue
     }
 
-    data.recordLog(`POWERBANK: ${candidateRoom.name} start powerBank mining at ${targetRoomName}`, targetRoomName)
     this.registerTask(powerBankRequest)
   }
 }

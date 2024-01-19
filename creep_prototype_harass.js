@@ -21,13 +21,12 @@ Creep.prototype.getHarassTargetRoomName = function () {
     if (!intel) {
       return Infinity
     }
-    const lastHarassTick = intel.lastHarassTick
+    const lastHarassTick = intel[scoutKeys.lastHarassTick]
     return lastHarassTick || 0
   })
   if (!harassTargetRoomName) {
     return this.memory.harassTargetRoomName = null
   }
-  data.recordLog(`HARASS: ${this.name} starts harass ${harassTargetRoomName} from ${this.room}`, this.room.name)
   return this.memory.harassTargetRoomName = harassTargetRoomName
 }
 
@@ -82,8 +81,9 @@ Creep.prototype.harassRoom = function (roomName) {
 
   if (Overlord.remotes.includes(roomName)) {
     const intel = Overlord.getIntel(roomName)
-    intel.reservationOwner = MY_NAME
+    intel[scoutKeys.reservationOwner] = MY_NAME
     delete this.memory.harassTargetRoomName
+    Overlord.resetHarassTargetRooms()
   }
 
   if (this.room.name !== roomName) {
@@ -94,7 +94,10 @@ Creep.prototype.harassRoom = function (roomName) {
 
   const intel = Overlord.getIntel(roomName)
   if (intel) {
-    intel.lastHarassTick = Game.time
+    if (Game.time > intel[scoutKeys.lastHarassTick] + 10) {
+      data.recordLog(`HARASS: harass ${roomName} starts`, roomName)
+    }
+    intel[scoutKeys.lastHarassTick] = Game.time
   }
 
   const hostileStructure = this.pos.findClosestByPath(structuresToWreck)

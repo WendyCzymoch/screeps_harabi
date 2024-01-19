@@ -42,20 +42,24 @@ Overlord.getHarassTargetRoomNames = function () {
 
   for (const roomName in Memory.rooms) {
     const intel = Overlord.getIntel(roomName)
-    if (!intel.reservationOwner) {
+    if (!intel[scoutKeys.reservationOwner] || intel[scoutKeys.reservationOwner] === 'Invader') {
       continue
     }
-    if (allies.includes(intel.reservationOwner)) {
+    if (allies.includes(intel[scoutKeys.reservationOwner])) {
       continue
     }
     if (Overlord.remotes.includes(roomName)) {
       continue
     }
-    if (Game.time < intel.lastHarassTick + 1000) {
+    if (Game.time < intel[scoutKeys.lastHarassTick] + 1000) {
       continue
     }
     roomNamesFiltered.push(roomName)
   }
 
   return this.heap._harassTargets = roomNamesFiltered
+}
+
+Overlord.resetHarassTargetRooms = function () {
+  delete this.heap._harassTargets
 }

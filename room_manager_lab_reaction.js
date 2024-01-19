@@ -1,6 +1,8 @@
-global.AMOUNT_TO_ACCUMULATE_BOOSTS = 10000
+const { config } = require("./config")
 
 const AMOUNT_REQUIRED_TO_MAKE_BOOSTS = 1000
+
+const COMPOUND_GOAL = config.compoundGoal
 
 const emoji = {
     produce: '🧪',
@@ -167,14 +169,22 @@ Room.prototype.getLabTarget = function () {
         return this.memory.labTarget
     }
 
-    const targetCompounds = USEFULL_COMPOUNDS.sort((a, b) => this.terminal.store[a] - this.terminal.store[b])
+    function getRatio(resourceType) {
+        const goalAmount = COMPOUND_GOAL[resourceType]
+        const currentAmount = terminal.store[resourceType]
+        return currentAmount / goalAmount
+    }
+
+    const targetCompounds = Object.keys(COMPOUND_GOAL).sort((a, b) => {
+        return getRatio(a) - getRatio(b)
+    })
 
     const checked = {}
     //target 확인
     for (const target of targetCompounds) {
 
         // 충분히 있으면 넘어가자
-        if (terminal.store[target] >= AMOUNT_TO_ACCUMULATE_BOOSTS) {
+        if (terminal.store[target] >= COMPOUND_GOAL[target]) {
             continue
         }
 

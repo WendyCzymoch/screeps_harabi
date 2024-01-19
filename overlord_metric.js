@@ -79,7 +79,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
   let routes = [[startPos.roomName]]
   if (maxRooms > 1) {
     const intel = Overlord.getIntel(targetRoomName)
-    if (ignoreMap === 0 && intel.inaccessible && intel.inaccessible > Game.time) {
+    if (ignoreMap === 0 && intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
       return ERR_NO_PATH
     }
 
@@ -342,16 +342,16 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
 
   const intel = Overlord.getIntel(roomName)
 
-  if (allies.includes(intel.owner)) {
+  if (allies.includes(intel[scoutKeys.owner])) {
     return Overlord.heap.roomCost[roomName] = 1
   }
 
-  const inaccessible = intel.inaccessible
+  const inaccessible = intel[scoutKeys.inaccessible]
   if (ignoreMap < 2 && inaccessible && inaccessible > Game.time) {
     return Overlord.heap.roomCost[roomName] = Infinity
   }
 
-  if (intel.numTower) {
+  if (intel[scoutKeys.numTower]) {
     return Overlord.heap.roomCost[roomName] = Infinity
   }
 
@@ -378,10 +378,10 @@ Overlord.getIntel = function (roomName) {
 
 Overlord.getRoomStatus = function (roomName) {
   const intel = this.getIntel(roomName)
-  if (intel.roomStatus && intel.roomStatusTime && Game.time < intel.roomStatusTime + 10000) {
-    return intel.roomStatus
+  if (intel[scoutKeys.roomStatus] && intel[scoutKeys.roomStatusTime] && Game.time < intel[scoutKeys.roomStatusTime] + 10000) {
+    return intel[scoutKeys.roomStatus]
   }
 
-  intel.roomStatusTime = Game.time
-  return intel.roomStatus = Game.map.getRoomStatus(roomName)
+  intel[scoutKeys.roomStatusTime] = Game.time
+  return intel[scoutKeys.roomStatus] = Game.map.getRoomStatus(roomName)
 }

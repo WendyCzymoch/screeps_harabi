@@ -233,7 +233,7 @@ const rampart = new VisualItem('Rampart', 4, (room) => {
     const value = Math.round(room.structures.minProtectionHits / 10000) / 100
     const content = `${value}M`
 
-    const hue = 120 * value / 100
+    const hue = 120 * value / 50
     const color = `hsl(${hue},100%,60%)`
 
     const option = { color }
@@ -386,16 +386,16 @@ function visualizeTasks() {
             new RoomVisual().text(`${request.currentRoom || request.roomNameInCharge}➔${request.roomName}`, topRightCorner.x + 0.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'left', opacity: OPACITY })
             switch (category) {
                 case 'quad':
-                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, topRightCorner.x + 6.2, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'left', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
                     break
                 case 'duo':
-                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, topRightCorner.x + 6.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'left', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
                     break
                 case 'guard':
-                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${Game.time - request.time})`, topRightCorner.x + 6.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'left', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${Game.time - request.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
                     break
                 case 'siege':
-                    new RoomVisual().text(`(${request.endTime - Game.time})`, topRightCorner.x + 6.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'left', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.endTime - Game.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
                     break
                 default:
             }

@@ -123,6 +123,12 @@ Object.defineProperties(StructureStorage.prototype, {
                 const linkPos = this.room.parsePos(this.room.memory.basePlan.linkPositions.storage)
                 const link = linkPos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === 'link')
                 if (!link) {
+                    const linksNear = this.pos.findInRange(this.room.structures.link, 2)
+                    if (linksNear.length === 1) {
+                        const link = linksNear[0]
+                        this.room.heap.storageLinkId = link.id
+                        return this._link = link
+                    }
                     return undefined
                 }
                 this.room.heap.storageLinkId = link.id

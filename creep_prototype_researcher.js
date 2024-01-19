@@ -27,7 +27,6 @@ Creep.prototype.delivery = function () {
     }
 
     if (Game.time > deliveryRequest.deadline) {
-        data.recordLog(`FAIL: ${this.name} deliver to ${deliveryRequest.to}`, this.room.name)
         delete this.heap.deliveryRequest
         this.say('deadline', true)
         return

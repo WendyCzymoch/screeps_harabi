@@ -1,3 +1,5 @@
+const { config } = require("./config")
+
 const DEPOSIT_DISTANCE_THRESHOLD = 5
 const WORKER_SIZE = 15
 const RETURN_RATIO = 2
@@ -18,7 +20,7 @@ Overlord.manageDepositTasks = function () {
     }
 
     if (depositRequest.completed === true) {
-      data.recordLog(`DEPOSIT: ${roomInCharge.name} completed DEPOSIT mining at ${targetRoomName}. returned ${depositRequest.amountReturned} ${depositRequest.depositType}`, roomInCharge.name)
+      data.recordLog(`DEPOSIT: ${roomInCharge.name} completed DEPOSIT mining at ${targetRoomName}. returned ${depositRequest.amountReturned || 0} ${depositRequest.depositType}`, roomInCharge.name)
       this.deleteTask(depositRequest)
       return
     }
@@ -77,7 +79,7 @@ Overlord.checkDeposits = function (targetRoomName) {
       if (room.isReactingToNukes()) {
         continue
       }
-      if (room.energyLevel < 120) {
+      if (room.energyLevel < config.energyLevel.HIGHWAY) {
         continue
       }
       const depositRequest = new DepositRequest(room, deposit)
@@ -154,13 +156,10 @@ Room.prototype.runDepositWork = function (depositRequest) {
     const numLostColonyDefender = lostCreeps.colonyDefender || 0
 
     if ((numLostColonyDefender + numLostDepositWorker) > NUM_LOST_CREEPS_THRESHOLD) {
-      data.recordLog(`DEPOSIT: ${this.name} give up ${roomName}. More than ${NUM_LOST_CREEPS_THRESHOLD} Creeps are killed.`, roomName)
       depositRequest.noMoreSpawn = true
     } else if (depositRequest.lastCooldown > depositRequest.maxCooldown) {
-      data.recordLog(`DEPOSIT: ${this.name} stop investing ${roomName}. Cooldown is high.`, roomName)
       depositRequest.noMoreSpawn = true
     } else if (this.memory.militaryThreat) {
-      data.recordLog(`DEPOSIT: ${this.name} stop investing ${roomName}. There is Militray Threat.`, roomName)
       depositRequest.noMoreSpawn = true
     }
   }

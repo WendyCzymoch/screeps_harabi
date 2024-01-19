@@ -60,36 +60,37 @@ global.Overlord = {
 }
 
 Overlord.mapInfo = function () {
-  if (Memory.showMapInfo === 0) {
+  if (Memory.showMapInfo === 0 || Game.time % 1000 !==0) {
     return
   }
 
   for (const roomName in Memory.rooms) {
     const intel = Overlord.getIntel(roomName)
 
-    if (intel.lastScout === undefined || (Game.time > intel.lastScout + INTEL_EXPIRATION_TICK)) {
+    if (intel[scoutKeys.lastScout] === undefined || (Game.time > intel[scoutKeys.lastScout] + INTEL_EXPIRATION_TICK)) {
       delete Memory.rooms[roomName]
       continue
     }
 
     const center = new RoomPosition(25, 25, roomName)
 
-    if (intel.isClaimCandidate) {
+    if (intel[scoutKeys.isClaimCandidate]) {
       Game.map.visual.text(`🚩`, new RoomPosition(center.x - 15, center.y, center.roomName), { fontSize: 7, })
-      Game.map.visual.text(`⚡${intel.numSource}/2`, new RoomPosition(center.x + 12, center.y, center.roomName), { fontSize: 7, })
-      Game.map.visual.text(`💎${intel.mineralType}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
+      Game.map.visual.text(`⚡${intel[scoutKeys.numSource]}/2`, new RoomPosition(center.x + 12, center.y, center.roomName), { fontSize: 7, })
+      Game.map.visual.text(`💎${intel[scoutKeys.mineralType]}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
     }
 
-    if (intel.inaccessible && intel.inaccessible > Game.time) {
-      Game.map.visual.text(`🚫${intel.inaccessible - Game.time}`, new RoomPosition(center.x, center.y - 13, center.roomName), { fontSize: 7, color: '#f000ff' })
+    const inaccessible = intel[scoutKeys.inaccessible]
+    if (inaccessible && inaccessible > Game.time) {
+      Game.map.visual.text(`🚫${inaccessible - Game.time}`, new RoomPosition(center.x, center.y - 13, center.roomName), { fontSize: 7, color: '#f000ff' })
     }
 
-    if (intel.reservationOwner) {
-      Game.map.visual.text(`${intel.reservationOwner}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
+    if (intel[scoutKeys.reservationOwner]) {
+      Game.map.visual.text(`${intel[scoutKeys.reservationOwner]}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
     }
 
-    if (intel.owner && !intel.isMy) {
-      Game.map.visual.text(`${intel.owner}`, center, { fontSize: 7, backgroundColor: '#000000', opacity: 1 })
+    if (intel[scoutKeys.owner] && !intel[scoutKeys.isMy]) {
+      Game.map.visual.text(`${intel[scoutKeys.owner]}`, center, { fontSize: 7, backgroundColor: '#000000', opacity: 1 })
 
     }
 

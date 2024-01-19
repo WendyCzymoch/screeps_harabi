@@ -1,3 +1,4 @@
+const { config } = require("./config")
 const { QuadRequest } = require("./overlord_tasks_quad")
 
 const squadTaskNames = [
@@ -5,7 +6,7 @@ const squadTaskNames = [
   'quad'
 ]
 
-global.siege = function (targetRoomName, modelNumber) {
+global.siege = function (targetRoomName, modelNumber, duration) {
   const level = Math.floor(modelNumber / 10) || 7
 
   targetRoomName = targetRoomName.toUpperCase()
@@ -29,6 +30,10 @@ global.siege = function (targetRoomName, modelNumber) {
   const options = {}
 
   options.modelNumber = modelNumber
+
+  if (duration) {
+    options.duration = duration
+  }
 
   const request = new SiegeRequest(base, targetRoomName, options)
 
@@ -82,7 +87,7 @@ Room.prototype.runSiegeTask = function (request) {
     return
   }
 
-  if (this.energyLevel < 30) {
+  if (this.energyLevel < config.energyLevel.STOP_SIEGE) {
     request.result = `${this.name} energyLevel is too low. stop to seige ${targetRoomName}`
     request.complete = true
     return

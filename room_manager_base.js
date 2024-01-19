@@ -1,5 +1,5 @@
 Room.prototype.manageConstruction = function () {
-    if (!this.memory.level || Game.time % 5000 === 0) { // 16000 tick은 대략 하루
+    if (!this.memory.level || Game.time % 5000 === 0) { // 5000 tick은 대략 7~8시간?
         this.memory.level = this.controller.level - 1
     }
 
@@ -21,7 +21,7 @@ Room.prototype.manageConstruction = function () {
         return
     }
 
-    if (Game.time % 20 === 0 && this.constructByBasePlan(this.memory.level + 1)) {
+    if (Math.random() < 0.01 && this.constructByBasePlan(this.memory.level + 1)) {
         this.memory.level++
     }
 }
@@ -37,8 +37,8 @@ Room.prototype.constructByBasePlan = function (level) {
             this.memory.doOptimizeBasePlan = true
             return false
         }
-        console.log('get base plan by spawn')
-        if (!this.getBasePlanBySpawn()) {
+        console.log(`${this.name} get base plan by spawn`)
+        if (this.getBasePlanBySpawn() !== OK) {
             console.log('fail')
             return false
         }
@@ -62,7 +62,7 @@ Room.prototype.constructByBasePlan = function (level) {
     for (let i = 1; i <= level; i++) {
         basePlan[`lv${i}`].sort((a, b) => BUILD_PRIORITY[a.structureType] - BUILD_PRIORITY[b.structureType])
         for (const structure of basePlan[`lv${i}`]) {
-            if (numConstructionSitesThisRoom >= 10) {
+            if (numConstructionSitesThisRoom >= 5) {
                 return false
             }
             if (structure.structureType === 'spawn') {
@@ -92,7 +92,6 @@ Room.prototype.constructByBasePlan = function (level) {
                 newConstructionSites++
                 numConstructionSitesThisRoom++
             }
-            this.visual.structure(structure.pos.x, structure.pos.y, structure.structureType)
         }
     }
 

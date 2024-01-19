@@ -1,8 +1,10 @@
+const { config } = require("./config")
+
 const DEFENSE_TEST = false
 const REQUIRED_DAMAGE_RATIO = 0.1
 const RAMPART_COST = 10
 const VISUALIZE_DANGER_AREA = true
-const RCL_THRESHOLD_TO_SAFEMODE = 5
+const RCL_THRESHOLD_TO_SAFEMODE = config.RCL_THRESHOLD_TO_SAFEMODE
 const RAMPART_HITS_TO_REPAIR_WITH_TOWERS = 5000
 global.DANGER_TILE_COST = 254
 
@@ -35,6 +37,8 @@ Room.prototype.manageDefense = function () {
     const targetPowerCreeps = this.find(FIND_POWER_CREEPS).filter(creep => !creep.my)
 
     const aggressiveTargets = targets.filter(creep => creep.checkBodyParts(INVADER_BODY_PARTS))
+
+    const enemyCombatants = targets.filter(creep => creep.attackPower > 0)
 
     aggressiveTargets.push(...targetPowerCreeps)
 
@@ -76,7 +80,7 @@ Room.prototype.manageDefense = function () {
                 creep.say('🔄', true)
             }
         }
-        const repairingForNuke = this.memory.defenseNuke && ['build', 'repair'].includes(this.memory.defenseNuke.state) && this.energyLevel > 50
+        const repairingForNuke = this.memory.defenseNuke && ['build', 'repair'].includes(this.memory.defenseNuke.state) && this.energyLevel > config.energyLevel.REACT_TO_NUKES
         if (!repairingForNuke) {
             const laborers = this.creeps.laborer
             for (const laborer of laborers) {
@@ -103,16 +107,30 @@ Room.prototype.manageDefense = function () {
                 continue
             }
             if (creep.assignedRoom === this.name) {
-                if (spawn && this.defenseCostMatrix.get(creep.pos.x, creep.pos.y) >= DANGER_TILE_COST) {
-                    creep.heap.backToBase = 3
+                if (creep.memory.role === 'roomDefender') {
+                    continue
                 }
+
+                if (creep.memory.role === 'wallMaker') {
+                    creep.memory.assignedRoom = this.name
+                    creep.memory.role = 'laborer'
+                }
+
                 if (creep.heap.backToBase > 0) {
                     creep.heap.backToBase--
                     creep.moveMy({ pos: spawn.pos, range: 1 }, { staySafe: false })
                 }
-                if (creep.memory.role === 'wallMaker') {
-                    creep.memory.assignedRoom = this.name
-                    creep.memory.role = 'laborer'
+
+                if (!spawn) {
+                    continue
+                }
+
+                if (this.defenseCostMatrix.get(creep.pos.x, creep.pos.y) < DANGER_TILE_COST) {
+                    continue
+                }
+
+                if (enemyCombatants.some(combatant => combatant.pos.getRangeTo(creep.pos) < 7)) {
+                    creep.heap.backToBase = 5
                 }
                 continue
             }

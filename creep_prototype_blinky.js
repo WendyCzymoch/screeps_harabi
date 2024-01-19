@@ -25,7 +25,7 @@ Creep.prototype.handleCombatants = function (targets) {
 
   const captain = myCombatants.find(creep => creep.id !== this.id) || this
 
-  const companions = this.pos.findInRange(myCombatants, 4)
+  const companions = this.pos.findInRange(myCombatants, 10)
 
   // look for closest target
 

@@ -7,7 +7,7 @@ Room.prototype.manageTowerAttack = function (targets) {
   for (const creep of targets) {
     const packed = packCoord(creep.pos.x, creep.pos.y)
     const damage = damageArray[packed]
-    if (creep.getCanBeKilled(damage, creep.totalHealPower)) {
+    if (creep.getCanBeKilled(damage, creep.totalHealPower) || creep.owner.username === "Invader") {
       vulnerable.push(creep)
       continue
     }

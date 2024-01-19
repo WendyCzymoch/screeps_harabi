@@ -1,3 +1,5 @@
+const { config } = require("./config")
+
 global.MY_NAME = (function () {
     const rooms = Object.values(Game.rooms)
     for (const room of rooms) {
@@ -10,7 +12,7 @@ global.MY_NAME = (function () {
     }
 })()
 
-global.SHARD = Game.shard.name
+global.SHARD = config.shard
 
 global.barrierCosts = new PathFinder.CostMatrix
 for (let x = 0; x < 50; x++) {
@@ -59,11 +61,11 @@ global.BUILD_PRIORITY = {
     container: 5,
 
     extractor: 6,
+    rampart: 6,
 
     lab: 7,
-    rampart: 8,
+    observer: 8,
 
-    observer: 9,
     powerSpawn: 9,
     nuker: 9,
     factory: 9,
@@ -96,6 +98,9 @@ global.CREEP_ROELS = [
     'powerBankAttacker',
     'powerBankHealer',
     'guard',
+    'sourceKeeperHandler',
+    'remoteMiner',
+    'remoteMiner',
 ]
 
 global.SELF_DIRECTED_CREEP_ROELS = [
@@ -132,16 +137,7 @@ global.NEAR = [
     { x: -1, y: -1 },
 ]
 
-global.ECONOMY_STANDARD = {
-    1: 10000,
-    2: 10000,
-    3: 10000,
-    4: 20000,
-    5: 40000,
-    6: 80000,
-    7: 160000,
-    8: 320000,
-}
+global.ECONOMY_STANDARD = config.economyStandard
 
 global.BASIC_MINERALS = ['H', 'O', 'Z', 'K', 'U', 'L', 'X']
 
@@ -257,44 +253,6 @@ global.BOOSTS_EFFECT = {
     XZHO2: { type: MOVE },
     XGH2O: { type: WORK },
     XGHO2: { type: TOUGH },
-}
-
-global.USEFULL_COMPOUNDS = [
-    // for defense, ant
-    'XUH2O',
-    'UH2O',
-    'UH',
-
-    // for blinky quad
-    'XKHO2',
-    'XLHO2',
-    'XZHO2',
-    'XGHO2',
-
-    'KHO2',
-    'LHO2',
-    'ZHO2',
-
-    'KO',
-    'LO',
-    'ZO',
-
-    // for worm
-    'ZH',
-    'ZH2O',
-    'XZH2O',
-]
-
-if (SHARD !== 'swc') {
-    USEFULL_COMPOUNDS.push(
-        // for defense (reparing)
-        'XLH2O',
-
-        // for upgrade
-        'XGH2O',
-
-        // for nuke
-        'G')
 }
 
 global.CONTROLLER_PROGRESS_TO_LEVELS = {

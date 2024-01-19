@@ -100,11 +100,15 @@ Flag.prototype.manageReconstruction = function () {
             }
 
             if (structureRemain.filter(structure => structure.structureType === 'tower').length === 0) {
-                this.memory.lastTowerId = thisRoom.structures.tower[0].id
+                if (thisRoom.structures.tower.length > 0) {
+                    this.memory.lastTowerId = thisRoom.structures.tower[0].id
+                }
             }
 
             if (structureRemain.filter(structure => structure.structureType === 'storage').length === 0) {
-                this.memory.storageId = thisRoom.storage.id
+                if (thisRoom.structures.storage.length > 0) {
+                    this.memory.storageId = thisRoom.storage.id
+                }
             }
 
             const structureIdsToKeep = [this.memory.lastSpawnId, this.memory.lastTowerId, this.memory.storageId]
@@ -127,21 +131,12 @@ Flag.prototype.manageReconstruction = function () {
             if (!this.memory.lastSpawnId && !this.memory.storageId && !this.memory.lastTowerId) {
                 return this.memory.stage++
             }
-            const defenders = Overlord.getCreepsByRole(this.room.name, 'colonyDefender')
-            if (defenders.length < 2) {
-                if (closestMyRoom) {
-                    closestMyRoom.requestColonyDefender(roomName)
-                }
-            }
 
             const maxWork = 60
             this.room.buildersGetEnergyFromStorage = true
             const maxLaborer = Math.ceil(maxWork / (thisRoom.laborer.numWorkEach)) + 2
             if (thisRoom.laborer.numWork < maxWork && thisRoom.creeps.laborer.filter(creep => (creep.ticksToLive || 1500) > 3 * creep.body.length).length < maxLaborer) {
                 thisRoom.requestLaborer(Math.min((maxWork - thisRoom.laborer.numWork), thisRoom.laborer.numWorkEach))
-                if (closestMyRoom) {
-                    this.room.requestRemoteLaborer(closestMyRoom.name, 10)
-                }
             }
             if (this.memory.lastSpawnId && thisRoom.structures.spawn.length > 1) {
                 Game.getObjectById(this.memory.lastSpawnId).destroy()
@@ -153,7 +148,7 @@ Flag.prototype.manageReconstruction = function () {
                 thisRoom.memory.level = 0
                 delete this.memory.lastTowerId
             }
-            if (this.memory.storageId && thisRoom.storage.store[RESOURCE_ENERGY] < 1000) {
+            if (this.memory.storageId && (thisRoom.memory.level === thisRoom.controller.level || thisRoom.storage.store[RESOURCE_ENERGY] < 1000)) {
                 Game.getObjectById(this.memory.storageId).destroy()
                 thisRoom.memory.level = 0
                 delete this.memory.storageId
@@ -162,42 +157,4 @@ Flag.prototype.manageReconstruction = function () {
         case 4:
             return this.remove()
     }
-}
-
-Room.prototype.requestRemoteLaborer = function (roomName, number = 1) {
-    if (!this.hasAvailableSpawn()) {
-        return
-    }
-
-    const myRoom = Game.rooms[roomName]
-    if (!myRoom) {
-        return false
-    }
-
-    const creeps = Overlord.getCreepsByRole(this.name, 'laborer')
-
-    for (const creep of creeps) {
-        if (creep.room.name !== this.name) {
-            creep.moveToRoom(this.name)
-        }
-    }
-
-    if (creeps.length < number) {
-        let body = []
-        for (let i = 0; i < 10; i++) {
-            body.push(MOVE, CARRY, WORK)
-        }
-
-        const name = `${this.name} laborer ${Game.time}_${myRoom.spawnQueue.length}`
-
-        const memory = {
-            role: 'laborer',
-            controller: this.controller.id,
-            working: false
-        }
-
-        const request = new RequestSpawn(body, name, memory, { priority: 5 })
-        myRoom.spawnQueue.push(request)
-    }
-
 }

@@ -1,15 +1,10 @@
+const { config } = require("./config")
+
 const RAMPART_HITS_THRESHOLD = 50000000 //50M
 
-const RAMPART_HITS_ENOUGH = 3000000 // 5M
-
-const WALLMAKER_NUM_WORK_BASIC = 10
-const WALLMAKER_NUM_WORK_MAX = 120
-
-const ENERGY_TO_SPAWN_WALLMAKER = 50000
+const RAMPART_HITS_ENOUGH = 5000000 // 5M
 
 const MANAGER_MAX_CARRY = 24
-
-const ENERGY_LEVEL_TO_REPAIR_RAMPARTS = 10
 
 global.EMERGENCY_WORK_MAX = 100
 global.RAMPART_HITS_PER_RCL = 200000
@@ -30,9 +25,12 @@ global.SPAWN_PRIORITY = {
 
     'colonyDefender': 4,
     'guard': 4,
+    'sourceKeeperHandler': 4,
     'reserver': 4.1,
     'colonyMiner': 4.2,
+    'remoteMiner': 4.2,
     'colonyHauler': 4.3,
+    'remoteHauler': 4.3,
 
     'wallMaker': 5.1,
     'scouter': 5.2,
@@ -86,7 +84,7 @@ Room.prototype.manageSpawn = function () {
     // laborer 생산
 
     let maxWork = 0
-    const repairingForNuke = this.isReactingToNukes() && this.energyLevel > 50
+    const repairingForNuke = this.isReactingToNukes() && this.energyLevel > config.energyLevel.REACT_TO_NUKES
     if (repairingForNuke) {
         maxWork = EMERGENCY_WORK_MAX
     } else {
@@ -207,8 +205,10 @@ Room.prototype.hasEnoughCompounds = function (resourceType, ratio = 0.5) {
     if (!Memory.stats || !Memory.stats.resources) {
         return false
     }
+    const COMPOUND_GOAL = config.compoundGoal
+
     const numMaxRclRoom = Overlord.myRooms.filter(room => room.controller.level === 8).length
-    const boostThreshold = numMaxRclRoom * AMOUNT_TO_ACCUMULATE_BOOSTS * ratio
+    const boostThreshold = numMaxRclRoom * COMPOUND_GOAL[resourceType] * ratio
     return Memory.stats.resources[resourceType] > boostThreshold
 }
 
@@ -261,7 +261,7 @@ Room.prototype.getNeedWallMaker = function () {
     }
 
     if (weakestRampart.hits > RAMPART_HITS_THRESHOLD) {
-        return this.energyLevel >= 210
+        return this.energyLevel >= config.energyLevel.RAMPART_HIGH
     }
 
     const rampartsHitsPerRcl = this.memory.rampartsHitsPerRcl || RAMPART_HITS_PER_RCL
@@ -269,10 +269,10 @@ Room.prototype.getNeedWallMaker = function () {
     const threshold = this.controller.level >= 7 ? RAMPART_HITS_ENOUGH : (this.controller.level - 3) * rampartsHitsPerRcl
 
     if (weakestRampart.hits < threshold) {
-        return this.energyLevel >= 90
+        return this.energyLevel >= config.energyLevel.RAMPART_LOW
     }
 
-    return this.energyLevel >= 130
+    return this.energyLevel >= config.energyLevel.RAMPART_MIDDLE
 }
 
 Room.prototype.getManagerCarryTotal = function () {

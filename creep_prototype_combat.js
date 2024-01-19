@@ -16,7 +16,7 @@ Creep.prototype.fleeFrom = function (from, range = 10, maxRooms = 2) {
     flee: true,
     roomCallback: function (roomName) {
       const intel = Overlord.getIntel(roomName)
-      if (intel && intel.numTower) {
+      if (intel && intel[scoutKeys.numTower]) {
         return false
       }
       if (roomName === room.name) {

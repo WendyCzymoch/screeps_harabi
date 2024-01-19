@@ -25,14 +25,8 @@ Room.prototype.manageWork = function () {
 
 Room.prototype.manageReinforce = function () {
     const REPAIR_RANGE = 4
-    const costs = this.defenseCostMatrix
-    const spawn = this.structures.spawn[0]
     const rampartAnchorsStatus = this.getRampartAnchorsStatus()
     for (const laborer of this.creeps.laborer) {
-        // 위험한 곳에 있으면 즉시 탈출해라
-        if (costs.get(laborer.pos.x, laborer.pos.y) >= DANGER_TILE_COST && spawn) {
-            laborer.moveMy({ pos: spawn.pos, range: 1 }, { staySafe: false })
-        }
         const status = rampartAnchorsStatus[laborer.memory.assign]
         if (!status) {
             continue
@@ -86,6 +80,10 @@ Room.prototype.manageBuild = function () {
             targetsByPriority[i] = []
         }
         for (const constructionSite of constructionSites) {
+            const creepOnConstructionSite = constructionSite.pos.creep
+            if (creepOnConstructionSite) {
+                creepOnConstructionSite.moveRandom()
+            }
             targetsByPriority[BUILD_PRIORITY[constructionSite.structureType]].push(constructionSite)
         }
         const priorityTargets = targetsByPriority.find(targets => targets.length > 0)
@@ -101,20 +99,15 @@ Room.prototype.manageBuild = function () {
     }
 
     for (const laborer of laborers) {
-        //storage가 가까우면 storage에서 energy 받자
-        const workPlace = Game.getObjectById(laborer.memory.targetId)
-        if (this.storage && (this.storage.pos.getRangeTo(workPlace) <= 5 || this.buildersGetEnergyFromStorage)) {
-            laborer.needDelivery = false
-        } else {
-            // 그게 아니면 배달받자
-            laborer.needDelivery = true
-        }
         // energy 없으면 energy 받아라
         if (!laborer.working) {
-            if (!laborer.needDelivery) {
-                laborer.getEnergyFrom(this.storage.id)
-                continue
+            laborer.needDelivery = true
+
+            const energySource = this.storage || this.terminal
+            if (energySource) {
+                laborer.getEnergyFrom(energySource.id)
             }
+            continue
         }
         // energy 있으면 일해라
         laborer.buildTarget()
@@ -258,7 +251,10 @@ Creep.prototype.repairMy = function (target) {
 
 Creep.prototype.upgradeRCL = function () {
     const controller = this.room.controller
-
+    if (!controller) {
+        console.log(`${this.room.name} has weird laborer`)
+        return
+    }
     if (!controller.sign || controller.sign.username !== this.owner.username) {
         if (this.pos.getRangeTo(controller.pos) > 1) {
             this.moveMy({ pos: controller.pos, range: 1 })

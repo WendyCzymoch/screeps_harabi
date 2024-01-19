@@ -1,9 +1,33 @@
+const { config } = require("./config")
+
 const SCOUT_INTERVAL_UNDER_RCL_8 = 6000 // scout 시작 후 얼마나 지나야 리셋할건지 1000보다 커야함.
 const SCOUT_INTERVAL_AT_RCL_8 = 2000
 
-const SCOUT_DECAY = 10000
+const DISTANCE_TO_REMOTE = config.DISTANCE_TO_REMOTE
 
-const DISTANCE_TO_DEPOSIT_MINING = 5
+global.scoutKeys = {
+  numSource: 0,
+  mineralType: 1,
+  isAccessibleToContorller: 2,
+  owner: 3,
+  RCL: 4,
+  isAlly: 5,
+  isMy: 6,
+  isEnemy: 7,
+  numTower: 8,
+  isMyRemote: 9,
+  reservationOwner: 10,
+  isAllyRemote: 11,
+  isRemoteCandidate: 12,
+  claimScore: 13,
+  lastScout: 14,
+  inaccessible: 15,
+  lastHarassTick: 16,
+  roomStatus: 17,
+  roomStatusTime: 18,
+  threat: 19,
+  notForRemote: 20,
+}
 
 Room.prototype.manageScout = function () {
   const MAX_DISTANCE = (SHARD === 'swc') ? 20 : 10 // 최대 거리
@@ -53,7 +77,7 @@ Room.prototype.manageScout = function () {
         continue
       }
 
-      if (intel.inaccessible && intel.inaccessible > Game.time) {
+      if (intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
         continue
       }
       const thisName = this.name
@@ -96,20 +120,20 @@ Room.prototype.manageScout = function () {
     const roomName = status.next
     const intel = Overlord.getIntel(status.next)
 
-    if (Game.map.getRoomLinearDistance(this.name, roomName) <= 2) {
+    if (Game.map.getRoomLinearDistance(this.name, roomName) <= DISTANCE_TO_REMOTE) {
       const room = Game.rooms[roomName]
       if (!room || !intel) {
         this.acquireVision(roomName)
         return
       }
 
-      if (intel.isRemoteCandidate) {
+      if (intel[scoutKeys.isRemoteCandidate]) {
         this.tryRemote(roomName)
       }
     }
 
     // success
-    if (intel.lastScout && (Game.time < intel.lastScout + scoutInterval)) {
+    if (intel[scoutKeys.lastScout] && (Game.time < intel[scoutKeys.lastScout] + scoutInterval)) {
 
       status.cache[roomName] = true
       status.queue.push(roomName)
@@ -154,7 +178,7 @@ Room.prototype.resetScout = function () {
 Room.prototype.updateIntel = function () {
   const intelBefore = this.memory.intel || {}
 
-  if (intelBefore.lastScout && (Game.time < intelBefore.lastScout + 1000)) {
+  if (intelBefore[scoutKeys.lastScout] && (Game.time < intelBefore[scoutKeys.lastScout] + 1000)) {
     return
   }
 
@@ -180,7 +204,7 @@ Room.prototype.updateIntel = function () {
 
   const intelNew = this.analyzeIntel()
 
-  const intel = { ...intelBefore, ...intelNew }
+  const intel = intelNew
 
   this.memory.intel = intel
 }
@@ -189,7 +213,11 @@ Room.prototype.tryRemote = function (roomName) {
   const intel = Overlord.getIntel(roomName)
 
   // not adequate
-  if (!intel.isRemoteCandidate) {
+  if (!intel[scoutKeys.isRemoteCandidate]) {
+    return
+  }
+
+  if (intel[scoutKeys.notForRemote] && intel[scoutKeys.notForRemote].includes(this.name)) {
     return
   }
 
@@ -201,7 +229,9 @@ Room.prototype.tryRemote = function (roomName) {
   const roomBefore = findRemoteHost(roomName)
 
   // no competition
-  if (!roomBefore || roomBefore.controller.level < 7 && this.controller.level <= 7) {
+  if (!roomBefore || (roomBefore.controller.level < 7 && this.controller.level >= 7)) {
+    data.recordLog(`REMOTE: Not my remote. try remote ${roomName}`, this.name)
+
     const infraPlan = this.getRemoteInfraPlan(roomName)
 
     if (infraPlan === ERR_NOT_FOUND) {
@@ -209,7 +239,6 @@ Room.prototype.tryRemote = function (roomName) {
       return
     }
 
-    data.recordLog(`REMOTE: Not my remote. Colonize ${roomName}`, this.name)
     colonize(roomName, this.name)
     return
   }
@@ -232,7 +261,7 @@ Room.prototype.tryRemote = function (roomName) {
     data.recordLog(`REMOTE: No status. Abandon remote ${roomName}`, roomBefore.name)
     roomBefore.deleteRemote(roomName)
 
-    data.recordLog(`REMOTE: Colonize ${roomName} with distance ${info.distance}`, this.name)
+    data.recordLog(`REMOTE: Colonize ${roomName}`, this.name)
     colonize(roomName, this.name)
     return
   }
@@ -272,47 +301,47 @@ Room.prototype.tryRemote = function (roomName) {
 Room.prototype.analyzeIntel = function () {
   const result = {}
 
-  result.numSource = this.find(FIND_SOURCES).length
-  result.mineralType = this.mineral ? this.mineral.mineralType : undefined
+  result[scoutKeys.numSource] = this.find(FIND_SOURCES).length
+  result[scoutKeys.mineralType] = this.mineral ? this.mineral.mineralType : undefined
 
   const isController = (this.controller !== undefined)
   if (isController) {
     const owner = this.controller.owner
-    result.isAccessibleToContorller = this.getAccessibleToController()
+    result[scoutKeys.isAccessibleToContorller] = this.getAccessibleToController()
 
     if (owner) {
       const username = owner.username
 
-      result.owner = username
-      result.RCL = this.controller.level
-      result.isAlly = allies.includes(username)
-      result.isMy = (username === MY_NAME)
-      result.isEnemy = ((!result.isAlly) && (!result.isMy))
-      result.numTower = this.structures.tower.filter(tower => tower.RCLActionable).length
+      result[scoutKeys.owner] = username
+      result[scoutKeys.RCL] = this.controller.level
+      result[scoutKeys.isAlly] = allies.includes(username)
+      result[scoutKeys.isMy] = (username === MY_NAME)
+      result[scoutKeys.isEnemy] = ((!result[scoutKeys.isAlly]) && (!result[scoutKeys.isMy]))
+      result[scoutKeys.numTower] = this.structures.tower.filter(tower => tower.RCLActionable).length
     }
 
-    result.isMyRemote = Overlord.remotes.includes(this.name)
+    result[scoutKeys.isMyRemote] = Overlord.remotes.includes(this.name)
 
     const reservation = this.controller.reservation
     if (reservation) {
       const username = reservation.username
 
-      result.reservationOwner = username
-      result.isAllyRemote = allies.includes(username)
+      result[scoutKeys.reservationOwner] = username
+      result[scoutKeys.isAllyRemote] = allies.includes(username)
     }
 
-    if (result.isAccessibleToContorller && !result.owner) {
-      if (!result.isAllyRemote && (result.numSource > 0)) {
-        result.isRemoteCandidate = true
+    if (result[scoutKeys.isAccessibleToContorller] && !result[scoutKeys.owner]) {
+      if (!result[scoutKeys.isAllyRemote] && (result[scoutKeys.numSource] > 0)) {
+        result[scoutKeys.isRemoteCandidate] = true
       }
 
       const claimScore = this.getClaimScore()
-      result.claimScore = claimScore
+      result[scoutKeys.claimScore] = claimScore
     }
 
   }
 
-  result.lastScout = Game.time
+  result[scoutKeys.lastScout] = Game.time
   return result
 }
 
@@ -381,17 +410,19 @@ Room.prototype.getClaimScore = function () {
 Room.prototype.checkHighway = function () {
   const intel = Overlord.getIntel(this.name)
 
-  if (intel && (intel.threat || 0) > Game.time) {
+  if (intel && (intel[scoutKeys.threat] || 0) > Game.time) {
     return
   }
 
-  Overlord.checkDeposits(this.name)
+  const doTask = config.task
 
-  if (SHARD === 'swc') {
-    return
+  if (doTask.deposit) {
+    Overlord.checkDeposits(this.name)
   }
 
-  Overlord.checkPowerBanks(this.name)
+  if (doTask.powerBank) {
+    Overlord.checkPowerBanks(this.name)
+  }
 }
 
 Room.prototype.cachePortals = function () {

@@ -56,6 +56,7 @@ require('room_manager_lab_reaction')
 require('room_manager_powerSpawn')
 require('room_manager_remote')
 require('room_manager_scout')
+require('room_manager_SK_mining')
 require('room_manager_spawn')
 require('room_manager_tower')
 require('room_manager_traffic')
@@ -72,6 +73,7 @@ require('structure_prototype')
 require('terminal_prototype')
 
 require('util_base_planner')
+require('util_chunking')
 require('util_combat_analysis')
 require('util_defenseCostMatrix')
 require('util_dijkstra')
@@ -236,8 +238,12 @@ module.exports.loop = () => {
         // independent creeps 동작
 
         for (const creep of Overlord.classifyCreeps().independents) {
-            const role = creep.memory.role
-            creepAction[role](creep)
+            try {
+                const role = creep.memory.role
+                creepAction[role](creep)
+            } catch (error) {
+                console.log(`error occured during ${creep.name} ${creep.memory.role}`)
+            }
         }
 
         // powerCreep 실행
