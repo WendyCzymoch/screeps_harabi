@@ -435,7 +435,7 @@ Room.prototype.getRemoteSpawnCapacity = function (remoteName) {
 
     for (const info of Object.values(status.infraPlan)) {
         if (this.controller.level < 8) {
-            result += 3 * (reserve ? 6 : 3) // upgrader. assume income is 6e/tick
+            result += CREEP_SPAWN_TIME * (reserve ? 6 : 3) // upgrader. assume income is 6e/tick
         }
         result += 13 // miner
         result += Math.floor(info.pathLength * HAULER_RATIO * 1.5) // hauler
@@ -460,6 +460,12 @@ Room.prototype.getSpawnCapacity = function () {
     let result = 0
 
     result += this.getBasicSpawnCapacity()
+
+    if (this.memory.activeSK) {
+        for (const targetRoomName of this.memory.activeSK) {
+            result += this.getSourceKeeperRoomSpawnUsage(targetRoomName)
+        }
+    }
 
     if (this.memory.activeRemotes) {
         for (const remoteName of this.memory.activeRemotes) {

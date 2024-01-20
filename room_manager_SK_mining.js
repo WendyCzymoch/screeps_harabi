@@ -1,5 +1,5 @@
 const { GuardRequest, getCombatInfo } = require("./overlord_tasks_guard")
-const { parseInfraPos } = require("./room_manager_remote")
+const { parseInfraPos, MAX_DISTANCE } = require("./room_manager_remote")
 
 const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
 const sourceKeeperMinerBody = parseBody('8w5m1w1c')
@@ -12,6 +12,7 @@ Room.prototype.manageSourceKeeperMining = function () {
     }
 
     const targetRoom = Game.rooms[targetRoomName]
+    Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
     const memory = Memory.rooms[targetRoomName]
 
     if (targetRoom) {
@@ -83,6 +84,7 @@ function runAway(creep, roomName) {
 }
 
 function isStronghold(targetRoomName) {
+  Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
   const memory = Memory.rooms[targetRoomName]
   const invaderCoreInfo = memory.invaderCore
 
@@ -206,8 +208,8 @@ function runHaulSourceKeeperRoom(creep, targetRoomName) {
 
   const hostileCreeps = creep.room.getEnemyCombatants()
 
-  if (creep.pos.findInRange(hostileCreeps, 7).length > 0) {
-    creep.fleeFrom(hostileCreeps, 5)
+  if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
+    creep.fleeFrom(hostileCreeps, 6)
     return
   }
 
@@ -217,6 +219,20 @@ function runHaulSourceKeeperRoom(creep, targetRoomName) {
       creep.fleeFrom(keeperLair, 6)
       return
     }
+  }
+
+  if (creep.memory.getRecycled === true) {
+    if (creep.room.name === creep.memory.base) {
+      creep.getRecycled()
+      return
+    }
+    const room = Game.rooms[creep.memory.base]
+    if (!room) {
+      creep.suicide()
+      return
+    }
+    creep.moveToRoom(creep.memory.base)
+    return
   }
 
   // 논리회로
@@ -431,7 +447,8 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
       return
     }
 
-    const constructing = Memory.rooms[targetRoomName] && !Memory.rooms[targetRoomName].constructionComplete
+    Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
+    const constructing = !Memory.rooms[targetRoomName].constructionComplete
 
     if (constructing) {
       if (stat.repair < 12) {
@@ -500,7 +517,6 @@ Room.prototype.requestRemoteHauler = function (targetRoomName, sourceId, options
   this.spawnQueue.push(request)
 }
 
-
 Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options = {}) {
   if (!this.hasAvailableSpawn()) {
     return
@@ -529,7 +545,54 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
   this.spawnQueue.push(request)
 }
 
+Room.prototype.checkSourceKeeperRoom = function (targetRoomName) {
+  if (this.energyCapacityAvailable < 4270) { //energy to spawn SK handler
+    return false
+  }
+
+  if (this.memory.activeSK && this.memory.activeSK.includes(targetRoomName)) { //already mining
+    return false
+  }
+
+  const adjacentRoomNames = Overlord.getAdjacentRoomNames(this.name)
+
+  if (!adjacentRoomNames.includes(targetRoomName)) { // not adjacent
+    return false
+  }
+
+  const intel = Overlord.getIntel(targetRoomName)
+
+  if (intel[scoutKeys.notForRemote] !== undefined && intel[scoutKeys.notForRemote].includes(this.name)) { // already failed
+    return false
+  }
+
+  const infraPlan = getSourceKeeperRoomInfraPlan(this, targetRoomName)
+
+  if (!infraPlan) { //no infra. cache failure and return false.
+    intel[scoutKeys.notForRemote] = intel[scoutKeys.notForRemote] || []
+    intel[scoutKeys.notForRemote].push(this.name)
+    return false
+  }
+
+  let pathLengthSum = 0
+
+  for (const info of infraPlan) {
+    pathLengthSum += info.pathLength
+  }
+
+  const pathLengthAverage = pathLengthSum / infraPlan.length
+
+  if (pathLengthAverage > MAX_DISTANCE) {//too far. cache failure and return false.
+    intel[scoutKeys.notForRemote] = intel[scoutKeys.notForRemote] || []
+    intel[scoutKeys.notForRemote].push(this.name)
+    return false
+  }
+
+  return true
+}
+
 function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
+  Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
   if (Memory.rooms[targetRoomName].roomInCharge === room.name && Memory.rooms[targetRoomName].infraPlan) {
     return Memory.rooms[targetRoomName].infraPlan
   }
@@ -631,7 +694,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
 
     info.pathLength = path.length
 
-    info.maxCarry = Math.floor(path.length * 0.8)
+    info.maxCarry = Math.floor(path.length * 0.7)
 
     info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
 
@@ -754,4 +817,37 @@ function findNextSourceKeeperLair(roomName) {
   }
 
   return result
+}
+
+Room.prototype.getSourceKeeperRoomSpawnUsage = function (targetRoomName) {
+  if (isStronghold(targetRoomName)) {
+    return 0
+  }
+
+  Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
+  const memory = Memory.rooms[targetRoomName]
+
+  if (memory.roomInCharge !== this.name) {
+    return 0
+  }
+
+  if (memory.spawnUsage) {
+    return memory.spawnUsage
+  }
+
+  let result = 0
+
+  const infraPlan = getSourceKeeperRoomInfraPlan(this, targetRoomName)
+
+  result += sourceKeeperHandlerBody.length
+
+  for (const info of infraPlan) {
+    result += sourceKeeperMinerBody.length
+    result += info.maxCarry * 1.5
+    if (this.controller.level < 8) {
+      result += 3 * 9 // upgrader. assume income is 9e/tick
+    }
+  }
+
+  return memory.spawnUsage = result
 }

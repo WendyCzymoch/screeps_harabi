@@ -94,10 +94,6 @@ Room.prototype.manageScout = function () {
           return false
         }
 
-        if (getRoomType(roomName) === 'sourceKeeper') {
-          return false
-        }
-
         // 이미 본 거면 제외
         if (status.cache[roomName]) {
           return false
@@ -127,7 +123,14 @@ Room.prototype.manageScout = function () {
         return
       }
 
-      if (intel[scoutKeys.isRemoteCandidate]) {
+      const roomType = getRoomType(roomName)
+      if (roomType === 'sourceKeeper') {
+        if (this.checkSourceKeeperRoom(roomName)) {
+          this.memory.activeSK = this.memory.activeSK || []
+          data.recordLog(`SK: ${this.name} starts mining ${roomName}`, roomName)
+          this.memory.activeSK.push(roomName)
+        }
+      } else if (intel[scoutKeys.isRemoteCandidate]) {
         this.tryRemote(roomName)
       }
     }

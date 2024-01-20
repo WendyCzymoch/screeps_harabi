@@ -252,7 +252,7 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
 
     const currentCost = costs[current]
 
-    if (currentCost > 25) {
+    if (currentCost > 15) {
       return ERR_NO_PATH
     }
 
@@ -367,7 +367,7 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
     return Overlord.heap.roomCost[roomName] = 1
   }
 
-  return Overlord.heap.roomCost[roomName] = 2.5
+  return Overlord.heap.roomCost[roomName] = 1.5
 }
 
 Overlord.getIntel = function (roomName) {

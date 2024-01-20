@@ -153,14 +153,24 @@ Room.prototype.rallyGuards = function (guards) {
             result = false
             continue
         }
+
+        const targets = guard.room.findHostileCreeps()
+        const closeTargets = guard.pos.findInRange(targets, 5)
+
+        if (closeTargets.length > 0) {
+            guard.handleCombatants(targets)
+            result = false
+            continue
+        }
+
+        guard.activeHeal()
+
         if (guard.pos.getRangeTo(captain) > 2) {
             guard.setWorkingInfo(captain.pos, 2)
             guard.moveMy({ pos: captain.pos, range: 1 })
             result = false
             continue
         }
-        guard.activeHeal()
-        guard.harasserRangedAttack()
         if (guard.room.name !== this.name || isEdgeCoord(guard.pos.x, guard.pos.y)) {
             guard.moveToRoom(this.name, 2)
             continue

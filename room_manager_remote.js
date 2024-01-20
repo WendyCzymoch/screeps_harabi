@@ -9,7 +9,7 @@ const DEFENDER_LOST_ENERGY_LIMIT_PER_RCL = 2000
 
 const RESERVE_TICK_THRESHOLD = 1000
 
-global.HAULER_RATIO = 0.43 // 0.4 is ideal.
+global.HAULER_RATIO = 0.45 // 0.4 is ideal.
 
 const NUM_WORK_TO_CONSTRUCT = 6
 
@@ -30,11 +30,15 @@ Room.prototype.manageRemotes = function () {
 
     if (!this.memory.activeRemotes || Game.time % 17 === 0) {
 
-        const spawnCapacityAvailable = this.structures.spawn.length * 500
+        let spawnCapacityForRemotes = this.structures.spawn.length * 500
 
-        const basicSpawnCapacity = this.getBasicSpawnCapacity()
+        spawnCapacityForRemotes -= this.getBasicSpawnCapacity()
 
-        const spawnCapacityForRemotes = spawnCapacityAvailable - basicSpawnCapacity
+        if (this.memory.activeSK) {
+            for (const targetRoomName of this.memory.activeSK) {
+                spawnCapacityForRemotes -= this.getSourceKeeperRoomSpawnUsage(targetRoomName)
+            }
+        }
 
         let remotesSpawnCapacity = 0
 
@@ -1319,4 +1323,5 @@ function parseInfraPos(packed) {
 
 module.exports = {
     parseInfraPos,
+    MAX_DISTANCE,
 }
