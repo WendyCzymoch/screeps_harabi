@@ -4,7 +4,17 @@ const METHODS_BY_CATEGORY = {
   guard: 'manageGuardTasks',
   quad: 'manageQuadTasks',
   duo: `manageDuoTasks`,
-  siege: 'manageSiegeTasks'
+  siege: 'manageSiegeTasks',
+  blinky: 'manageBlinkyTasks',
+  occupy: 'manageOccupyTasks'
+}
+
+Overlord.runTasks = function () {
+  const categories = this.getTaskCategories()
+  for (const category of categories) {
+    const functionName = METHODS_BY_CATEGORY[category]
+    Overlord[functionName]()
+  }
 }
 
 Object.defineProperties(Overlord, {
@@ -21,7 +31,9 @@ Object.defineProperties(Overlord, {
 Overlord.getTasksByRoomInCharge = function (roomName) {
   const result = {}
 
-  for (const category in Overlord.tasks) {
+  const categories = Overlord.getTaskCategories()
+
+  for (const category of categories) {
     result[category] = result[category] || {}
     const tasks = Overlord.tasks[category]
     for (const task of Object.values(tasks)) {
@@ -36,7 +48,7 @@ Overlord.getTasksByRoomInCharge = function (roomName) {
 }
 
 Overlord.getTaskCategories = function () {
-  return Object.keys(Overlord.tasks)
+  return Object.keys(METHODS_BY_CATEGORY)
 }
 
 Overlord.getTasksWithCategory = function (category) {
@@ -59,12 +71,4 @@ Overlord.deleteTask = function (task) {
   const tasks = this.getTasksWithCategory(category)
   delete tasks[task.id]
   return
-}
-
-Overlord.runTasks = function () {
-  const categories = this.getTaskCategories()
-  for (const category of categories) {
-    const functionName = METHODS_BY_CATEGORY[category]
-    Overlord[functionName]()
-  }
 }

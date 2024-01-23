@@ -85,7 +85,7 @@ StructureTerminal.prototype.run = function () {
 }
 
 Room.prototype.getNeedsHelp = function () {
-    if (!this.terminal || !this.storage) {
+    if (!this.terminal || !this.storage || this.abandon) {
         return false
     }
 

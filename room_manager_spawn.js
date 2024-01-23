@@ -1,4 +1,5 @@
 const { config } = require("./config")
+const { blinkyBodyMaker } = require("./creep_prototype_blinky")
 
 const RAMPART_HITS_THRESHOLD = 50000000 //50M
 
@@ -27,10 +28,9 @@ global.SPAWN_PRIORITY = {
     'guard': 4,
     'sourceKeeperHandler': 4,
     'reserver': 4.1,
-    'colonyMiner': 4.2,
     'remoteMiner': 4.2,
-    'colonyHauler': 4.3,
     'remoteHauler': 4.3,
+    'coreAttacker': 4.4,
 
     'wallMaker': 5.1,
     'scouter': 5.2,
@@ -55,7 +55,7 @@ Room.prototype.manageSpawn = function () {
     }
 
     if (!this.structures.tower.length && this.findHostileCreeps().length && !this.creeps.colonyDefender.length) {
-        this.requestColonyDefender(this.name)
+        this.requestColonyDefender(this.name, { doCost: false })
     }
 
     // manager 생산. 전시에는 무조건 생산
@@ -341,9 +341,9 @@ Spawn.prototype.spawnRequest = function (request) {
     }
 
     if (request.cost) {
-        const colonyName = request.memory.colony
-        if (colonyName) {
-            this.room.addRemoteCost(colonyName, request.cost)
+        const targetRoomName = request.memory.targetRoomName
+        if (targetRoomName) {
+            this.room.addRemoteCost(targetRoomName, request.cost)
         }
     }
 
@@ -600,7 +600,7 @@ Room.prototype.requestResearcher = function () {
     this.spawnQueue.push(request)
 }
 
-Room.prototype.requestReserver = function (colonyName) {
+Room.prototype.requestReserver = function (targetRoomName) {
     if (!this.hasAvailableSpawn()) {
         return
     }
@@ -612,12 +612,12 @@ Room.prototype.requestReserver = function (colonyName) {
         cost += 650
     }
 
-    const name = `${colonyName} reserver ${Game.time}`
+    const name = `${targetRoomName} reserver ${Game.time}`
 
     const memory = {
         role: 'reserver',
         base: this.name,
-        colony: colonyName,
+        targetRoomName,
         ignoreMap: 1
     }
 
@@ -683,53 +683,27 @@ Room.prototype.requestColonyMiner = function (colonyName, sourceId, containerId)
     this.spawnQueue.push(request)
 }
 
-function bodyMaker(t, r, h, moveFirst = false) {
-    const result = []
-    for (let i = 0; i < t; i++) {
-        result.push(TOUGH)
-    }
-
-    if (moveFirst) {
-        for (let i = 0; i < (r + h + t); i++) {
-            result.push(MOVE)
-        }
-    }
-
-    for (let i = 0; i < r; i++) {
-        result.push(RANGED_ATTACK)
-    }
-
-    if (!moveFirst) {
-        for (let i = 0; i < (r + h + t); i++) {
-            result.push(MOVE)
-        }
-    }
-
-    for (let i = 0; i < h; i++) {
-        result.push(HEAL)
-    }
-    return result
-}
-
 global.harasserBody = {
-    260: bodyMaker(1, 1, 0),
-    550: bodyMaker(0, 1, 1),
-    760: bodyMaker(1, 2, 1),
-    1300: bodyMaker(0, 5, 1),
-    1800: bodyMaker(5, 6, 1),
-    2260: bodyMaker(6, 8, 1),
-    5600: bodyMaker(0, 19, 6),
+    260: blinkyBodyMaker(1, 1, 0),
+    550: blinkyBodyMaker(0, 1, 1),
+    760: blinkyBodyMaker(1, 2, 1),
+    1300: blinkyBodyMaker(0, 5, 1),
+    1800: blinkyBodyMaker(5, 6, 1),
+    2260: blinkyBodyMaker(6, 8, 1),
+    5600: blinkyBodyMaker(0, 19, 6),
 }
 
 global.harasserBodyMoveFirst = {
-    260: bodyMaker(1, 1, 0, true),
-    550: bodyMaker(0, 1, 1, true),
-    760: bodyMaker(1, 2, 1, true),
-    1300: bodyMaker(0, 5, 1, true),
-    1800: bodyMaker(5, 6, 1, true),
-    2260: bodyMaker(6, 8, 1, true),
-    5600: bodyMaker(0, 19, 6, true),
+    260: blinkyBodyMaker(1, 1, 0, true),
+    550: blinkyBodyMaker(0, 1, 1, true),
+    760: blinkyBodyMaker(1, 2, 1, true),
+    1300: blinkyBodyMaker(0, 5, 1, true),
+    1800: blinkyBodyMaker(5, 6, 1, true),
+    2260: blinkyBodyMaker(6, 8, 1, true),
+    5600: blinkyBodyMaker(0, 19, 6, true),
 }
+
+
 
 Room.prototype.requestColonyDefender = function (colonyName, options = {}) {
     if (!this.hasAvailableSpawn()) {
@@ -773,34 +747,6 @@ Room.prototype.requestColonyDefender = function (colonyName, options = {}) {
 
     if (!doCost) {
         cost = 0
-    }
-    const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['colonyDefender'], cost: cost })
-    this.spawnQueue.push(request)
-}
-
-
-Room.prototype.requestColonyCoreDefender = function (colonyName) {
-    if (!this.hasAvailableSpawn()) {
-        return
-    }
-
-    let body = []
-    let cost = 0
-    const bodyLength = Math.min(Math.floor((this.energyCapacityAvailable) / 130), 25)
-    for (let i = 0; i < bodyLength; i++) {
-        body.push(MOVE)
-        cost += 50
-    }
-    for (let i = 0; i < bodyLength; i++) {
-        body.push(ATTACK)
-        cost += 80
-    }
-
-    const name = `${colonyName} colonyCoreDefender ${Game.time}_${this.spawnQueue.length}`
-    const memory = {
-        role: 'colonyCoreDefender',
-        base: this.name,
-        colony: colonyName
     }
     const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['colonyDefender'], cost: cost })
     this.spawnQueue.push(request)

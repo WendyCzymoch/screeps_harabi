@@ -22,7 +22,7 @@ Overlord.manageGuardTasks = function () {
 const GuardRequest = function (room, targetRoomName, enemyInfo, options = {}) {
     this.category = 'guard'
     this.id = targetRoomName
-    this.time = Game.time
+    this.startTime = Game.time
     this.status = 'prepare'
 
     this.roomName = targetRoomName
@@ -69,11 +69,11 @@ Room.prototype.guardRoom = function (request) {
             hostileCreeps = hostileCreeps.filter(creep => creep.owner.username !== 'Source Keeper')
         }
         const enemyInfo = getCombatInfo(hostileCreeps)
-        request.time = Game.time
+        request.lastUpdateTime = Game.time
         request.enemyStrength = enemyInfo.strength
         request.isEnemy = hostileCreeps.length > 0
         request.moveFirst = (enemyInfo.attack === enemyInfo.rangedAttack)
-    } else if (request.enemyStrength > 0 && (Game.time > request.time + 100)) {
+    } else if (request.enemyStrength > 0 && (Game.time > (request.lastUpdateTime || request.startTime) + 100)) {
         request.enemyStrength = 0
     }
 
@@ -112,8 +112,6 @@ Room.prototype.guardRoom = function (request) {
     request.status = 'gather'
 
     request.rallied = this.rallyGuards(guardGroups.active)
-
-
 }
 
 function doCleanUp(guards) {

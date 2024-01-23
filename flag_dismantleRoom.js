@@ -5,7 +5,6 @@ Flag.prototype.dismantleRoom = function () {
     const dismantlers = Overlord.getCreepsByRole(targetRoomName, 'dismantler').concat(Overlord.getCreepsByRole(closestMyRoom.name, 'dismantler'))
 
     if (this.memory.completeDismantle === true) {
-        closestMyRoom.resetScout()
         Game.notify(`${this.pos.roomName} dismantle completed`)
         for (const dismantler of dismantlers) {
             dismantler.suicide()

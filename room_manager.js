@@ -176,7 +176,6 @@ Room.prototype.checkTombstone = function () {
                 continue
             }
             const cost = deadCreep.getCost()
-            hostRoom.addRemoteThreatLevel(this.name, cost)
             return
         }
     }
@@ -261,24 +260,30 @@ Room.prototype.manageExtractor = function () {
 Room.prototype.abandonRoom = function () {
     const terminal = this.terminal
     if (this.isMy) {
-        if (terminal && terminal.cooldown < 1) {
-            if (terminal.store.getUsedCapacity() < 10000 && this.storage.store.getUsedCapacity() < 10000) {
+        if (terminal && !terminal.cooldown) {
+            if (terminal.store.getUsedCapacity() < 1000 && this.storage.store.getUsedCapacity() < 1000) {
                 data.recordLog(`DEPLETED`, this.name)
                 terminal.pos.createFlag(`${this.name} clearAll`, COLOR_PURPLE)
                 return
             }
-            let onlyEnergy = true
             for (const resourceType of Object.keys(terminal.store)) {
                 if (resourceType !== RESOURCE_ENERGY) {
-                    if (terminal.store[RESOURCE_ENERGY] > 15000) {
-                        Business.dump(resourceType, terminal.store[resourceType], this.name)
+                    const terminals = Overlord.structures.terminal.filter(structure => structure.id !== terminal.id)
+                    const targetTerminal = getMinObject(terminals, structure => structure.store[resourceType])
+                    const amount = Math.min(terminal.store[resourceType], Math.floor(terminal.store[RESOURCE_ENERGY] / 2))
+                    if (targetTerminal) {
+                        terminal.send(resourceType, amount, targetTerminal.room.name)
                     }
-                    onlyEnergy = false
-                    break
+                    return
                 }
             }
-            if (onlyEnergy === true && terminal.store[RESOURCE_ENERGY] > 10000) {
-                Business.dump(RESOURCE_ENERGY, terminal.store[RESOURCE_ENERGY] / 2 - 100, this.name)
+            if (terminal.store[RESOURCE_ENERGY] > 2000) {
+                const otherRooms = Overlord.myRooms.filter(room => room.terminal && room.name !== this.name)
+                const targetRoom = getMinObject(otherRooms, room => room.energyLevel)
+                const amount = Math.floor(terminal.store[RESOURCE_ENERGY] / 2)
+                if (targetRoom) {
+                    terminal.send(RESOURCE_ENERGY, amount, targetRoom.name)
+                }
             }
         }
     } else {

@@ -73,8 +73,7 @@ global.resetRemote = function (roomName) {
             continue
         }
         delete room.memory.remotes
-        delete room.memory.activeRemotes
-        delete room.memory.coreRemotes
+        delete room.memory.activeRemoteNames
     }
 }
 
@@ -182,6 +181,7 @@ global.getMinObject = function (array, func) {
 }
 
 global.abandon = function (roomName) {
+    roomName = roomName.toUpperCase()
     if (!Memory.abandon) {
         Memory.abandon = []
     }
@@ -204,31 +204,6 @@ global.checkCPU = function (name) {
         console.log(`tick: ${Game.time} | name: ${name} | used: ${cpuUsed} at `)
     }
     Game._cpu = cpu
-}
-
-global.colonize = function (remoteName, baseName) {
-    remoteName = remoteName.toUpperCase()
-    const base = baseName ? Game.rooms[baseName.toUpperCase()] : Overlord.findClosestMyRoom(colonyName, 4)
-    if (!base || !base.isMy) {
-        console.log('invalid base')
-        return
-    }
-
-    const distance = Game.map.getRoomLinearDistance(baseName, remoteName)
-
-    if (distance > 2) {
-        console.log(`Remote ${remoteName} is too far from your base ${baseName}. distance is ${distance}`)
-        return
-    }
-
-    base.memory.remotes = base.memory.remotes || {}
-    base.memory.remotes[remoteName] = base.memory.remotes[remoteName] || {}
-
-    Memory.rooms[remoteName] = Memory.rooms[remoteName] || {}
-    Memory.rooms[remoteName].host = base.name
-
-    console.log(`${baseName} colonize ${remoteName}. distance is ${distance}`)
-    return OK
 }
 
 global.claim = function (targetRoomName, baseName) {
@@ -263,14 +238,20 @@ global.resetScout = function (roomName) {
         for (const myRoom of Overlord.myRooms) {
             delete myRoom.memory.scout
             delete myRoom.memory.remotes
-            delete myRoom.memory.activeRemotes
-            delete myRoom.memory.coreRemotes
+            delete myRoom.memory.activeRemoteNames
             const scouters = Overlord.getCreepsByRole(myRoom.name, 'scouter')
             for (const scouter of scouters) {
                 scouter.suicide()
             }
         }
-        return 'reset scout'
+
+        for (const roomName of Object.keys(Memory.rooms)) {
+            if (Game.rooms[roomName] && Game.rooms[roomName].isMy) {
+                continue
+            }
+            delete Memory.rooms[roomName]
+        }
+        return 'Reset Scout'
     } else {
         roomName = roomName.toUpperCase()
         const room = Game.rooms[roomName]
@@ -278,11 +259,13 @@ global.resetScout = function (roomName) {
             return 'invalid roomName'
         }
         delete room.memory.scout
+        delete room.memory.remotes
+        delete room.memory.activeRemoteNames
         const scouter = Overlord.getCreepsByRole(roomName, 'scouter')[0]
         if (scouter) {
             scouter.suicide()
         }
-        return `reset scout of ${roomName}`
+        return `Reset scout of ${roomName}`
     }
 }
 

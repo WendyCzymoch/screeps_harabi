@@ -74,6 +74,7 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
         if (this.heap.stay > Game.time) {
             this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' })
             this.say(`🛌${this.heap.stay - Game.time}`, true)
+            this.moveTo(mainTargetPos)
             return ERR_NO_PATH
         } else {
             delete this.heap.stay

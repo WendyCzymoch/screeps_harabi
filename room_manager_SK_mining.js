@@ -1,14 +1,13 @@
 const { GuardRequest, getCombatInfo } = require("./overlord_tasks_guard")
-const { parseInfraPos, MAX_DISTANCE } = require("./room_manager_remote")
+const { MAX_DISTANCE, unpackInfraPos, runRemoteMiner, runRemoteHauler, HAULER_RATIO, runAway } = require("./room_manager_remote")
 
 const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
-const sourceKeeperMinerBody = parseBody('8w5m1w1c')
 
 Room.prototype.manageSourceKeeperMining = function () {
   this.memory.activeSK = this.memory.activeSK || []
   for (const targetRoomName of this.memory.activeSK) {
     if (isStronghold(targetRoomName)) {
-      return
+      continue
     }
 
     const targetRoom = Game.rooms[targetRoomName]
@@ -39,7 +38,7 @@ Room.prototype.manageSourceKeeperMining = function () {
 
     if (memory.isCombatant) {
       manageInvasion(this, targetRoomName)
-      return
+      continue
     }
 
     if (targetRoom && (!targetRoom.memory.constructionComplete || Game.time > (targetRoom.memory.constructionCompleteTime + 3000))) {
@@ -48,7 +47,7 @@ Room.prototype.manageSourceKeeperMining = function () {
 
     manageSpawnSourceKeeperRoomWorkers(this, targetRoomName)
 
-    manageSourceKeeperRoomWorkers(targetRoomName)
+    manageSourceKeeperRoomWorkers(this, targetRoomName)
   }
 }
 
@@ -59,27 +58,6 @@ function manageInvasion(room, targetRoomName) {
 
   for (const worker of [...miners, ...haulers, ...sourceKeeperHandlers]) {
     runAway(worker, room.name)
-  }
-}
-
-function runAway(creep, roomName) {
-  const hostileCreeps = creep.room.getEnemyCombatants()
-
-  if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
-    creep.fleeFrom(hostileCreeps, 6, 2)
-    return
-  }
-
-  if (creep.memory.keeperLairId) {
-    const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
-    if (keeperLair && keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) < 6) {
-      creep.fleeFrom(keeperLair, 10)
-      return
-    }
-  }
-
-  if (creep.room.name !== roomName || isEdgeCoord(creep.pos.x, creep.pos.y)) {
-    creep.moveToRoom(roomName)
   }
 }
 
@@ -149,7 +127,7 @@ function constructSourceKeeperRoomInfra(room, targetRoomName) {
     const packedStructures = info.infraPlan
     let numConstructionSites = 0
     for (const packedStructure of packedStructures) {
-      const parsed = parseInfraPos(packedStructure)
+      const parsed = unpackInfraPos(packedStructure)
       const pos = parsed.pos
 
       if (pos.lookFor(LOOK_CONSTRUCTION_SITES).length > 0) {
@@ -176,222 +154,21 @@ function constructSourceKeeperRoomInfra(room, targetRoomName) {
   }
 }
 
-function manageSourceKeeperRoomWorkers(targetRoomName) {
+function manageSourceKeeperRoomWorkers(room, targetRoomName) {
   const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner')
   const haulers = Overlord.getCreepsByRole(targetRoomName, 'remoteHauler')
   const sourceKeeperHandlers = Overlord.getCreepsByRole(targetRoomName, 'sourceKeeperHandler')
 
   for (const miner of miners) {
-    runMineSourceKeeperRoom(miner, targetRoomName)
+    runRemoteMiner(miner, targetRoomName)
   }
 
   for (const hauler of haulers) {
-    runHaulSourceKeeperRoom(hauler, targetRoomName)
+    runRemoteHauler(hauler, room, targetRoomName)
   }
 
   for (const sourceKeeperHandler of sourceKeeperHandlers) {
-    runHandleSourceKeepers(sourceKeeperHandler, targetRoomName)
-  }
-}
-
-function runHaulSourceKeeperRoom(creep, targetRoomName) {
-  if (creep.spawning) {
-    return
-  }
-
-  const targetRoom = Game.rooms[targetRoomName]
-
-  if (!targetRoom) {
-    creep.moveToRoom(targetRoomName)
-    return
-  }
-
-  const hostileCreeps = creep.room.getEnemyCombatants()
-
-  if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
-    creep.fleeFrom(hostileCreeps, 6)
-    return
-  }
-
-  if (creep.memory.keeperLairId) {
-    const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
-    if (keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) < 6) {
-      creep.fleeFrom(keeperLair, 6)
-      return
-    }
-  }
-
-  if (creep.memory.getRecycled === true) {
-    if (creep.room.name === creep.memory.base) {
-      creep.getRecycled()
-      return
-    }
-    const room = Game.rooms[creep.memory.base]
-    if (!room) {
-      creep.suicide()
-      return
-    }
-    creep.moveToRoom(creep.memory.base)
-    return
-  }
-
-  // 논리회로
-  if (creep.memory.supplying && creep.store[RESOURCE_ENERGY] === 0) {
-    if (creep.room.name === creep.memory.base && creep.ticksToLive < 2.2 * (creep.memory.sourcePathLength || 0)) {
-      creep.memory.getRecycled = true
-      return
-    }
-    creep.memory.supplying = false
-  } else if (!creep.memory.supplying && creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
-    // const base = Game.rooms[creep.memory.base]
-    // const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
-    // if (base) {
-    //     base.addRemoteProfit(creep.memory.colony, amount)
-    // }
-    creep.memory.supplying = true
-  }
-
-  // 행동
-  if (creep.memory.supplying) {
-    const targetRoom = Game.rooms[creep.memory.targetRoomName]
-    const constructionSites = targetRoom ? targetRoom.constructionSites : []
-
-    if (constructionSites.length > 0 && creep.getActiveBodyparts(WORK) > 0) {
-      if (creep.room.name !== creep.memory.targetRoomName || isEdgeCoord(creep.pos.x, creep.pos.y)) {
-        creep.moveToRoom(creep.memory.targetRoomName)
-        return
-      }
-
-      if (!creep.heap.targetId) {
-        creep.heap.targetId = creep.pos.findClosestByRange(constructionSites).id
-      }
-
-      const target = creep.heap.targetId ? Game.getObjectById(creep.heap.targetId) : undefined
-
-      if (!target) {
-        delete creep.heap.targetId
-        return
-      }
-
-      if (creep.pos.getRangeTo(target) > 3) {
-        creep.moveMy({ pos: target.pos, range: 3 })
-        return
-      }
-      creep.setWorkingInfo(target.pos, 3)
-      creep.build(target)
-      return
-    }
-
-    const room = Game.rooms[creep.memory.base]
-    if (!room) {
-      creep.suicide()
-    }
-
-    if (creep.room.name === creep.memory.base) {
-      return
-    }
-
-    const closeBrokenThings = creep.pos.findInRange(creep.room.structures.damaged, 1).filter(structure => structure.structureType === STRUCTURE_ROAD)
-    if (closeBrokenThings.length) {
-      creep.repair(closeBrokenThings[0])
-    }
-
-    const spawn = room.structures.spawn[0]
-    if (spawn) {
-      creep.moveMy({ pos: spawn.pos, range: 3 })
-    }
-    return
-  }
-
-  if (creep.ticksToLive < 1.1 * (creep.memory.sourcePathLength || 0)) {
-    creep.memory.getRecycled = true
-    // const base = Game.rooms[creep.memory.base]
-    // const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
-    // if (base) {
-    //   base.addRemoteProfit(creep.memory.colony, amount)
-    // }
-    return
-  }
-
-  const source = Game.getObjectById(creep.memory.sourceId)
-
-  if (!source) {
-    creep.moveToRoom(creep.memory.targetRoomName)
-    return
-  }
-
-  const droppedEnergy = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 5).find(energy => energy.amount >= 50)
-
-  const tombstone = creep.pos.findInRange(FIND_TOMBSTONES, 5).find(tombstone => tombstone.store[RESOURCE_ENERGY] >= 50)
-  if (tombstone) {
-    creep.getEnergyFrom(tombstone.id)
-    return
-  }
-
-  if (droppedEnergy) {
-    creep.getEnergyFrom(droppedEnergy.id)
-    return
-  }
-
-  if (source.container && source.container.store[RESOURCE_ENERGY] >= Math.min(creep.store.getFreeCapacity(), 500)) {
-    creep.getEnergyFrom(source.container.id)
-    return
-  }
-
-  if (creep.pos.getRangeTo(source.pos) > 3) {
-    creep.moveMy({ pos: source.pos, range: 3 })
-  }
-
-  creep.setWorkingInfo(source.pos, 3)
-  return
-}
-
-function runMineSourceKeeperRoom(creep, targetRoomName) {
-  if (creep.spawning) {
-    return
-  }
-
-  const targetRoom = Game.rooms[targetRoomName]
-
-  if (!targetRoom) {
-    creep.moveToRoom(targetRoomName)
-    return
-  }
-
-  const hostileCreeps = creep.room.getEnemyCombatants()
-
-  if (creep.pos.findInRange(hostileCreeps, 7).length > 0) {
-    creep.fleeFrom(hostileCreeps, 5)
-    return
-  }
-
-  if (creep.memory.keeperLairId) {
-    const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
-
-    if (keeperLair && keeperLair.ticksToSpawn < 15) {
-      creep.fleeFrom(keeperLair, 6)
-      return
-    }
-  }
-
-  const source = Game.getObjectById(creep.memory.sourceId)
-  const container = source.container
-
-  const target = container || source
-
-  const range = container ? 0 : 1
-
-  if (creep.pos.getRangeTo(target) > range) {
-    creep.moveMy({ pos: target.pos, range })
-    return
-  }
-
-  creep.setWorkingInfo(target.pos, range)
-
-  creep.harvest(source)
-
-  if (container && container.hits < 100000) {
-    creep.repair(container)
+    runSourceKeeperRoomHandler(sourceKeeperHandler, targetRoomName)
   }
 }
 
@@ -443,7 +220,7 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
     const keeperLairId = info.keeperLairId
 
     if (stat.work < 9) {
-      room.requestRemoteMiner(targetRoomName, sourceId, { keeperLairId })
+      room.requestRemoteMiner(targetRoomName, sourceId, { keeperLairId, sourceKeeper: true })
       return
     }
 
@@ -474,8 +251,19 @@ Room.prototype.requestRemoteHauler = function (targetRoomName, sourceId, options
   let cost = 0
 
   if (options.constructing) {
-    body.push(WORK, WORK, WORK, WORK, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY,)
-    cost += 800
+    for (let i = 0; i < Math.min(Math.floor(this.energyCapacityAvailable / 550), 3); i++) {
+      body.push(WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE)
+      cost += 550
+    }
+  } else if (options.noRoad) {
+    const energyCapacity = this.energyCapacityAvailable
+
+    const maxCarry = options.maxCarry || 25
+
+    for (let i = 0; i < Math.min(Math.floor(energyCapacity / 100), maxCarry); i++) {
+      body.push(CARRY, MOVE)
+      cost += 100
+    }
   } else {
 
     if (options.isRepairer) {
@@ -522,8 +310,23 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
     return
   }
 
-  let cost = 1200
-  const body = sourceKeeperMinerBody
+  let cost = 0
+  let body = undefined
+
+  if (options.sourceKeeper) {
+    body = parseBody('8w5m1w1c')
+    cost = 1200
+  } else {
+    const numWork = Math.min(Math.floor((this.energyCapacityAvailable) / 150), 6)
+
+    body = parseBody(`${numWork}w${numWork}m`)
+    cost += numWork * 150
+
+    if ((this.energyCapacityAvailable - cost) >= 50) {
+      body.push(CARRY)
+      cost += 50
+    }
+  }
 
   const name = `${targetRoomName} remoteMiner ${Game.time}_${this.spawnQueue.length}`
   const memory = {
@@ -541,7 +344,7 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
     memory.containerId = options.containerId
   }
 
-  const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['remoteMiner'], cost: cost })
+  const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['remoteMiner'], cost })
   this.spawnQueue.push(request)
 }
 
@@ -694,7 +497,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
 
     info.pathLength = path.length
 
-    info.maxCarry = Math.floor(path.length * 0.7)
+    info.maxCarry = Math.floor(path.length * HAULER_RATIO * 1.5)
 
     info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
 
@@ -739,7 +542,7 @@ Room.prototype.requestSourceKeeperHandler = function (targetRoomName) {
   this.spawnQueue.push(request)
 }
 
-function runHandleSourceKeepers(creep, roomName) {
+function runSourceKeeperRoomHandler(creep, roomName) {
   if (creep.spawning) {
     return
   }

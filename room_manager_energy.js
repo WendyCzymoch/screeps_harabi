@@ -32,21 +32,30 @@ Room.prototype.manageEnergy = function () {
     let fetchers = []
     const haulers = this.creeps.hauler.concat(this.creeps.manager)
     const researcher = this.creeps.researcher[0]
-    const colonyHaulers = this.getSupplyingRemoteHaulers()
+    const remoteHaulers = this.getSupplyingRemoteHaulers()
 
     if (researcher && researcher.beHauler === true) {
         haulers.push(researcher)
     }
 
-    for (const colonyHauler of colonyHaulers) {
-        haulers.push(colonyHauler)
+    for (const remoteHauler of remoteHaulers) {
+        haulers.push(remoteHauler)
     }
 
+    outer:
     for (const creep of haulers) {
         if (creep.ticksToLive < 15) {
             creep.getRecycled()
             continue
         }
+
+        for (const resourceType in creep.store) {
+            if (resourceType !== RESOURCE_ENERGY) {
+                creep.returnAll()
+                continue outer
+            }
+        }
+
         if (creep.supplying) {
             suppliers.push(creep)
             continue
@@ -627,9 +636,9 @@ Room.prototype.manageEnergyFetch = function (arrayOfCreeps) {
 
 Room.prototype.getSupplyingRemoteHaulers = function () {
     const creeps = this.find(FIND_MY_CREEPS)
-    const supplyingColonyHaulers = creeps.filter(creep => {
-        return ['colonyHauler', 'remoteHauler'].includes(creep.memory.role) && creep.memory.supplying
+    const supplyingRemoteHaulers = creeps.filter(creep => {
+        return creep.memory.role === 'remoteHauler' && creep.memory.supplying
     })
 
-    return supplyingColonyHaulers
+    return supplyingRemoteHaulers
 }

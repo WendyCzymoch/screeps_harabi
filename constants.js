@@ -77,14 +77,10 @@ global.CREEP_ROELS = [
     'laborer',
     'extractor',
     'researcher',
-    'reserver',
     'claimer',
+    'reserver',
     'pioneer',
-    'colonyLaborer',
-    'colonyMiner',
-    'colonyHauler',
     'colonyDefender',
-    'colonyCoreDefender',
     'wallMaker',
     'attacker',
     'healer',
@@ -101,19 +97,16 @@ global.CREEP_ROELS = [
     'sourceKeeperHandler',
     'remoteMiner',
     'remoteMiner',
+    'coreAttacker',
+    'blinky'
 ]
 
 global.SELF_DIRECTED_CREEP_ROELS = [
     'miner',
     'extractor',
-    'reserver',
     'claimer',
     'pioneer',
-    'colonyLaborer',
-    'colonyMiner',
-    'colonyHauler',
     'colonyDefender',
-    'colonyCoreDefender',
     'wallMaker',
     'researcher',
     'guard'

@@ -65,29 +65,34 @@ Overlord.findClosestMyRoom = function (fromRoomName, level = 0, ignoreMap = 1, m
 }
 
 Overlord.findPath = function (startPos, goals, options = {}) {
-  const defaultOptions = { ignoreCreeps: true, staySafe: false, ignoreMap: 1, visualize: false, moveCost: 0.5 }
+  const defaultOptions = { ignoreCreeps: true, staySafe: false, ignoreMap: 1, moveCost: 0.5, route: undefined }
 
   const mergedOptions = { ...defaultOptions, ...options }
 
-  const { ignoreCreeps, staySafe, ignoreMap, visualize, moveCost } = mergedOptions
+  const { ignoreCreeps, staySafe, ignoreMap, moveCost, route } = mergedOptions
 
   const mainTargetPos = goals[0].pos
   const targetRoomName = mainTargetPos.roomName
 
   const maxRooms = startPos.roomName === targetRoomName ? 1 : 16
 
-  let routes = [[startPos.roomName]]
-  if (maxRooms > 1) {
-    const intel = Overlord.getIntel(targetRoomName)
-    if (ignoreMap === 0 && intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
-      return ERR_NO_PATH
+  let routes = undefined
+  if (route) {
+    routes = [route]
+  } else {
+    routes = [[startPos.roomName]]
+    if (maxRooms > 1) {
+      const intel = Overlord.getIntel(targetRoomName)
+      if (ignoreMap === 0 && intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
+        return ERR_NO_PATH
+      }
+
+      routes = this.findRoutesWithPortal(startPos.roomName, targetRoomName, ignoreMap)
     }
 
-    routes = this.findRoutesWithPortal(startPos.roomName, targetRoomName, ignoreMap)
-  }
-
-  if (routes === ERR_NO_PATH) {
-    return ERR_NO_PATH
+    if (routes === ERR_NO_PATH) {
+      return ERR_NO_PATH
+    }
   }
 
   const startRoomName = startPos.roomName

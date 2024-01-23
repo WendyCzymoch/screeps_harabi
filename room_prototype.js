@@ -418,40 +418,6 @@ Room.prototype.getBasicSpawnCapacity = function () {
     return this._basicSpawnCapacity = result
 }
 
-Room.prototype.getRemoteSpawnCapacity = function (remoteName) {
-    if (this._remotesSpawncapacity && this._remotesSpawncapacity[remoteName] !== undefined) {
-        return this._remotesSpawncapacity[remoteName]
-    }
-
-    const status = this.getRemoteStatus(remoteName)
-
-    if (!status || !status.infraPlan) {
-        return 0
-    }
-
-    let result = 0
-
-    const reserve = this.energyCapacityAvailable > 650
-
-    for (const info of Object.values(status.infraPlan)) {
-        if (this.controller.level < 8) {
-            result += CREEP_SPAWN_TIME * (reserve ? 6 : 3) // upgrader. assume income is 6e/tick
-        }
-        result += 13 // miner
-        result += Math.floor(info.pathLength * HAULER_RATIO * 1.5) // hauler
-    }
-
-    if (!reserve) {
-        result = result * 0.5
-    } else if (result > 0) {
-        result += 10 // reserver. 2/tick
-    }
-
-    this._remotesSpawncapacity = this._remotesSpawncapacity || {}
-
-    return this._remotesSpawncapacity[remoteName] = result
-}
-
 Room.prototype.getDepositSpawnCapacity = function (depositRequest) {
     return depositRequest.available * 50 + 100
 }
@@ -467,9 +433,9 @@ Room.prototype.getSpawnCapacity = function () {
         }
     }
 
-    if (this.memory.activeRemotes) {
-        for (const remoteName of this.memory.activeRemotes) {
-            result += this.getRemoteSpawnCapacity(remoteName)
+    if (this.memory.activeRemoteNames) {
+        for (const remoteName of this.memory.activeRemoteNames) {
+            result += this.getRemoteSpawnUsage(remoteName)
         }
     }
 
@@ -487,4 +453,90 @@ Room.prototype.getSpawnCapacityRatio = function () {
     const spawnCapacity = this.getSpawnCapacity()
     const spawnCapacityAvailable = this.structures.spawn.length * 500
     return spawnCapacity / spawnCapacityAvailable
+}
+
+Room.prototype.getEnemyCombatants = function () {
+    if (this._enemyCombatants !== undefined) {
+        return this._enemyCombatants
+    }
+    const enemyCreeps = this.findHostileCreeps()
+    const enemyCombatants = enemyCreeps.filter(creep => creep.checkBodyParts(['attack', 'ranged_attack', 'heal']))
+    return this._enemyCombatants = enemyCombatants
+}
+
+Room.prototype.getMyCombatants = function () {
+    if (this._myCombatants !== undefined) {
+        return this._myCombatants
+    }
+    const myCreeps = this.find(FIND_MY_CREEPS)
+    const myCombatants = myCreeps.filter(creep => creep.checkBodyParts(['attack', 'ranged_attack', 'heal']))
+    return this._myCombatants = myCombatants
+}
+
+Room.prototype.getIsDefender = function () {
+    if (this._isDefender !== undefined) {
+        return this._isDefender
+    }
+    const myCreeps = this.find(FIND_MY_CREEPS)
+    for (const creep of myCreeps) {
+        if (creep.memory.role === 'colonyDefender' && creep.memory.colony === this.name) {
+            return this._isDefender = true
+        }
+    }
+    return this._isDefender = false
+}
+
+/**
+ * 
+ * @param {string} roomName - roomName to send troops
+ * @param {*} cost - total cost to be used to spawn troops
+ * @returns whether there are enough troops or not
+ */
+Room.prototype.sendTroops = function (roomName, cost, options) {
+    const defaultOptions = { distance: 0, task: undefined, model: 70 }
+    const mergedOptions = { ...defaultOptions, ...options }
+    const { distance, task, model } = mergedOptions
+
+    const buffer = 100
+
+    let colonyDefenders = Overlord.getCreepsByRole(roomName, 'colonyDefender')
+
+    if (distance > 0) {
+        colonyDefenders = colonyDefenders.filter(creep => (creep.ticksToLive || 1500) > (distance + creep.body.length * CREEP_SPAWN_TIME + buffer))
+    }
+
+    const requestedCost = cost
+
+    if (requestedCost === 0) {
+        if (colonyDefenders.length === 0) {
+            this.requestColonyDefender(roomName, { doCost: false, costMax: 3000, task })
+            return false
+        }
+        for (const colonyDefender of colonyDefenders) {
+            colonyDefender.memory.waitForTroops = false
+        }
+        return true
+    }
+
+    let totalCost = 0
+
+    for (const colonyDefender of colonyDefenders) {
+        const multiplier = colonyDefender.memory.boosted !== undefined ? 4 : 1
+        totalCost += colonyDefender.getCost() * multiplier
+    }
+
+    if (totalCost >= requestedCost) {
+        if (colonyDefenders.find(colonyDefender => colonyDefender.spawning)) {
+            return true
+        }
+        for (const colonyDefender of colonyDefenders) {
+            colonyDefender.memory.waitForTroops = false
+        }
+        return true
+    }
+
+    const costMax = Math.max(5600)
+    this.requestColonyDefender(roomName, { doCost: false, costMax, waitForTroops: true, task })
+
+    return false
 }

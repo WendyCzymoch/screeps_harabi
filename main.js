@@ -36,10 +36,12 @@ require('market_business')
 require('overlord_harass')
 require('overlord_manage_resources')
 require('overlord_metric')
+require('overlord_tasks_blinky')
 require('overlord_tasks_deposit')
 require('overlord_tasks_duo')
 require('overlord_tasks_guard')
 require('overlord_tasks_quad')
+require('overlord_tasks_occupy')
 require('overlord_tasks_powerBank')
 require('overlord_tasks_siege')
 require('overlord_tasks')
@@ -148,11 +150,6 @@ module.exports.loop = () => {
         for (const flag of Object.values(Game.flags)) {
             const name = flag.name.toLowerCase()
             const roomName = flag.pos.roomName
-            if (name.includes('colony')) {
-                colonize(roomName)
-                flag.remove()
-                continue
-            }
             if (name.includes('claim')) {
                 claim(roomName)
                 flag.remove()

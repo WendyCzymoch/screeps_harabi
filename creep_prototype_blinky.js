@@ -1,9 +1,5 @@
 const { getCombatInfo } = require("./overlord_tasks_guard")
 
-Creep.prototype.harass = function (roomName) {
-
-}
-
 Creep.prototype.healWounded = function () {
   const wounded = this.room.find(FIND_MY_CREEPS).filter(creep => creep.hitsMax - creep.hits > 0)
   if (wounded.length) {
@@ -188,7 +184,7 @@ Creep.prototype.activeHeal = function () {
   }
 
   if (rangedWounded) {
-    this.heal(rangedWounded)
+    this.rangedHeal(rangedWounded)
     return
   }
 
@@ -206,4 +202,124 @@ Creep.prototype.flee = function (range = 10) {
     return OK
   }
   return ERR_NOT_IN_RANGE
+}
+
+Room.prototype.requestBlinky = function (targetRoomName, options) {
+  if (!this.hasAvailableSpawn()) {
+    return
+  }
+
+  const defaultOptions = { energyCapacity: this.energyCapacityAvailable, task: undefined, boost: 0, moveFirst: false }
+  const mergedOptions = { ...defaultOptions, ...options }
+  const { energyCapacity, task, boost, moveFirst } = mergedOptions
+
+  const model = getBlinkyModel(energyCapacity, { boost, moveFirst })
+
+  if (!model) {
+    return
+  }
+
+  const name = `${targetRoomName} blinky ${Game.time}_${this.spawnQueue.length}`
+
+  const body = model.body
+
+  const memory = {
+    role: 'blinky',
+    base: this.name,
+    targetRoomName
+  }
+
+  const spawnOptions = { priority: 4 }
+
+  const boostResources = model.boostResources
+
+  if (boostResources) {
+    spawnOptions.boostResources = boostResources
+    memory.boosted = false
+  }
+
+  if (task) {
+    memory.task = { category: task.category, id: task.id }
+  }
+
+  const request = new RequestSpawn(body, name, memory, spawnOptions)
+
+  this.spawnQueue.push(request)
+}
+
+function getBlinkyModel(energyCapacity, options) {
+  const defaultOptions = { boost: 0, moveFirst: false }
+  const mergedOptions = { ...defaultOptions, ...options }
+  const { boost, moveFirst } = mergedOptions
+
+  if (boost === 0) {
+    if (energyCapacity < 550) {
+      return { body: blinkyBodyMaker(1, 1, 0, moveFirst), boostResources: undefined }
+    }
+
+    if (energyCapacity < 760) {
+      return { body: blinkyBodyMaker(0, 1, 1, moveFirst), boostResources: undefined }
+    }
+
+    if (energyCapacity < 1300) {
+      return { body: blinkyBodyMaker(1, 2, 1, moveFirst), boostResources: undefined }
+    }
+
+    if (energyCapacity < 1800) {
+      return { body: blinkyBodyMaker(0, 5, 1, moveFirst), boostResources: undefined }
+    }
+
+    if (energyCapacity < 2260) {
+      return { body: blinkyBodyMaker(5, 6, 1, moveFirst), boostResources: undefined }
+    }
+
+    if (energyCapacity < 5600) {
+      return { body: blinkyBodyMaker(6, 8, 1, moveFirst), boostResources: undefined }
+    }
+
+    return { body: blinkyBodyMaker(0, 19, 6, moveFirst), boostResources: undefined }
+  }
+
+  if (boost === 3) {
+    if (energyCapacity >= 6800) {
+      return { body: parseBody('5t25r10m10h'), boostResources: ['XZHO2', 'XGHO2', 'XLHO2', 'XKHO2',] }
+    }
+
+    if (energyCapacity >= 5500) {
+      return { body: parseBody('5t17r10h8m'), boostResources: ['XZHO2', 'XGHO2', 'XLHO2', 'XKHO2',] }
+    }
+  }
+
+}
+
+function blinkyBodyMaker(t, r, h, moveFirst = false) {
+  const result = []
+  for (let i = 0; i < t; i++) {
+    result.push(TOUGH)
+  }
+
+  if (moveFirst) {
+    for (let i = 0; i < (r + h + t); i++) {
+      result.push(MOVE)
+    }
+  }
+
+  for (let i = 0; i < r; i++) {
+    result.push(RANGED_ATTACK)
+  }
+
+  if (!moveFirst) {
+    for (let i = 0; i < (r + h + t); i++) {
+      result.push(MOVE)
+    }
+  }
+
+  for (let i = 0; i < h; i++) {
+    result.push(HEAL)
+  }
+  return result
+}
+
+module.exports = {
+  blinkyBodyMaker,
 }

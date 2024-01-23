@@ -1,1212 +1,910 @@
-const { getCombatInfo, GuardRequest, CombatInfo } = require("./overlord_tasks_guard")
+const { GuardRequest, getCombatInfo, CombatInfo } = require("./overlord_tasks_guard")
+const { getRoomMemory } = require("./util")
 
 const MAX_DISTANCE = 120
-const TICKS_TO_SQUASH_EFFICIENCY = 10000
-const TICKS_TO_CHECK_INFRA = 3000
-const TICKS_TO_CHECK_EFFICIENCY = 9000
 
-const DEFENDER_LOST_ENERGY_LIMIT_PER_RCL = 2000
-
-const RESERVE_TICK_THRESHOLD = 1000
-
-global.HAULER_RATIO = 0.45 // 0.4 is ideal.
-
-const NUM_WORK_TO_CONSTRUCT = 6
-
-const NUM_CONSTRUCTION_SITES_PER_ROOM = 6
-
-const VISUAL_OPTION = { font: 0.5, align: 'left' }
+const HAULER_RATIO = 0.4
 
 Room.prototype.manageRemotes = function () {
-    if (!this.memory.remotes) {
-        return
-    }
+    const activeRemoteNames = this.getActiveRemoteNames()
+    const remoteNamesToSpawn = []
 
-    const remoteNames = this.getRemoteNamesSortedByRange()
+    const invaderStrengthThreshold = getInvaderStrengthThreshold(this.controller.level) // 1에서 100, 8에서 1644정도
 
-    if (remoteNames.length === 0) {
-        return
-    }
+    let remoteNameToConstruct = undefined
+    for (const targetRoomName of activeRemoteNames) {
 
-    if (!this.memory.activeRemotes || Game.time % 17 === 0) {
+        const memory = getRoomMemory(targetRoomName)
 
-        let spawnCapacityForRemotes = this.structures.spawn.length * 500
+        const info = this.getRemoteInfo(targetRoomName)
 
-        spawnCapacityForRemotes -= this.getBasicSpawnCapacity()
-
-        if (this.memory.activeSK) {
-            for (const targetRoomName of this.memory.activeSK) {
-                spawnCapacityForRemotes -= this.getSourceKeeperRoomSpawnUsage(targetRoomName)
-            }
+        if (!info) {
+            continue
         }
 
-        let remotesSpawnCapacity = 0
+        const targetRoom = Game.rooms[targetRoomName]
+        if (targetRoom) {
+            const invaders = targetRoom.findHostileCreeps()
+            const enemyInfo = getCombatInfo(invaders)
+            const isEnemy = invaders.some(creep => creep.checkBodyParts(INVADER_BODY_PARTS))
+            const invaderCore = targetRoom.find(FIND_HOSTILE_STRUCTURES).find(structure => structure.structureType === STRUCTURE_INVADER_CORE)
 
-        let i = 1
-
-        this.memory.activeRemotes = []
-
-        for (const remoteName of remoteNames) {
-
-            const status = this.getRemoteStatus(remoteName)
-
-            if (!status) {
-                continue
-            }
-
-            if (Memory.rooms[remoteName].forbidden) {
-                continue
-            }
-
-            if (status.abandon) {
-                if (status.abandon > Game.time) {
-                    const abandonTimerPos = new RoomPosition(25, 5, remoteName)
-
-                    const ramainingTIcks = status.abandon - Game.time
-
-                    Game.map.visual.text(`⏳${ramainingTIcks}`, abandonTimerPos, { fontSize: 5, opacity: 1 })
-                    continue
+            if (!memory.invader && isEnemy) {
+                if (enemyInfo.strength <= invaderStrengthThreshold) {
+                    const request = new GuardRequest(this, targetRoomName, enemyInfo)
+                    Overlord.registerTask(request)
                 }
-                this.resetRemoteInvaderStatus(remoteName)
-                this.resetRemoteThreatLevel(remoteName)
-                this.resetRemoteNetIncome(remoteName)
-
-                status.constructionStartTick = Game.time
-                status.construction = 'proceed'
-                delete status.abandon
-
-                data.recordLog(`REMOTE: reactivate ${remoteName}`, remoteName)
+                memory.invader = true
+            } else if (memory.invader && !isEnemy) {
+                memory.invader = false
             }
 
-            const pos = new RoomPosition(45, 5, remoteName)
-            Game.map.visual.text(i, pos, { align: 'left', fontSize: 5, opacity: 1 })
-            i++
-            remotesSpawnCapacity += this.getRemoteSpawnCapacity(remoteName)
-
-            if (remotesSpawnCapacity > spawnCapacityForRemotes) {
-                break
+            if (!memory.isCombatant && enemyInfo.strength > 0) {
+                const maxTicksToLive = Math.max(...invaders.map(creep => creep.ticksToLive))
+                memory.combatantsTicksToLive = Game.time + maxTicksToLive
+                memory.isCombatant = true
+            } else if (memory.isCombatant && enemyInfo.strength === 0) {
+                memory.isCombatant = false
+                delete memory.combatantsTicksToLive
             }
-            this.memory.activeRemotes.push(remoteName)
-        }
-    }
 
-    for (const remoteName of this.memory.activeRemotes) {
-        const status = this.getRemoteStatus(remoteName)
-        if (!status) {
+            if (!memory.invaderCore && invaderCore) {
+                memory.invaderCore = true
+            } else if (memory.invaderCore && !invaderCore) {
+                memory.invaderCore = false
+            }
+        }
+
+        if (memory.isCombatant) {
+            if (Game.time > memory.combatantsTicksToLive) {
+                delete memory.isCombatant
+                delete memory.invader
+                delete memory.combatantsTicksToLive
+            }
+            manageInvasion(this, targetRoomName)
             continue
         }
 
-        if (status.abandon && status.abandon > Game.time) {
-            continue
+        if (!remoteNameToConstruct && targetRoom && (!info.constructionComplete || Game.time > (info.constructionCompleteTime + 3000))) {
+            remoteNameToConstruct = targetRoomName
         }
 
-        if (!this.operateRemote(remoteName)) {
-            this._remoteSpawnRequested = true
-        }
+        runRemoteWorkers(this, targetRoomName)
+
+        remoteNamesToSpawn.push(targetRoomName)
     }
 
-    if (this.controller.level < 3) {
-        return
+    if (remoteNameToConstruct) {
+        constructRemote(this, remoteNameToConstruct)
     }
 
-    if (Game.time % 13 !== 0) {
-        return
-    }
-
-    for (const remoteName of this.memory.activeRemotes) {
-        const status = this.getRemoteStatus(remoteName)
-
-        if (!status || status.state !== 'normal') {
-            continue
-        }
-
-        if (this.constructRemote(remoteName)) {
-            continue
-        }
-
-        return
-    }
-    return
+    spawnRemoteWorkers(this, remoteNamesToSpawn)
 }
 
-Room.prototype.getRemoteNamesSortedByRange = function () {
-    if (Game.time % 37 === 0) {
-        delete this.heap.remoteNamesSortedByRange
-    }
-
-    if (this.heap.remoteNamesSortedByRange) {
-        return this.heap.remoteNamesSortedByRange
-    }
-
-    const remoteNames = Object.keys(this.memory.remotes).sort((a, b) => {
-        let resultA = this.getRemotePathLengthAverage(a)
-        let resultB = this.getRemotePathLengthAverage(b)
-        if (this.getRemoteStatus(a).intermediate) {
-            resultA += 100
-        }
-        if (this.getRemoteStatus(b).intermediate) {
-            resultB += 100
-        }
-        return resultA - resultB
-    })
-
-    return this.heap.remoteNamesSortedByRange = remoteNames
+function getInvaderStrengthThreshold(level) {
+    return Math.exp((level - 1) * 0.4) * 100
 }
 
-Room.prototype.operateRemote = function (remoteName) {
-    const remote = Game.rooms[remoteName]
-    const status = this.getRemoteStatus(remoteName)
+Room.prototype.addRemote = function (targetRoomName) {
+    this.memory.remotes = this.memory.remotes || {}
+    this.memory.remotes[targetRoomName] = {}
 
-    if (!status) {
+    const memory = getRoomMemory(targetRoomName)
+    memory.roomNameInCharge = this.name
+
+    delete this.memory.activeRemoteNames
+}
+
+Room.prototype.deleteRemote = function (targetRoomName) {
+    this.memory.remotes = this.memory.remotes || {}
+    delete this.memory.remotes[targetRoomName]
+
+    const memory = getRoomMemory(targetRoomName)
+    delete memory.roomNameInCharge
+
+    delete this.memory.activeRemoteNames
+}
+
+function sortRemotesByValue(room) {
+    room.memory.remotes = room.memory.remotes || {}
+
+    const entries = Object.entries(room.memory.remotes).sort((a, b) =>
+        getRemoteValue(room, b[0]) - getRemoteValue(room, a[0]))
+
+    const sorted = {}
+
+    for (const pair of entries) {
+        sorted[pair[0]] = pair[1]
+    }
+
+    room.memory.remotes = sorted
+}
+
+Room.prototype.getActiveRemoteNames = function () {
+    if (this._activeRemoteNames) {
+        return this._activeRemoteNames
+    }
+
+    if (Math.random() < 0.1) {
+        delete this.memory.activeRemoteNames
+    }
+
+    if (this.memory.activeRemoteNames) {
+        return this.memory.activeRemoteNames
+    }
+
+    const result = []
+
+    sortRemotesByValue(this)
+
+    const remoteNames = this.getRemoteNames()
+
+    let spawnCapacityForRemotes = this.structures.spawn.length * 500
+
+    spawnCapacityForRemotes -= this.getBasicSpawnCapacity()
+
+    if (this.memory.activeSK) {
+        for (const targetRoomName of this.memory.activeSK) {
+            spawnCapacityForRemotes -= this.getSourceKeeperRoomSpawnUsage(targetRoomName)
+        }
+    }
+
+    let remotesSpawnUsage = 0
+
+    for (const targetRoomName of remoteNames) {
+        const memory = this.getRemoteInfo(targetRoomName)
+
+        if (memory.forbidden) {
+            continue
+        }
+
+        const intermediateNames = memory.intermediates || []
+
+        if (intermediateNames.some(intermediateName => {
+            !result.includes(intermediateName)
+        })) {
+            continue
+        }
+
+        remotesSpawnUsage += this.getRemoteSpawnUsage(targetRoomName)
+
+        if (remotesSpawnUsage > spawnCapacityForRemotes) {
+            break
+        }
+        result.push(targetRoomName)
+    }
+
+    return this._activeRemoteNames = this.memory.activeRemoteNames = result
+}
+
+// get remote net income per tick with EMA
+Room.prototype.getRemoteNetIncomePerTick = function (targetRoomName) {
+    const remoteInfo = this.getRemoteInfo(targetRoomName)
+
+    if (!remoteInfo.startTick) {
+        delete remoteInfo.netIncome
+    }
+
+    remoteInfo.startTick = remoteInfo.startTick || Game.time
+    remoteInfo.lastTick = remoteInfo.lastTick || Game.time
+    const netIncome = remoteInfo.netIncome || 0
+
+    const interval = Game.time - remoteInfo.lastTick
+
+    // 1000 tick = 1 unit with alpha = 0.2
+    // so, recent 1000 tick is weighted by 0.2
+    // previous 1000 tick is wighted by 0.2 * 0.8
+    const alpha = 0.2
+
+    if (interval >= 1000) {
+        if (remoteInfo.netIncomePerTick) {
+            const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / 1000)
+            remoteInfo.netIncomePerTick = modifiedAlpha * (netIncome / interval) + (1 - modifiedAlpha) * remoteInfo.netIncomePerTick
+        } else {
+            remoteInfo.netIncomePerTick = netIncome / interval
+        }
+        remoteInfo.lastTick = Game.time
+        remoteInfo.netIncome = 0
+    }
+
+    if (!remoteInfo.netIncomePerTick) {
+        return netIncome / interval
+    }
+
+    return remoteInfo.netIncomePerTick
+}
+
+Room.prototype.addRemoteCost = function (targetRoomName, amount) {
+    const remoteInfo = this.getRemoteInfo(targetRoomName)
+    if (!remoteInfo) {
+        return
+    }
+    remoteInfo.netIncome = remoteInfo.netIncome || 0
+    remoteInfo.netIncome -= amount
+}
+
+Room.prototype.addRemoteProfit = function (targetRoomName, amount) {
+    const remoteInfo = this.getRemoteInfo(targetRoomName)
+    remoteInfo.netIncome = remoteInfo.netIncome || 0
+    remoteInfo.netIncome += amount
+}
+
+function runRemoteWorkers(room, targetRoomName) {
+    const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner')
+    const haulers = Overlord.getCreepsByRole(targetRoomName, 'remoteHauler')
+    const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
+    const coreAttackers = Overlord.getCreepsByRole(targetRoomName, 'coreAttacker')
+
+    for (const miner of miners) {
+        runRemoteMiner(miner, targetRoomName)
+    }
+
+    for (const hauler of haulers) {
+        runRemoteHauler(hauler, room, targetRoomName)
+    }
+
+    for (const reserver of reservers) {
+        runReserver(reserver, targetRoomName)
+    }
+
+    for (const coreAttacker of coreAttackers) {
+        runCoreAttacker(coreAttacker, targetRoomName)
+    }
+}
+
+function runRemoteMiner(creep, targetRoomName) {
+    if (creep.spawning) {
         return
     }
 
-    if (status.state === undefined) {
-        status.state = 'normal'
-        this.resetRemoteNetIncome(remoteName)
+    const hostileCreeps = creep.room.getEnemyCombatants()
+
+    if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
+        creep.fleeFrom(hostileCreeps, 6)
+        return
     }
 
-    // pos to visual
-    const visualPos = new RoomPosition(25, 25, remoteName)
-
-    // state viual
-    new RoomVisual(remoteName).text(status.state.toUpperCase(), visualPos)
-
-    // defense department
-
-    // check intermediate
-    const intermediateName = status.intermediate
-    if (intermediateName) {
-        const intermediateStatus = this.memory.remotes[intermediateName]
-
-        // abandon when intermediate room is abandoned
-        if (!intermediateStatus) {
-            data.recordLog(`REMOTE: delete ${remoteName} since intermediate room is gone`, this.name)
-            this.deleteRemote(remoteName)
+    if (creep.memory.getRecycled === true) {
+        if (creep.room.name === creep.memory.base) {
+            creep.getRecycled()
             return
         }
-
-        if ((intermediateStatus.abandon && intermediateStatus.abandon > Game.time)) {
-            data.recordLog(`REMOTE: abandon ${remoteName} since intermediate room is adandoned`, this.name)
-            this.abandonRemote(remoteName, intermediateStatus.abandon - Game.time)
-            return true
+        const room = Game.rooms[creep.memory.base]
+        if (!room) {
+            creep.suicide()
+            return
         }
-    }
-
-    // abandon when threatLevel is high (defenders keep dying by users)
-    const threatLevel = this.getRemoteThreatLevel(remoteName)
-    const threshold = this.controller.level > 2 ? this.controller.level * DEFENDER_LOST_ENERGY_LIMIT_PER_RCL : 0
-
-    if (threatLevel > 0) {
-        new RoomVisual(remoteName).text(`⚠️${threatLevel}/${threshold}`, visualPos.x, visualPos.y - 2)
-    }
-
-    if (threatLevel > threshold) {
-        data.recordLog(`REMOTE: abandon ${remoteName} since defense faild.`, this.name)
-        this.abandonRemote(remoteName)
+        creep.moveToRoom(creep.memory.base)
         return
     }
 
-    // abandon remote if room is claimed
-    if (remote && remote.controller.owner) {
-        data.recordLog(`REMOTE: Delete ${remoteName}. room is claimed by ${remote.controller.owner.username}`, remoteName)
-        this.deleteRemote(remoteName)
-        return true
+    const targetRoom = Game.rooms[targetRoomName]
+
+    if (!targetRoom) {
+        creep.moveToRoom(targetRoomName)
+        return
     }
 
-    // check invader or invaderCore
-    if (remote) {
-        const hostileCreeps = remote.findHostileCreeps()
-        const enemyInfo = getCombatInfo(hostileCreeps)
-        const isEnemy = hostileCreeps.some(creep => creep.checkBodyParts(INVADER_BODY_PARTS))
+    if (creep.memory.keeperLairId) {
+        const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
+        if (keeperLair && keeperLair.ticksToSpawn < 15) {
+            if (creep.pos.getRangeTo(keeperLair) < 6) {
+                creep.fleeFrom(keeperLair, 6)
+                return
+            }
+        }
+    }
 
-        if (!status.invader && isEnemy) {
-            status.invader = true
-            const cost = this.estimateGuardCost(enemyInfo)
-            if (cost > threshold) {
-                data.recordLog(`REMOTE: ${this} abandon remote ${remoteName}. cost is ${cost}`, remoteName)
-                this.abandonRemote(remoteName, 60)
+    const source = Game.getObjectById(creep.memory.sourceId)
+    const container = Game.getObjectById(creep.memory.containerId) || (source ? source.container : undefined)
+
+    const target = container || source
+
+    const range = container ? 0 : 1
+
+    if (creep.pos.getRangeTo(target) > range) {
+        creep.moveMy({ pos: target.pos, range })
+        return
+    }
+
+    creep.setWorkingInfo(target.pos, range)
+
+    creep.harvest(source)
+
+    if (container && container.hits < 100000) {
+        creep.repair(container)
+    }
+}
+
+function runRemoteHauler(creep, base, targetRoomName) {
+    if (creep.spawning) {
+        return
+    }
+
+    const hostileCreeps = creep.room.getEnemyCombatants()
+
+    if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
+        creep.fleeFrom(hostileCreeps, 6)
+        return
+    }
+
+    const targetRoom = Game.rooms[targetRoomName]
+
+    if (!targetRoom) {
+        creep.moveToRoom(targetRoomName)
+        return
+    }
+
+    if (creep.memory.keeperLairId) {
+        const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
+        if (keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) < 6) {
+            creep.fleeFrom(keeperLair, 6)
+            return
+        }
+    }
+
+    if (creep.memory.getRecycled === true) {
+        if (creep.room.name === base.name) {
+            creep.getRecycled()
+            return
+        }
+        if (!base) {
+            creep.suicide()
+            return
+        }
+        creep.moveToRoom(base.name)
+        return
+    }
+
+    // 논리회로
+    if (creep.memory.supplying && creep.store[RESOURCE_ENERGY] === 0) {
+        if (creep.room.name === base.name && creep.ticksToLive < 2.2 * (creep.memory.sourcePathLength || 0)) {
+            creep.memory.getRecycled = true
+            return
+        }
+        creep.memory.supplying = false
+    } else if (!creep.memory.supplying && creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+        if (!creep.memory.keeperLairId) {
+            const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
+            if (base) {
+                base.addRemoteProfit(targetRoomName, amount)
+            }
+        }
+        creep.memory.supplying = true
+    }
+
+    // 행동
+    if (creep.memory.supplying) {
+        const constructionSites = creep.room.constructionSites
+
+        if (constructionSites.length > 0 && creep.getActiveBodyparts(WORK) > 1) {
+            if (!creep.heap.targetId || !Game.getObjectById(creep.heap.targetId)) {
+                creep.heap.targetId = creep.pos.findClosestByRange(constructionSites).id
+            }
+
+            const target = Game.getObjectById(creep.heap.targetId)
+
+            if (!target) {
                 return
             }
 
-            const request = new GuardRequest(this, remoteName, enemyInfo)
-            Overlord.registerTask(request)
-        } else if (status.invader && !isEnemy) {
-            status.invader = false
+            if (creep.pos.getRangeTo(target) > 3) {
+                creep.moveMy({ pos: target.pos, range: 3 })
+                return
+            }
+            creep.setWorkingInfo(target.pos, 3)
+            creep.build(target)
+            return
         }
 
-        if (!status.isCombatant && enemyInfo.strength > 0) {
-            status.isCombatant = true
-            status.combatantTime = Game.time
-        } else if (status.isCombatant && enemyInfo.strength === 0) {
-            status.isCombatant = false
+        if (!base) {
+            creep.suicide()
         }
-    }
 
-    const creeps = Overlord.getCreepsByAssignedRoom(remoteName)
-    if (status.isCombatant) {
-        for (const creep of creeps) {
-            creep.memory.runAway = true
+        if (creep.room.name === base.name) {
+            return
         }
-        const invaderVisualPos = new RoomPosition(25, 5, remoteName)
-        new RoomVisual(remoteName).text(`👿Invader`, visualPos.x, visualPos.y - 1)
-        Game.map.visual.text(`👿`, invaderVisualPos, { backgroundColor: '#000000', align: 'left', fontSize: 5, opacity: 1 })
-        if (Game.time > status.combatantTime + CREEP_LIFE_TIME) {
-            this.resetRemoteInvaderStatus(remoteName)
+
+        const closeBrokenThings = creep.pos.findInRange(creep.room.structures.damaged, 1).filter(structure => structure.structureType === STRUCTURE_ROAD)
+        if (closeBrokenThings.length) {
+            creep.repair(closeBrokenThings[0])
         }
-        return
-    } else {
-        for (const creep of creeps) {
-            creep.memory.runAway = false
+
+        const spawn = base.structures.spawn[0]
+        if (spawn) {
+            creep.moveMy({ pos: spawn.pos, range: 3 })
         }
-        this.addRemoteThreatLevel(remoteName, -1)
-    }
-
-    if (this.checkRemoteInvaderCore(remoteName)) {
-        new RoomVisual(remoteName).text(`👿InvaderCore`, visualPos.x, visualPos.y - 1)
-        if (!Overlord.getNumCreepsByRole(remoteName, 'colonyCoreDefender')) {
-            this.requestColonyCoreDefender(remoteName)
-            return false
-        }
-    }
-
-    // reserve && extract
-    // true means next remote can request spawn creep
-    // false means next remote cannot request spawn creep
-    const reserveRemoteResult = this.reserveRemote(remoteName)
-    const extractRemoteResult = this.extractRemote(remoteName)
-    return reserveRemoteResult && extractRemoteResult
-}
-
-Room.prototype.estimateGuardCost = function (enemyInfo) {
-    const energyCapacity = this.energyCapacityAvailable
-    let cost = undefined
-    let body = undefined
-
-    const costs = Object.keys(harasserBody).sort((a, b) => b - a)
-
-    for (const bodyCost of costs) {
-        if (bodyCost <= energyCapacity) {
-            cost = Number(bodyCost)
-            body = harasserBody[bodyCost]
-            break
-        }
-    }
-
-    if (!cost) {
-
-    }
-
-    let attack = 0
-    let rangedAttack = 0
-    let heal = 0
-    let hits = 0
-    for (const bodyName of body) {
-        hits += 100
-        if (bodyName === ATTACK) {
-            attack += 30
-            continue
-        }
-        if (bodyName === RANGED_ATTACK) {
-            attack += 10
-            rangedAttack += 10
-            continue
-        }
-        if (bodyName === HEAL) {
-            heal += 12
-            continue
-        }
-    }
-    const combatInfo = new CombatInfo(attack, rangedAttack, heal, hits)
-    const combatInfoTotal = new CombatInfo(attack, rangedAttack, heal, hits)
-
-    let costTotal = cost
-    while (!combatInfoTotal.canWinWithKiting(enemyInfo)) {
-        combatInfoTotal.add(combatInfo)
-        costTotal += cost
-    }
-
-    return costTotal
-}
-
-Room.prototype.getMyCombatants = function () {
-    if (this._myCombatants !== undefined) {
-        return this._myCombatants
-    }
-    const myCreeps = this.find(FIND_MY_CREEPS)
-    const myCombatants = myCreeps.filter(creep => creep.checkBodyParts(['attack', 'ranged_attack', 'heal']))
-    return this._myCombatants = myCombatants
-}
-
-Room.prototype.getEnemyCombatants = function () {
-    if (this._enemyCombatants !== undefined) {
-        return this._enemyCombatants
-    }
-    const enemyCreeps = this.findHostileCreeps()
-    const enemyCombatants = enemyCreeps.filter(creep => creep.checkBodyParts(['attack', 'ranged_attack', 'heal']))
-    return this._enemyCombatants = enemyCombatants
-}
-
-Room.prototype.getIsDefender = function () {
-    if (this._isDefender !== undefined) {
-        return this._isDefender
-    }
-    const myCreeps = this.find(FIND_MY_CREEPS)
-    for (const creep of myCreeps) {
-        if (creep.memory.role === 'colonyDefender' && creep.memory.colony === this.name) {
-            return this._isDefender = true
-        }
-    }
-    return this._isDefender = false
-}
-
-Room.prototype.getIsGuard = function () {
-    if (this._isGuard !== undefined) {
-        return this._isGuard
-    }
-    const myCreeps = this.find(FIND_MY_CREEPS)
-    for (const creep of myCreeps) {
-        if (creep.memory.role === 'guard') {
-            return this._isGuard = true
-        }
-    }
-    return this._isGuard = false
-}
-
-Room.prototype.getRemoteThreatLevel = function (remoteName) {
-    const status = this.getRemoteStatus(remoteName)
-
-    if (!status) {
-        return 0
-    }
-
-    return status.threatLevel || 0
-}
-
-Room.prototype.addRemoteThreatLevel = function (remoteName, amount) {
-    const status = this.getRemoteStatus(remoteName)
-
-    if (!status) {
         return
     }
 
-    status.threatLevel = status.threatLevel || 0
-
-    status.threatLevel = Math.max(status.threatLevel + amount, 0)
-}
-
-Room.prototype.resetRemoteThreatLevel = function (remoteName) {
-    const status = this.getRemoteStatus(remoteName)
-
-    if (!status) {
+    if (creep.ticksToLive < 1.1 * (creep.memory.sourcePathLength || 0)) {
+        creep.memory.getRecycled = true
+        const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
+        if (!creep.memory.keeperLairId) {
+            if (base) {
+                base.addRemoteProfit(targetRoomName, amount)
+            }
+        }
         return
     }
 
-    delete status.threatLevel
-}
+    const source = Game.getObjectById(creep.memory.sourceId)
 
-/**
- * 
- * @param {string} roomName - roomName to send troops
- * @param {*} cost - total cost to be used to spawn troops
- * @returns whether there are enough troops or not
- */
-Room.prototype.sendTroops = function (roomName, cost, options) {
-    const defaultOptions = { distance: 0, task: undefined }
-    const mergedOptions = { ...defaultOptions, ...options }
-    const { distance, task } = mergedOptions
-
-    const buffer = 100
-
-    let colonyDefenders = Overlord.getCreepsByRole(roomName, 'colonyDefender')
-
-    if (distance > 0) {
-        colonyDefenders = colonyDefenders.filter(creep => (creep.ticksToLive || 1500) > (distance + creep.body.length * CREEP_SPAWN_TIME + buffer))
+    if (!source) {
+        creep.moveToRoom(creep.memory.targetRoomName)
+        return
     }
 
-    const requestedCost = cost
 
-    if (requestedCost === 0) {
-        if (colonyDefenders.length === 0) {
-            this.requestColonyDefender(roomName, { costMax: 3000, task })
-            return false
+    if (creep.room.name === targetRoomName) {
+        const tombstone = creep.pos.findInRange(FIND_TOMBSTONES, 5).find(tombstone => tombstone.store[RESOURCE_ENERGY] >= 50)
+
+        if (tombstone) {
+            creep.getEnergyFrom(tombstone.id)
+            return
         }
-        for (const colonyDefender of colonyDefenders) {
-            colonyDefender.memory.waitForTroops = false
-        }
-        return true
-    }
 
-    let totalCost = 0
+        const droppedEnergy = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 5).find(resource =>
+            resource.resourceType === RESOURCE_ENERGY && resource.amount >= 50)
 
-    for (const colonyDefender of colonyDefenders) {
-        const multiplier = colonyDefender.memory.boosted !== undefined ? 4 : 1
-        totalCost += colonyDefender.getCost() * multiplier
-    }
-
-    if (totalCost >= requestedCost) {
-        if (colonyDefenders.find(colonyDefender => colonyDefender.spawning)) {
-            return true
-        }
-        for (const colonyDefender of colonyDefenders) {
-            colonyDefender.memory.waitForTroops = false
-        }
-        return true
-    }
-
-    const costMax = Math.max(5600)
-    this.requestColonyDefender(roomName, { costMax, waitForTroops: true, task })
-
-    return false
-}
-
-Room.prototype.reserveRemote = function (remoteName) {
-    const remote = Game.rooms[remoteName]
-
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return true
-    }
-
-    if (this.energyCapacityAvailable < 650) {
-        return true
-    }
-
-    const reservationTicksToEnd = this.getRemoteReserveTick(remoteName)
-
-    if (reservationTicksToEnd > 0) {
-        // reservation visual
-        const controller = remote.controller
-
-        const reservationPos = new RoomPosition(25, 35, remoteName)
-
-        remote.visual.text(`⏱️${controller.reservation.ticksToEnd}`, controller.pos.x + 1, controller.pos.y + 1, { align: 'left' })
-
-        Game.map.visual.text(`⏱️${controller.reservation.ticksToEnd}`, reservationPos, { fontSize: 3, opacity: 1 })
-
-        // if reservation ticksToEnd in enough, break
-        if (reservationTicksToEnd > RESERVE_TICK_THRESHOLD) {
-            return true
-        }
-    }
-
-    const reservers = Overlord.getCreepsByRole(remoteName, 'reserver')
-
-    const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
-
-    // if there is a reserver spawning or reserving, break
-    if (numClaimParts >= 3) {
-        return true
-    }
-
-    if (reservers.length < (status.controllerAvailable || 1)) {
-        // request reserver
-        if (this._remoteSpawnRequested !== true) {
-            this.requestReserver(remoteName)
-        }
-        return false
-    }
-
-    return true
-}
-
-
-Room.prototype.extractRemote = function (remoteName) {
-    const remote = Game.rooms[remoteName]
-    const status = this.getRemoteStatus(remoteName)
-    const spawnPos = this.structures.spawn[0] ? this.structures.spawn[0].pos : new RoomPosition(25, 25, this.name)
-
-    if (!status || !status.infraPlan) {
-        return true
-    }
-
-    const reservationTicksToEnd = this.getRemoteReserveTick(remoteName)
-    const reserving = reservationTicksToEnd > 0
-
-    if (reservationTicksToEnd < 0) {
-        return true
-    }
-
-    // check efficiency and visualize
-    const efficiency = this.getRemoteEfficiency(remoteName)
-    if (efficiency !== undefined) {
-        if (this.controller.level < 7 && efficiency < 0) {
-            data.recordLog(`REMOTE: abandon remote ${remoteName} for low efficiency ${Math.floor(100 * efficiency) / 100}`, this.name)
-            this.abandonRemote(remoteName)
+        if (droppedEnergy) {
+            creep.getEnergyFrom(droppedEnergy.id)
             return
         }
     }
 
-    const sourceIds = Object.keys(status.infraPlan)
-
-    let enoughMiner = true
-    let enoughHauler = true
-
-    const remoteExtractStat = this.getRemoteExtractStat(remoteName)
-
-    let i = 0
-    for (const id of sourceIds) {
-        const stat = remoteExtractStat[id]
-
-        // request a miner or a hauler if needed 
-        if (stat.numMinerWork < stat.maxMinerWork && stat.numMiner < status.infraPlan[id].available) {
-            enoughMiner = false
-            if (this._remoteSpawnRequested !== true) {
-                let containerId = undefined
-                if (remote) {
-                    const structures = status.infraPlan[id].structures
-                    const containerPacked = structures.find(packed => {
-                        const parsed = parseInfraPos(packed)
-                        return parsed.structureType === 'container'
-                    })
-                    const containerParsed = parseInfraPos(containerPacked)
-                    const containerPos = containerParsed.pos
-                    const container = containerPos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === 'container')
-                    if (container) {
-                        containerId = container.id
-                    }
-                }
-
-                this.requestColonyMiner(remoteName, id, containerId)
-            }
-        }
-
-        //check haulers
-        const constructionSites = remote ? remote.constructionSites : []
-
-        if (stat.numHaulerCarry < stat.maxHaulerCarry) {
-            if (this._remoteSpawnRequested !== true) {
-                const pathLength = status.infraPlan[id].pathLength
-
-                const spawnCarryLimit = (status.construction === 'complete')
-                    ? 2 * Math.min(Math.floor((this.energyCapacityAvailable - 150) / 150), 16)
-                    : 2 * Math.min(Math.floor(this.energyCapacityAvailable / 200), 16)
-
-                const maxNumHauler = Math.ceil(stat.maxHaulerCarry / spawnCarryLimit)
-
-                const spawnCarryEach = 2 * Math.ceil(stat.maxHaulerCarry / 2 / maxNumHauler)
-
-                const haulers = Overlord.getCreepsByRole(remoteName, 'colonyHauler').filter(creep => creep.memory.sourceId === id)
-
-                let numWork = 0;
-                for (const hauler of haulers) {
-                    numWork += hauler.getNumParts('work')
-                }
-
-                if (status.construction === 'proceed' && constructionSites.length > 0) {
-                    const maxWork = Math.ceil(NUM_WORK_TO_CONSTRUCT * (reserving ? 1 : 0.5))
-                    if (numWork < maxWork) {
-                        enoughHauler = false
-                        const pathLength = status.infraPlan[id].pathLength
-                        this.requestColonyHaulerForConstruct(remoteName, id, pathLength)
-                    }
-                } else if (status.construction === 'complete') {
-                    enoughHauler = false
-                    const needRepairer = (numWork < 2)
-                    if (TRAFFIC_TEST) {
-                        this.requestColonyHauler(remoteName, id, 1, pathLength, false)
-                    } else {
-                        this.requestColonyHauler(remoteName, id, spawnCarryEach, pathLength, needRepairer)
-                    }
-                } else {
-                    enoughHauler = false
-                    this.requestFastColonyHauler(remoteName, id, spawnCarryEach, pathLength)
-                }
-            }
-        }
-
-        // calculate energy near source and visualize
-        if (remote) {
-            const source = Game.getObjectById(id)
-
-            Game.map.visual.line(spawnPos, source.pos, { color: '#ffe700', width: 0.3 })
-
-            status.infraPlan[id].available = status.infraPlan[id].available || source.available
-
-            const droppedEnergies = source.droppedEnergies
-
-            let energyAmount = 0
-            for (const droppedEnergy of droppedEnergies) {
-                energyAmount += droppedEnergy.amount
-            }
-
-            const container = source.container
-            if (container) {
-                energyAmount += (container.store[RESOURCE_ENERGY] || 0)
-            }
-
-            remote.visual.text(`⛏️${stat.numMinerWork} / ${stat.maxMinerWork}`, source.pos.x + 0.5, source.pos.y - 0.25, VISUAL_OPTION)
-            remote.visual.text(`🚚${stat.numHaulerCarry} / ${stat.maxHaulerCarry}`, source.pos.x + 0.5, source.pos.y + 0.5, VISUAL_OPTION)
-            remote.visual.text(` 🔋${energyAmount}/2000`, source.pos.x + 0.5, source.pos.y + 1.25, VISUAL_OPTION)
-
-            const color = (stat.numMinerWork < stat.maxMinerWork || stat.numHaulerCarry < stat.maxHaulerCarry || energyAmount > 2000) ? '#740001' : '#000000'
-            const visualPos = new RoomPosition(20 + 10 * i, 25, remoteName)
-            const align = i === 0 ? 'right' : 'left'
-
-            Game.map.visual.text(`⛏️${stat.numMinerWork} / ${stat.maxMinerWork}\n🚚${stat.numHaulerCarry} / ${stat.maxHaulerCarry}\n🔋${energyAmount}/2000`, visualPos, { align, fontSize: 3, backgroundColor: color, opacity: 1 })
-
-
-        }
-        i++
+    if (creep.pos.getRangeTo(source.pos) > 2) {
+        creep.moveMy({ pos: source.pos, range: 2 })
+        return
     }
 
-    return enoughMiner && enoughHauler
+    const energyThreshold = Math.min(creep.store.getFreeCapacity(), 500)
+
+    const container = source.pos.findInRange(FIND_STRUCTURES, 1).find(structure => structure.store && structure.store[RESOURCE_ENERGY] >= energyThreshold)
+
+    if (container) {
+        creep.getEnergyFrom(container.id)
+        return
+    }
+
+    const closeBrokenThings = creep.pos.findInRange(creep.room.structures.damaged, 3).filter(structure => structure.structureType === STRUCTURE_ROAD)
+    if (closeBrokenThings.length) {
+        creep.repair(closeBrokenThings[0])
+    }
+
+    creep.setWorkingInfo(source.pos, 2)
+    return
 }
 
-Room.prototype.getRemoteExtractStat = function (remoteName) {
-    this._remoteExtractStatus = this._remoteExtractStatus || {}
-
-    if (this._remoteExtractStatus[remoteName]) {
-        return this._remoteExtractStatus[remoteName]
+function runReserver(creep, targetRoomName) {
+    if (creep.spawning) {
+        return
     }
 
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return undefined
-    }
-    const infraPlan = status.infraPlan
-    if (!infraPlan) {
-        return undefined
-    }
-
-    const result = {}
-
-    const isReserved = this.getRemoteReserveTick(remoteName) > 0
-    result.isReserved = isReserved
-
-    const sourceIds = Object.keys(infraPlan)
-
-    const colonyMiners = Overlord.getCreepsByRole(remoteName, 'colonyMiner')
-    const colonyHaulers = Overlord.getCreepsByRole(remoteName, 'colonyHauler')
-
-    for (const id of sourceIds) {
-        result[id] = {}
-
-        const reservedRatio = isReserved ? 1 : 0.5
-
-        // check miners
-        const miners = colonyMiners.filter(creep =>
-            creep.memory.sourceId === id &&
-            (creep.ticksToLive || 1500) > (3 * creep.body.length + infraPlan[id].pathLength)
-        )
-
-        let numWork = 0;
-        for (const miner of miners) {
-            numWork += miner.getActiveBodyparts(WORK)
+    if (creep.memory.getRecycled === true) {
+        if (creep.room.name === creep.memory.base) {
+            creep.getRecycled()
+            return
         }
-
-        result[id].numMinerWork = numWork
-        result[id].maxMinerWork = 5 * reservedRatio
-        result[id].numMiner = miners.length
-
-        //check haulers
-
-        // calculate maxCarry, maxNumHauler, numCarry
-
-        const maxCarry = Math.ceil(infraPlan[id].pathLength * HAULER_RATIO * reservedRatio)
-
-        let numCarry = 0;
-        const activeHaulers = colonyHaulers.filter(creep => creep.memory.sourceId === id
-            && (creep.ticksToLive || 1500) > 3 * creep.body.length)
-        for (const haluer of activeHaulers) {
-            numCarry += haluer.getActiveBodyparts(CARRY)
-        }
-
-        result[id].numHaulerCarry = numCarry
-        result[id].maxHaulerCarry = maxCarry
-    }
-
-    return this._remoteExtractStatus[remoteName] = result
-}
-
-Room.prototype.constructRemote = function (remoteName) {
-    const remote = Game.rooms[remoteName]
-    const status = this.getRemoteStatus(remoteName)
-
-    if (!status) {
-        return true
-    }
-
-    const reservationTicksToEnd = this.getRemoteReserveTick(remoteName)
-
-    status.constructionStartTick = status.constructionStartTick || Game.time
-
-    if (Game.time - status.constructionStartTick > TICKS_TO_CHECK_INFRA) {
-        status.constructionStartTick = Game.time
-        status.construction = 'proceed'
-    }
-
-    status.construction = status.construction || 'proceed'
-
-    if (status.construction === 'complete') {
-        return true
-    }
-
-    // if don't have vision, wait
-    if (!remote) {
-        return true
-    }
-
-    if (reservationTicksToEnd < 0) {
-        return true
-    }
-
-    // get infraPlan
-    const infraPlan = this.getRemoteInfraPlan(remoteName)
-    if (infraPlan === ERR_NOT_FOUND) {
-        // abandon if not found
-        data.recordLog(`REMOTE: Abandon ${remoteName}. cannot find infraPlan`, remoteName)
-        this.deleteRemote(remoteName)
-        return true
-    }
-
-
-    let end = true
-    let numConstructionSites = {}
-
-    while (infraPlan.length > 0) {
-        const infraPos = infraPlan.pop()
-
-        const roomName = infraPos.pos.roomName
-
-        const room = Game.rooms[roomName]
-
+        const room = Game.rooms[creep.memory.base]
         if (!room) {
+            creep.suicide()
+            return
+        }
+        creep.moveToRoom(creep.memory.base)
+        return
+    }
+
+    const hostileCreeps = creep.room.getEnemyCombatants()
+
+    if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
+        creep.fleeFrom(hostileCreeps, 6)
+        return
+    }
+
+    const targetRoom = Game.rooms[targetRoomName]
+
+    if (!targetRoom) {
+        creep.moveToRoom(targetRoomName)
+        return
+    }
+
+    const controller = targetRoom ? targetRoom.controller : undefined
+
+    if (creep.pos.getRangeTo(controller.pos) > 1) {
+        const targetPos = controller.pos.getAtRange(1).find(pos => pos.walkable && (!pos.creep || (pos.creep.my && pos.creep.memory.role !== creep.memory.role)))
+        if (!targetPos) {
+            if (creep.pos.getRangeTo(controller.pos) > 3) {
+                creep.moveMy({ pos: controller.pos, range: 3 })
+            }
+            return
+        }
+        creep.moveMy({ pos: targetPos, range: 0 })
+        return
+    }
+
+    if (!controller.sign || controller.sign.username !== creep.owner.username) {
+        creep.signController(controller, "A creep can do what he wants, but not want what he wants.")
+    }
+
+    creep.setWorkingInfo(controller.pos, 1)
+
+    // if reserved, attack controller
+    if (controller.reservation && controller.reservation.username !== MY_NAME) {
+        creep.attackController(controller)
+        return
+    }
+
+    creep.reserveController(controller)
+    return
+}
+
+
+function runCoreAttacker(creep, targetRoomName) {
+    if (creep.room.name !== targetRoomName) {
+        creep.moveToRoom(targetRoomName, 1)
+        return
+    }
+
+    const hostileCreeps = creep.room.findHostileCreeps().filter(creep => creep.checkBodyParts(INVADER_BODY_PARTS))
+    if (hostileCreeps.length) {
+        const target = creep.pos.findClosestByPath(hostileCreeps)
+        if (target) {
+            const range = creep.pos.getRangeTo(target)
+            if (range <= 1) {
+                creep.attack(target)
+            }
+            creep.moveMy({ pos: target.pos, range: 0 })
+            return
+        }
+    }
+
+    const targetCore = creep.pos.findClosestByPath(creep.room.find(FIND_HOSTILE_STRUCTURES))
+    if (targetCore) {
+        if (creep.pos.getRangeTo(targetCore) > 1) {
+            creep.moveMy({ pos: targetCore.pos, range: 1 })
+            return
+        }
+        creep.attack(targetCore)
+        return
+    }
+
+    const center = new RoomPosition(25, 25, targetRoomName)
+    if (creep.pos.getRangeTo(center) > 23) {
+        creep.moveMy({ pos: center, range: 23 })
+    }
+}
+
+// invaderCore 추가하기
+function spawnRemoteWorkers(room, targetRoomNames) {
+    const reserve = room.energyCapacityAvailable >= 650
+
+    const maxWork = reserve ? 6 : 3
+
+    for (const targetRoomName of targetRoomNames) {
+        const memory = getRoomMemory(targetRoomName)
+
+        if (memory.invaderCore) {
+            const coreAttackers = Overlord.getCreepsByRole(targetRoomName, 'coreAttacker')
+            if (coreAttackers.length === 0) {
+                room.requestCoreAttacker(targetRoomName)
+                return
+            }
+        }
+
+        const blueprint = getRemoteBlueprint(room, targetRoomName)
+
+        const remoteInfo = room.getRemoteInfo(targetRoomName)
+
+        const targetRoom = Game.rooms[targetRoomName]
+
+        const reservationTick = getReservationTick(targetRoomName)
+
+        if (reserve && reservationTick < 1000) {
+            const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
+            const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
+
+            if (numClaimParts < 3 && reservers.length < (remoteInfo.controllerAvailable || 3)) {
+                room.requestReserver(targetRoomName)
+                return
+            }
+        }
+
+        if (reservationTick < 0) {
             continue
         }
 
-        numConstructionSites[roomName] = numConstructionSites[roomName] || 0
+        const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner').filter(creep => {
+            if (creep.spawning) {
+                return true
+            }
+            return creep.ticksToLive > (creep.body.length * CREEP_SPAWN_TIME + 50)
+        })
 
-        const constructionSite = infraPos.pos.lookFor(LOOK_CONSTRUCTION_SITES)
-        if (constructionSite[0]) {
-            end = false
-            numConstructionSites[roomName]++
-        } else if ([ERR_FULL, OK].includes(infraPos.pos.createConstructionSite(infraPos.structureType))) {
-            end = false
-            numConstructionSites[roomName]++
+        const haulers = Overlord.getCreepsByRole(targetRoomName, 'remoteHauler').filter(creep => {
+            if (creep.spawning) {
+                return true
+            }
+            return creep.ticksToLive > (creep.body.length * CREEP_SPAWN_TIME)
+        })
+
+        const sourceStat = {}
+
+        for (const info of blueprint) {
+            const sourceId = info.sourceId
+            sourceStat[sourceId] = { work: 0, numMiner: 0, carry: 0, repair: 0 }
         }
 
-        if (numConstructionSites[roomName] >= NUM_CONSTRUCTION_SITES_PER_ROOM) {
-            break
+        for (const miner of miners) {
+            const sourceId = miner.memory.sourceId
+            sourceStat[sourceId].work += miner.getActiveBodyparts(WORK)
+            sourceStat[sourceId].numMiner++
         }
-    }
 
-    if (remote && remote.constructionSites.length === 0 && end) {
-        status.construction = 'complete'
-        return true
-    }
+        for (const haluer of haulers) {
+            const sourceId = haluer.memory.sourceId
+            sourceStat[sourceId].carry += haluer.getActiveBodyparts(CARRY)
+            sourceStat[sourceId].repair += haluer.getActiveBodyparts(WORK)
+        }
 
-    return false
-}
+        const constructionComplete = !!remoteInfo.constructionComplete
+        const constructionSites = targetRoom ? targetRoom.constructionSites : []
 
-Room.prototype.getRemoteIdealNetIncomePerTick = function (remoteName) {
-    this.heap.remoteIdealNetIncome = this.heap.remoteIdealNetIncome || {}
+        for (const info of blueprint) {
+            const sourceId = info.sourceId
+            const stat = sourceStat[sourceId]
 
-    if (Game.time % 13 === 0) {
-        delete this.heap.remoteIdealNetIncome[remoteName]
-    }
+            if (stat.work < maxWork && stat.numMiner < info.available) {
+                let containerId = undefined
+                if (Game.getObjectById(info.containerId)) {
+                    containerId = info.containerId
+                } else if (targetRoom) {
+                    const containerPacked = info.structures.find(packed => {
+                        const parsed = unpackInfraPos(packed)
+                        return parsed.structureType === 'container'
+                    })
+                    const containerUnpacked = unpackInfraPos(containerPacked)
+                    const container = containerUnpacked.pos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === 'container')
+                    if (container) {
+                        containerId = info.containerId = container.id
+                    }
+                }
 
-    if (this.heap.remoteIdealNetIncome[remoteName]) {
-        return this.heap.remoteIdealNetIncome[remoteName]
-    }
+                room.requestRemoteMiner(targetRoomName, sourceId, { containerId })
+                return
+            }
 
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return undefined
-    }
-    const infraPlan = status.infraPlan
-    if (!infraPlan) {
-        return undefined
-    }
-    const extractStatus = this.getRemoteExtractStat(remoteName)
-    if (!extractStatus) {
-        return undefined
-    }
+            const constructing = constructionSites.length > 0
 
-    const isReserved = extractStatus.isReserved
-    const isRoad = status.construction === 'complete'
+            if (constructing && stat.repair < 6) {
+                room.requestRemoteHauler(targetRoomName, sourceId, { constructing })
+                return
+            }
 
-    let result = 0
+            const maxCarry = reserve ? info.maxCarry : info.maxCarry / 2
 
-    for (const id of Object.keys(infraPlan)) {
-        const income = 10 * (isReserved ? 1 : 0.5)
-        const distance = infraPlan[id].pathLength
+            if (!constructing && stat.carry < maxCarry) {
+                const sourcePathLength = info.pathLength
 
-        const minerCost = (800 / (1500 - distance)) * (isReserved ? 1 : 0.5)
-        const haluerCost = ((distance * HAULER_RATIO * (isRoad ? 75 : 100) + 100) / 1500) * (isReserved ? 1 : 0.5)
-        const containerCost = isRoad ? 0.5 : 0
-        const roadCost = isRoad ? (1.6 * distance + 10 * distance / (1500 - distance) + 1.5 * distance / (600 - distance)) * 0.001 : 0
+                const maxHaulerCarry = constructionComplete
+                    ? 2 * Math.min(Math.floor((this.energyCapacityAvailable - 150) / 150), 16) // with road
+                    : Math.min(Math.floor(this.energyCapacityAvailable / 100), 25) // without road
 
-        const totalCost = minerCost + haluerCost + containerCost + roadCost
+                const maxNumHauler = Math.ceil(maxCarry / maxHaulerCarry)
 
-        const netIncome = income - totalCost
+                const eachCarry = Math.ceil(maxCarry / maxNumHauler)
 
-        const stat = extractStatus[id]
+                const isRepairer = stat.repair < 2
 
-        const utilizationRate = Math.min(1, stat.numMinerWork / stat.maxMinerWork, stat.numHaulerCarry / stat.maxHaulerCarry)
-
-        result += netIncome * utilizationRate
-    }
-
-
-    const guardCost = 0.2
-
-    const controllerDistance = this.getRemoteControllerDistance(remoteName)
-
-    const reserverCost = isReserved ? 650 / (600 - controllerDistance) : 0
-
-    result -= guardCost
-    result -= reserverCost
-
-    return this.heap.remoteIdealNetIncome[remoteName] = result
-}
-
-Room.prototype.getRemoteControllerDistance = function (remoteName) {
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return undefined
-    }
-    if (status.controllerDistance !== undefined) {
-        return status.controllerDistance
-    }
-    const remote = Game.rooms[remoteName]
-    if (!remote) {
-        return undefined
-    }
-    const spawnPos = this.structures.spawn[0].pos
-    const controllerPos = remote.controller.pos
-
-    const thisRoom = this
-
-    const search = PathFinder.search(spawnPos, { pos: controllerPos, range: 1 }, {
-        plainCost: 1,
-        swampCost: 5,
-        maxOps: 5000,
-        roomCallback: function (roomName) {
-            const remoteNames = Overlord.remotes
-            // if room is not target room and not base room and not one of my remote, do not use that room.
-            if (roomName !== remoteName && roomName !== thisRoom.name && !remoteNames.includes(roomName)) {
-                return false
+                room.requestRemoteHauler(targetRoomName, sourceId, { constructing, sourcePathLength, maxCarry: eachCarry, noRoad: !constructionComplete, isRepairer, })
+                return
             }
         }
-    })
-
-    if (search.incomplete) {
-        return undefined
     }
-
-    const pathLength = search.path.length
-
-    return status.controllerDistance = pathLength
 }
 
-Room.prototype.getRemoteNumSource = function (remoteName) {
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return undefined
-    }
-    const infraPlan = status.infraPlan
-    if (!infraPlan) {
-        return undefined
-    }
-    return Object.keys(infraPlan).length
-}
-
-Room.prototype.getRemotePathLengthAverage = function (remoteName) {
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return Infinity
-    }
-
-    if (status.pathLengthAverage !== undefined) {
-        return status.pathLengthAverage
-    }
-
-    let pathLengthTotal = 0
-    let num = 0
-
-    for (const infraPlan of Object.values(status.infraPlan)) {
-        pathLengthTotal += infraPlan.pathLength
-        num++
-    }
-
-    return status.pathLengthAverage = pathLengthTotal / num
-}
-
-Room.prototype.getRemoteReserveTick = function (remoteName) {
-    if (this._remotesReserveTick && this._remotesReserveTick[remoteName] !== undefined) {
-        return this._remotesReserveTick[remoteName]
-    }
-
-    const remote = Game.rooms[remoteName]
-    if (!remote) {
+function getReservationTick(targetRoomName) {
+    const targetRoom = Game.rooms[targetRoomName]
+    if (!targetRoom) {
         return 0
     }
 
-    if (!remote.controller) {
+    if (!targetRoom.controller) {
         return 0
     }
 
-    if (!remote.controller.reservation) {
+    if (!targetRoom.controller.reservation) {
         return 0
     }
 
-    const reservation = remote.controller.reservation
+    const reservation = targetRoom.controller.reservation
 
     const sign = reservation.username === MY_NAME ? 1 : -1
 
-    this._remotesReserveTick = this._remotesReserveTick || {}
-
-    return this._remotesReserveTick[remoteName] = reservation.ticksToEnd * sign
+    return reservation.ticksToEnd * sign
 }
 
-Room.prototype.getRemoteStatus = function (remoteName) {
-    if (!this.memory.remotes) {
-        return undefined
+function manageInvasion(room, targetRoomName) {
+    const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner')
+    const haulers = Overlord.getCreepsByRole(targetRoomName, 'remoteHauler')
+    const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
+
+    for (const worker of [...miners, ...haulers, ...reservers]) {
+        runAway(worker, room.name)
     }
-    if (!this.memory.remotes[remoteName]) {
-        return undefined
-    }
-    return this.memory.remotes[remoteName]
 }
 
-Room.prototype.deleteRemote = function (remoteName) {
-    if (this.memory.remotes !== undefined) {
-        delete this.memory.remotes[remoteName]
+function runAway(creep, roomName) {
+    const hostileCreeps = creep.room.getEnemyCombatants()
+
+    if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
+        creep.fleeFrom(hostileCreeps, 6, 2)
         return
     }
-}
 
-Room.prototype.abandonRemote = function (remoteName, ticks) {
-    const remote = Game.rooms[remoteName]
-    if (remote) {
-        for (const constructionSite of remote.constructionSites) {
-            constructionSite.remove()
+    if (creep.memory.keeperLairId) {
+        const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
+        if (keeperLair && keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) < 6) {
+            creep.fleeFrom(keeperLair, 10)
+            return
         }
     }
 
-    for (const creep of Overlord.getCreepsByAssignedRoom(remoteName)) {
-        creep.memory.getRecycled = true
-    }
-
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return
-    }
-
-    if (ticks) {
-        status.abandon = Game.time + ticks
-    } else {
-        status.lastAbandonDuration = status.lastAbandonDuration || CREEP_LIFE_TIME
-        status.lastAbandonDuration *= 2
-        status.abandon = Game.time + status.lastAbandonDuration
+    if (hostileCreeps.length > 0 || isEdgeCoord(creep.pos.x, creep.pos.y)) {
+        creep.moveToRoom(roomName)
     }
 }
 
-Room.prototype.resetRemoteInvaderStatus = function (remoteName) {
-    const status = this.getRemoteStatus(remoteName)
-
-    if (!status) {
-        return false
-    }
-
-    delete status.invader
-    delete status.isCombatant
-    delete status.combatantTime
-
-}
-
-Room.prototype.checkRemoteInvaderCore = function (remoteName) {
-    const remote = Game.rooms[remoteName]
-    const status = this.getRemoteStatus(remoteName)
-
-    if (!status) {
-        return false
-    }
-
-    if (!remote) {
-        return status.isInvaderCore
-    }
-    const invaderCores = remote.find(FIND_HOSTILE_STRUCTURES).filter(structure => structure.structureType === STRUCTURE_INVADER_CORE)
-    if (!status.isInvaderCore && invaderCores.length) {
-        status.isInvaderCore = true
-    } else if (status.isInvaderCore && !invaderCores.length) {
-        status.isInvaderCore = false
-    }
-    return status.isInvaderCore
-}
-
-Room.prototype.addRemoteCost = function (remoteName, amount) {
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return
-    }
-    status.netIncome = status.netIncome || 0
-    status.netIncome -= amount
-}
-
-Room.prototype.addRemoteProfit = function (remoteName, amount) {
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
-        return
-    }
-    status.netIncome = status.netIncome || 0
-    status.netIncome += amount
-}
-
-Room.prototype.resetRemoteNetIncome = function (remoteName, resetAbandon = false) {
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
+function constructRemote(room, targetRoomName) {
+    const targetRoom = Game.rooms[targetRoomName]
+    if (!room || !targetRoom) {
         return
     }
 
-    status.startTick = Game.time
-    status.netIncome = 0
-    if (resetAbandon) {
-        delete status.abandon
-        delete status.lastAbandonDuration
-    }
-}
-
-Room.prototype.getRemoteEfficiency = function (remoteName) {
-    const status = this.getRemoteStatus(remoteName)
-    if (!status) {
+    if (Math.random() < 0.9) {
         return
     }
 
-    if (!status.infraPlan) {
-        return
-    }
+    const remoteInfo = room.getRemoteInfo(targetRoomName)
 
-    status.startTick = status.startTick || Game.time
-    status.netIncome = status.netIncome || 0
+    remoteInfo.constructionComplete = remoteInfo.constructionComplete || false
 
-    const ticksPassed = Game.time - status.startTick
+    const blueprint = getRemoteBlueprint(room, targetRoomName)
 
-    const netIncomePerTick = status.netIncome / ticksPassed
+    let complete = true
 
-    const numSource = Object.keys(status.infraPlan).length
+    for (const info of blueprint) {
+        const packedStructures = info.structures
+        let numConstructionSites = 0
+        for (const packedStructure of packedStructures) {
+            const parsed = unpackInfraPos(packedStructure)
+            const pos = parsed.pos
 
-    const efficiency = netIncomePerTick / numSource / 10
+            if (pos.lookFor(LOOK_CONSTRUCTION_SITES).length > 0) {
+                complete = false
+                numConstructionSites++
+            }
+            const structureType = parsed.structureType
 
-    const visualPos = new RoomPosition(25, 5, remoteName)
+            if ([ERR_FULL, OK].includes(pos.createConstructionSite(structureType))) {
+                complete = false
+                numConstructionSites++
+            }
 
-    const color = efficiency > 0.5 ? '#000000' : '#740001'
-    Game.map.visual.text(`(${Math.floor(efficiency * 100)}%)`, visualPos, { align: 'left', fontSize: 5, backgroundColor: color, opacity: 1 })
-
-    if (ticksPassed < TICKS_TO_CHECK_EFFICIENCY) {
-        return
-    }
-
-    if (ticksPassed > TICKS_TO_SQUASH_EFFICIENCY) {
-        const squashFactor = 2
-        status.startTick = Game.time - Math.floor(ticksPassed / squashFactor)
-        status.netIncome = status.netIncome || 0
-        status.netIncome = status.netIncome / squashFactor
-    }
-
-
-    return efficiency
-}
-
-/**
- * get positions for containers and roads for remotes
- * @param {String} remoteName - roomName of remote
- * @param {Boolean} reconstruction - if true, ignore past plan and make a new one
- * @returns 
- */
-Room.prototype.getRemoteInfraPlan = function (remoteName, reconstruction = false) {
-    const NEAR_SOURCE_COST = 30
-
-    // set mapInfo
-    const intel = Overlord.getIntel(remoteName)
-
-    // set status in memory of base room
-    this.memory.remotes = this.memory.remotes || {}
-    this.memory.remotes[remoteName] = this.memory.remotes[remoteName] || {}
-    const status = this.memory.remotes[remoteName]
-
-    // if there is infra plan already, unpack and use that
-    if (!reconstruction && status.infraPlan && Object.keys(status.infraPlan).length) {
-        return this.unpackInfraPlan(status.infraPlan)
-    }
-
-    // if we cannot see remote, wait until it has vision
-    const remote = Game.rooms[remoteName]
-    if (!remote) {
-        return ERR_NOT_IN_RANGE
-    }
-
-    // set a place to store plan
-    status.infraPlan = {}
-
-    // check controller available
-    const controllerAvailable = remote.controller.pos.available
-    status.controllerAvailable = controllerAvailable
-
-    // set roadPositions. it's used to find a path preferring road or future road.
-    const roadPositions = []
-    const basePlan = this.basePlan
-    if (basePlan) {
-        for (let i = 1; i <= 8; i++) {
-            for (const structure of basePlan[`lv${i}`]) {
-                if (structure.structureType === STRUCTURE_ROAD) {
-                    roadPositions.push(structure.pos)
-                }
+            if (numConstructionSites >= 3) {
+                break
             }
         }
     }
 
-    const thisRoom = this
+    if (complete) {
+        remoteInfo.constructionComplete = complete
+        remoteInfo.constructionCompleteTime = Game.time
+    }
+}
 
-    const anchor = this.storage || this.structures.spawn[0]
+function getRemoteValue(room, targetRoomName) {
+    const remoteInfo = room.getRemoteInfo(targetRoomName)
 
-    if (!anchor || !anchor.RCLActionable) {
-        return ERR_NOT_FOUND
+    if (remoteInfo && remoteInfo.remoteValue) {
+        return remoteInfo.remoteValue
     }
 
-    // sort sources by travel distance
-    const sources = [...remote.sources]
-    if (sources.length > 1) {
-        sources.sort((a, b) => a.pos.findPathTo(anchor.pos).length - b.pos.findPathTo(anchor.pos).length)
+    const road = room.energyCapacityAvailable >= 650
+    const reserve = room.energyCapacityAvailable >= 650
+
+    let result = 0
+
+    const blueprint = getRemoteBlueprint(room, targetRoomName)
+
+    if (!blueprint) {
+        console.log(`${room.name} cannot get blueprint of ${targetRoomName}`)
+        return 0
     }
 
-    // check for each source
+    for (const info of blueprint) {
+        const income = reserve ? 10 : 5
+        const distance = info.pathLength
+
+        const minerCost = (950 / (1500 - distance))
+        const haluerCost = (distance * HAULER_RATIO * (road ? 75 : 100) + 100) / 1500
+        const creepCost = (minerCost + haluerCost) * (reserve ? 1 : 0.5)
+
+        const containerCost = road ? 0.5 : 0
+        const roadCost = road ? (1.6 * distance + 10 * distance / (1500 - distance) + 1.5 * distance / (600 - distance)) * 0.001 : 0
+
+        const totalCost = creepCost + containerCost + roadCost
+
+        const netIncome = income - totalCost
+
+        result += netIncome
+    }
+
+    if (remoteInfo) {
+        remoteInfo.remoteValue = result
+    }
+
+    return result
+}
+
+function getRemoteBlueprint(room, targetRoomName) {
+    const remoteInfo = room.getRemoteInfo(targetRoomName)
+    if (remoteInfo && remoteInfo.blueprint) {
+        return remoteInfo.blueprint
+    }
+
+    const roomNameInCharge = room.name
+
+    const startingPoint = room.storage || room.structures.spawn[0]
+    if (!startingPoint) {
+        return
+    }
+
+    const targetRoom = Game.rooms[targetRoomName]
+    if (!targetRoom) {
+        return
+    }
+
+    const result = []
+
+    const sources = targetRoom.find(FIND_SOURCES)
+    const roadPositions = []
+    const basePlan = room.basePlan
+
+    const remoteNames = room.getRemoteNames()
+
+    const intermediates = new Set()
+
     for (const source of sources) {
-        // find path from source to storage of base
-        const search = PathFinder.search(source.pos, { pos: anchor.pos, range: 1 }, {
+        const search = PathFinder.search(source.pos, { pos: startingPoint.pos, range: 1 }, {
             plainCost: 5,
             swampCost: 6, // swampCost higher since road is more expensive on swamp
+            maxOps: 20000,
             roomCallback: function (roomName) {
-                const remoteNames = thisRoom.memory.activeRemotes ? thisRoom.memory.activeRemotes : []
-                // if room is not target room and not base room and not one of my active remote, do not use that room.
-                if (roomName !== remoteName && roomName !== thisRoom.name && !remoteNames.includes(roomName)) {
+                if (![roomNameInCharge, targetRoomName, ...remoteNames].includes(roomName)) {
                     return false
                 }
 
-                const room = Game.rooms[roomName];
-                if (!room) {
+                const currentRoom = Game.rooms[roomName];
+                if (!currentRoom) {
                     return true;
                 }
 
                 const costs = new PathFinder.CostMatrix;
                 for (const pos of roadPositions) {
                     if (pos.roomName === roomName) {
-                        costs.set(pos.x, pos.y, 1)
+                        costs.set(pos.x, pos.y, 3)
                     }
                 }
 
-                room.find(FIND_STRUCTURES).forEach(function (structure) {
+                currentRoom.find(FIND_STRUCTURES).forEach(function (structure) {
                     if (structure.structureType === STRUCTURE_ROAD) {
-                        costs.set(structure.pos.x, structure.pos.y, 1)
+                        costs.set(structure.pos.x, structure.pos.y, 3)
                         return
                     }
 
                     if (structure.structureType === STRUCTURE_CONTAINER) {
-                        if (structure.room.name === remoteName && structure.pos.getRangeTo(source.pos) === 1) {
-                            return
-                        }
-                        costs.set(structure.pos.x, structure.pos.y, 255)
+                        costs.set(structure.pos.x, structure.pos.y, 50)
                         return
                     }
 
@@ -1217,18 +915,18 @@ Room.prototype.getRemoteInfraPlan = function (remoteName, reconstruction = false
 
                 })
 
-                for (const sourceInner of room.sources) {
+                for (const sourceInner of currentRoom.sources) {
                     if (source.id === sourceInner.id) {
                         continue
                     }
                     for (const pos of sourceInner.pos.getInRange(1)) {
-                        if (!pos.isWall && costs.get(pos.x, pos.y) < NEAR_SOURCE_COST) {
-                            costs.set(pos.x, pos.y, NEAR_SOURCE_COST)
+                        if (!pos.isWall && costs.get(pos.x, pos.y) < 50) {
+                            costs.set(pos.x, pos.y, 50)
                         }
                     }
                 }
 
-                if (roomName === thisRoom.name && basePlan) {
+                if (roomName === roomNameInCharge && basePlan) {
                     for (let i = 1; i <= 8; i++) {
                         for (const structure of basePlan[`lv${i}`]) {
                             if (OBSTACLE_OBJECT_TYPES.includes(structure.structureType)) {
@@ -1242,68 +940,99 @@ Room.prototype.getRemoteInfraPlan = function (remoteName, reconstruction = false
             }
         })
 
-        // if there's no path, continue to next source
         if (search.incomplete) {
+            console.log(`${room.name} cannot find path to ${targetRoomName}`)
             continue
         }
 
         const path = search.path
         const pathLength = path.length
-        const available = source.available
 
         if (pathLength > MAX_DISTANCE) {
+            console.log(`${room.name} is too far to ${targetRoomName}`)
             continue
         }
 
+        visualizePath(path)
+
+        roadPositions.push(...path)
+
+        const info = {}
+
+        info.sourceId = source.id
+
+        info.available = source.available
+
+        info.pathLength = pathLength
+
+        info.maxCarry = Math.floor(path.length * HAULER_RATIO)
+
         const structures = []
 
-        // containerPos should be first since we want to build container first
-
         const containerPos = path.shift()
+
         structures.push(containerPos.packInfraPos('container'))
 
         for (const pos of path) {
             const roomName = pos.roomName
-            if (roomName !== this.name && roomName !== remoteName) {
-                status.intermediate = roomName
+            if (![roomNameInCharge, targetRoomName].includes(roomName)) {
+                intermediates.add(roomName)
             }
-            roadPositions.push(pos)
             structures.push(pos.packInfraPos('road'))
-            new RoomVisual(pos.roomName).structure(pos.x, pos.y, 'road')
         }
 
-        // store infraPlan at status
-        status.infraPlan[source.id] = { pathLength, available, structures: structures }
+        info.structures = structures
+
+        result.push(info)
     }
 
-    if (Object.keys(status.infraPlan).length === 0) {
-        intel[scoutKeys.notForRemote] = intel[scoutKeys.notForRemote] || []
-        intel[scoutKeys.notForRemote].push(this.name)
-        return ERR_NOT_FOUND
+    if (result.length === 0) {
+        return
     }
 
-    return this.unpackInfraPlan(status.infraPlan)
+    result.sort((a, b) => a.pathLength - b.pathLength)
+
+    if (remoteInfo) {
+        if (intermediates.size > 0) {
+            remoteInfo.intermediates = Array.from(intermediates)
+        }
+
+        remoteInfo.blueprint = result
+        remoteInfo.controllerAvailable = targetRoom.controller.pos.available
+    }
+
+
+    return result
 }
 
-Room.prototype.unpackInfraPlan = function (infraPlan) {
-    const result = []
+Room.prototype.getRemoteSpawnUsage = function (targetRoomName) {
+    const remoteInfo = this.getRemoteInfo(targetRoomName)
 
-    let arrayOfStructures = []
-    for (const plan of Object.values(infraPlan)) {
-        const structures = [...plan.structures]
-        arrayOfStructures.push(structures)
+    let result = 0
+
+    const reserve = this.energyCapacityAvailable >= 650
+
+    const blueprint = getRemoteBlueprint(this, targetRoomName)
+
+    if (!blueprint) {
+        return 0
     }
 
-    arrayOfStructures.sort((a, b) => a.length - b.length)
-
-    while (arrayOfStructures.length > 0) {
-        for (const structures of arrayOfStructures) {
-            const packed = structures.shift()
-            result.push(parseInfraPos(packed))
+    for (const info of blueprint) {
+        if (this.controller.level < 8) {
+            result += 3 * 6 // upgrader. assume that income is 6e/tick
         }
-        arrayOfStructures = arrayOfStructures.filter(structures => structures.length > 0)
+        result += 13 // miner
+        result += Math.floor(info.maxCarry * (remoteInfo.constructionComplete ? 1.5 : 2)) // hauler
     }
-    return result
+
+    if (!reserve) {
+        result = result * 0.5
+    } else if (result > 0) {
+        result += 5 // reserver. 2/tick
+    }
+
+    return Math.ceil(result)
 }
 
 RoomPosition.prototype.packInfraPos = function (structureType) {
@@ -1312,7 +1041,8 @@ RoomPosition.prototype.packInfraPos = function (structureType) {
     return `${roomName} ${coord} ${structureType}`
 }
 
-function parseInfraPos(packed) {
+
+function unpackInfraPos(packed) {
     const splited = packed.split(' ')
     const roomName = splited[0]
     const coord = splited[1]
@@ -1321,7 +1051,51 @@ function parseInfraPos(packed) {
     return { pos: new RoomPosition(x, y, roomName), structureType: splited[2] }
 }
 
+Room.prototype.getRemoteNames = function () {
+    this.memory.remotes = this.memory.remotes || {}
+    return Object.keys(this.memory.remotes)
+}
+
+Room.prototype.getRemoteInfo = function (targetRoomName) {
+    this.memory.remotes = this.memory.remotes || {}
+    return this.memory.remotes[targetRoomName]
+}
+
+
+Room.prototype.requestCoreAttacker = function (targetRoomName) {
+    if (!this.hasAvailableSpawn()) {
+        return
+    }
+
+    let body = []
+    let cost = 0
+    const bodyLength = Math.min(Math.floor((this.energyCapacityAvailable) / 130), 25)
+    for (let i = 0; i < bodyLength; i++) {
+        body.push(ATTACK)
+        cost += 80
+    }
+    for (let i = 0; i < bodyLength; i++) {
+        body.push(MOVE)
+        cost += 50
+    }
+
+    const name = `${targetRoomName} coreAttacker ${Game.time}_${this.spawnQueue.length}`
+    const memory = {
+        role: 'coreAttacker',
+        base: this.name,
+        targetRoomName,
+    }
+    const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['coreAttacker'], cost: cost })
+    this.spawnQueue.push(request)
+}
+
 module.exports = {
-    parseInfraPos,
     MAX_DISTANCE,
+    HAULER_RATIO,
+    runRemoteMiner,
+    runRemoteHauler,
+    runAway,
+    unpackInfraPos,
+    getRemoteValue,
+    getRemoteBlueprint,
 }

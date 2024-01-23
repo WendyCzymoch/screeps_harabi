@@ -1,5 +1,6 @@
 const profiler = require('screeps-profiler');
 const { ResourceColors } = require('./roomVisual_prototype');
+const { getRemoteValue } = require('./room_manager_remote');
 
 const OPACITY = 0.5
 
@@ -146,62 +147,31 @@ const storedEnergy = new VisualItem('Storage', 4.5, (room) => {
 
 // Remote
 const remoteIncome = new VisualItem('Remote', 4, (room) => {
-    const num = (() => {
-        if (!room.memory.activeRemotes) {
-            return 0
-        }
-        let result = 0
-        for (const remoteName of room.memory.activeRemotes) {
-            remoteStatus = room.getRemoteStatus(remoteName)
-            const numSource =
-                remoteStatus && remoteStatus.infraPlan
-                    ? Object.keys(remoteStatus.infraPlan).length
-                    : 0
-            result += numSource
-        }
-        return result
-    })()
+    const activeRemoteNames = room.getActiveRemoteNames()
 
-    room.memory.numRemoteSource = num
-
-    if (num === 0) {
+    if (!activeRemoteNames) {
         const content = '-'
         const option = { color: `hsl(0,100%,60%)` }
         return { content, option }
     }
 
     let income = 0
-    for (const remoteName of room.memory.activeRemotes) {
-        const status = room.memory.remotes[remoteName]
-        if (!status) {
+    let num = 0
+
+    for (const targetRoomName of activeRemoteNames) {
+        const remoteInfo = room.getRemoteInfo(targetRoomName)
+        if (!remoteInfo) {
             continue
         }
-
-        const visualPos = new RoomPosition(25, 5, remoteName)
-
-        if (status.construction === 'proceed') {
-            Game.map.visual.text(`🏗️`, visualPos, { align: 'right', fontSize: 5, backgroundColor: '#000000', opacity: 1 })
-            new RoomVisual(remoteName).text(`12`, 25, 45)
-            continue
-        }
-
-        const numSource = room.getRemoteNumSource(remoteName)
-        const remoteIncome = room.getRemoteIdealNetIncomePerTick(remoteName)
-
-        if (isNaN(remoteIncome)) {
-            continue
-        }
-
-        const color = remoteIncome / numSource > 5 ? '#000000' : '#740001'
-        Game.map.visual.text(`📊${remoteIncome.toFixed(1)}e/t`, visualPos, { align: 'right', fontSize: 5, backgroundColor: color, opacity: 1 })
-
-        income += remoteIncome
+        num += remoteInfo.blueprint.length
+        income += room.getRemoteNetIncomePerTick(targetRoomName)
     }
     room.heap.remoteIncome = income
-    const incomePerSource = Math.floor(10 * (income / num)) / 10
-    const content = `${incomePerSource}e/t * ${num}`
 
-    const hue = 120 * Math.max(0, incomePerSource - 2) / 5
+    const totalIncome = Math.floor(10 * income) / 10
+    const content = `${totalIncome}e/t(${num})`
+
+    const hue = 120 * Math.max(0, totalIncome - (num * 2)) / (num * 7)
     const color = `hsl(${hue},100%,60%)`
 
     const option = { color }
@@ -392,7 +362,7 @@ function visualizeTasks() {
                     new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
                     break
                 case 'guard':
-                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${Game.time - request.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${Game.time - request.startTime})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
                     break
                 case 'siege':
                     new RoomVisual().text(`(${request.endTime - Game.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })

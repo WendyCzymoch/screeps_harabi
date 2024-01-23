@@ -41,11 +41,11 @@ global.Overlord = {
     }
     Game._remotes = []
     for (const myRoom of this.myRooms) {
-      const activeRemotes = myRoom.memory.activeRemotes
-      if (!activeRemotes) {
+      const activeRemoteNames = myRoom.memory.activeRemoteNames
+      if (!activeRemoteNames) {
         continue
       }
-      Game._remotes.push(...activeRemotes)
+      Game._remotes.push(...activeRemoteNames)
     }
     return Game._remotes
   },
@@ -60,7 +60,7 @@ global.Overlord = {
 }
 
 Overlord.mapInfo = function () {
-  if (Memory.showMapInfo === 0 || Game.time % 1000 !==0) {
+  if (Memory.showMapInfo === 0 || Game.time % 1000 !== 0) {
     return
   }
 

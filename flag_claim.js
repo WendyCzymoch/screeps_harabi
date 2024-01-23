@@ -1,3 +1,5 @@
+const { BlinkyRequest } = require("./overlord_tasks_blinky")
+
 Room.prototype.manageClaim = function () {
     this.memory.claimRoom = this.memory.claimRoom || {}
     const roomNames = Object.keys(this.memory.claimRoom)
@@ -37,11 +39,13 @@ Room.prototype.claimRoom = function (roomName) {
     //     return
     // }
 
-    const cost = this.controller.level * 2000
-    if (!this.sendTroops(roomName, cost, { distance: 100 })) {
-        return
-    }
+    const tasks = Overlord.getTasksByRoomInCharge(this.name)
+    const blinkyTasks = Object.values(tasks['blinky'])
 
+    if (!blinkyTasks.some(request => request.ticksToLive > 1000)) {
+        const request = new BlinkyRequest(this, roomName, { number: 2, boost: 3 })
+        Overlord.registerTask(request)
+    }
 
     // claim part
     if (targetRoom && targetRoom.isMy) {

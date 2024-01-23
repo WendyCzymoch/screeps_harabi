@@ -62,7 +62,7 @@ if (shardName === 'swc') {
     ZH2O: 1500,
     XZH2O: 1500,
   }
-} else if (isWorld) {
+} else {
   config.compoundGoal = {
     // for defense, ant
     XUH2O: 4000,
@@ -99,6 +99,13 @@ if (shardName === 'swc') {
   }
 }
 
+// harass ?
+if (shardName === 'swc') {
+  config.harass = true
+} else {
+  config.harass = false
+}
+
 // quad and duo settings
 config.duo = {
   IGNORE_TOWER_DAMAGE: true,
@@ -123,7 +130,7 @@ if (shardName === 'swc') {
     deposit: true,
     harass: true
   }
-} else if (isWorld) {
+} else {
   config.task = {
     powerBank: true,
     deposit: true,

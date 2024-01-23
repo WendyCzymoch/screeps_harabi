@@ -1,4 +1,5 @@
 const { config } = require("./config")
+const { getRemoteBlueprint, getRemoteValue } = require("./room_manager_remote")
 
 const SCOUT_INTERVAL_UNDER_RCL_8 = 6000 // scout 시작 후 얼마나 지나야 리셋할건지 1000보다 커야함.
 const SCOUT_INTERVAL_AT_RCL_8 = 2000
@@ -163,21 +164,6 @@ Room.prototype.manageScout = function () {
   }
 }
 
-Room.prototype.resetScout = function () {
-  const map = Overlord.map
-  for (const roomName of Object.keys(map)) {
-    if (map[roomName].host && map[roomName].host === this.name) {
-      delete map[roomName]
-    }
-  }
-
-  delete this.memory.scout
-  const scouters = Overlord.getCreepsByRole(this.name, 'scouter')
-  for (const scouter of scouters) {
-    scouter.suicide()
-  }
-}
-
 Room.prototype.updateIntel = function () {
   const intelBefore = this.memory.intel || {}
 
@@ -215,6 +201,10 @@ Room.prototype.updateIntel = function () {
 Room.prototype.tryRemote = function (roomName) {
   const intel = Overlord.getIntel(roomName)
 
+  if (!Game.rooms[roomName]) {
+    return
+  }
+
   // not adequate
   if (!intel[scoutKeys.isRemoteCandidate]) {
     return
@@ -229,76 +219,32 @@ Room.prototype.tryRemote = function (roomName) {
     return
   }
 
+  const value = getRemoteValue(this, roomName)
+
+  if (value === 0) {
+    intel[scoutKeys.notForRemote] = intel[scoutKeys.notForRemote] || []
+    intel[scoutKeys.notForRemote].push(this.name)
+    return
+  }
+
   const roomBefore = findRemoteHost(roomName)
 
   // no competition
-  if (!roomBefore || (roomBefore.controller.level < 7 && this.controller.level >= 7)) {
+  if (!roomBefore) {
     data.recordLog(`REMOTE: Not my remote. try remote ${roomName}`, this.name)
-
-    const infraPlan = this.getRemoteInfraPlan(roomName)
-
-    if (infraPlan === ERR_NOT_FOUND) {
-      this.deleteRemote(roomName)
-      return
-    }
-
-    colonize(roomName, this.name)
+    this.addRemote(roomName)
     return
   }
-
 
   // competition
 
-  const statusBefore = roomBefore.getRemoteStatus(roomName)
+  const valueBefore = getRemoteValue(roomBefore, roomName)
 
-  const infraPlan = this.getRemoteInfraPlan(roomName)
-
-  // cannot find infraPlan
-  if (infraPlan === ERR_NOT_FOUND) {
-    this.deleteRemote(roomName)
-    return
-  }
-
-  if (!statusBefore || !statusBefore.infraPlan) {
-
-    data.recordLog(`REMOTE: No status. Abandon remote ${roomName}`, roomBefore.name)
+  if (value > valueBefore) {
     roomBefore.deleteRemote(roomName)
-
-    data.recordLog(`REMOTE: Colonize ${roomName}`, this.name)
-    colonize(roomName, this.name)
+    this.addRemote(roomName)
     return
   }
-
-  // compare
-
-  const statusNow = this.getRemoteStatus(roomName)
-
-  if (!statusNow) {
-    this.deleteRemote(roomName)
-    return
-  }
-
-  if (Object.keys(statusNow.infraPlan).length < Object.keys(statusBefore.infraPlan).length) {
-    this.deleteRemote(roomName)
-    return
-  }
-
-  const totalPathLengthBefore = Object.values(statusBefore.infraPlan).map(value => value.pathLength).reduce((acc, curr) => acc + curr, 0)
-  const totalPathLengthNow = Object.values(statusNow.infraPlan).map(value => value.pathLength).reduce((acc, curr) => acc + curr, 0)
-
-  // compare
-  if (totalPathLengthBefore <= totalPathLengthNow) {
-    this.deleteRemote(roomName)
-    return
-  }
-
-  data.recordLog(`REMOTE: Abandon remote ${roomName}. Less efficient than ${this.name}`, roomBefore.name)
-  roomBefore.deleteRemote(roomName)
-
-  data.recordLog(`REMOTE: Colonize ${roomName} with distance ${info.distance}`, this.name)
-  colonize(roomName, this.name)
-
-  return
 }
 
 Room.prototype.analyzeIntel = function () {

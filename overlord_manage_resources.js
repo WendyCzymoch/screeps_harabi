@@ -61,7 +61,7 @@ function getMyFunnelRequest() {
   const myRoomsRCL7 = []
 
   for (const room of myRooms) {
-    if (!room.terminal || !room.terminal.RCLActionable || !room.storage) {
+    if (!room.terminal || !room.terminal.RCLActionable || !room.storage || room.abandon) {
       continue
     }
     const level = room.controller.level
