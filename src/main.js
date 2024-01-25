@@ -99,9 +99,6 @@ module.exports.loop = () => {
     Overlord.memHack.pretick()
 
     profiler.wrap(function () {
-        console.log('using grunt')
-
-
         if (hasRespawned()) {
             RawMemory.set('{}');
             for (const key in Memory) {
@@ -159,10 +156,6 @@ module.exports.loop = () => {
                 flag.remove()
                 continue
             }
-            if (name.includes('attack')) {
-                flag.attackRoom()
-                continue
-            }
             if (name.includes('clear')) {
                 flag.manageClearAll()
                 continue
@@ -171,17 +164,8 @@ module.exports.loop = () => {
                 flag.manageReconstruction()
                 continue
             }
-            if (name.includes('harass')) {
-                const number = name.includes('three') ? 3 : name.includes('two') ? 2 : 1
-                flag.harass(number)
-                continue
-            }
             if (name.includes('loot')) {
                 flag.lootRoom()
-                continue
-            }
-            if (name.includes('quad')) {
-                flag.manageQuad()
                 continue
             }
             if (name.includes('send')) {
@@ -219,8 +203,8 @@ module.exports.loop = () => {
                 flag.dismantleRoom()
                 continue
             }
-            if (name.includes('flanking')) {
-                flag.portalFlanking()
+            if (name.includes('observe')) {
+                Overlord.observeRoom(flag.pos.roomName)
                 continue
             }
         }

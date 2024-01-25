@@ -1,5 +1,5 @@
 const { config } = require("./config")
-const { getRemoteBlueprint, getRemoteValue } = require("./room_manager_remote")
+const { getRemoteValue } = require("./room_manager_remote")
 
 const SCOUT_INTERVAL_UNDER_RCL_8 = 6000 // scout 시작 후 얼마나 지나야 리셋할건지 1000보다 커야함.
 const SCOUT_INTERVAL_AT_RCL_8 = 4000
@@ -233,7 +233,6 @@ Room.prototype.tryRemote = function (roomName) {
 
   // no competition
   if (!roomBefore) {
-    data.recordLog(`REMOTE: Not my remote. try remote ${roomName}`, this.name)
     this.addRemote(roomName)
     return
   }
@@ -254,6 +253,7 @@ Room.prototype.analyzeIntel = function () {
 
   result[scoutKeys.numSource] = this.find(FIND_SOURCES).length
   result[scoutKeys.mineralType] = this.mineral ? this.mineral.mineralType : undefined
+  result[scoutKeys.numTower] = this.structures.tower.filter(tower => tower.RCLActionable).length
 
   const isController = (this.controller !== undefined)
   if (isController) {
@@ -262,13 +262,11 @@ Room.prototype.analyzeIntel = function () {
 
     if (owner) {
       const username = owner.username
-
       result[scoutKeys.owner] = username
       result[scoutKeys.RCL] = this.controller.level
       result[scoutKeys.isAlly] = allies.includes(username)
       result[scoutKeys.isMy] = (username === MY_NAME)
       result[scoutKeys.isEnemy] = ((!result[scoutKeys.isAlly]) && (!result[scoutKeys.isMy]))
-      result[scoutKeys.numTower] = this.structures.tower.filter(tower => tower.RCLActionable).length
     }
 
     result[scoutKeys.isMyRemote] = Overlord.remotes.includes(this.name)

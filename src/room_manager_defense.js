@@ -62,9 +62,6 @@ Room.prototype.manageDefense = function () {
         status.startTick = Game.time
         data.recordLog(`WAR: Emergency occured by ${invaderName}`, this.name, 0)
         this.memory.militaryThreat = true
-        for (const hauler of this.creeps.hauler) {
-            hauler.memory.role = 'manager'
-        }
     } else if (status.state === 'emergency' && invulnerables.length === 0 && (attackPowerTotal === 0 || this.controller.safeMode)) {
         data.recordLog('WAR: Emergency ended', this.name)
         status.state = 'normal'
@@ -81,7 +78,7 @@ Room.prototype.manageDefense = function () {
             }
         }
         const repairingForNuke = this.memory.defenseNuke && ['build', 'repair'].includes(this.memory.defenseNuke.state) && this.energyLevel > config.energyLevel.REACT_TO_NUKES
-        if (!repairingForNuke) {
+        if (!repairingForNuke && this.controller.level === 8) {
             const laborers = this.creeps.laborer
             for (const laborer of laborers) {
                 laborer.memory.role = 'wallMaker'

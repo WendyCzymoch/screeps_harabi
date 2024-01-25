@@ -321,8 +321,8 @@ function runRemoteMiner(creep, targetRoomName) {
     if (creep.memory.keeperLairId) {
         const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
         if (keeperLair && keeperLair.ticksToSpawn < 15) {
-            if (creep.pos.getRangeTo(keeperLair) < 6) {
-                creep.fleeFrom(keeperLair, 5)
+            if (creep.pos.getRangeTo(keeperLair) <= 8) {
+                creep.fleeFrom(keeperLair, 8)
                 return
             }
         }
@@ -370,8 +370,8 @@ function runRemoteHauler(creep, base, targetRoomName) {
 
     if (creep.memory.keeperLairId) {
         const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
-        if (keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) < 6) {
-            creep.fleeFrom(keeperLair, 5)
+        if (keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) <= 8) {
+            creep.fleeFrom(keeperLair, 8)
             return
         }
     }
@@ -406,6 +406,14 @@ function runRemoteHauler(creep, base, targetRoomName) {
 
     // 행동
     if (creep.memory.supplying) {
+        if (!base) {
+            creep.suicide()
+        }
+
+        if (creep.room.name === base.name) {
+            return
+        }
+
         const constructionSites = creep.room.constructionSites
 
         if (constructionSites.length > 0 && creep.getActiveBodyparts(WORK) > 1) {
@@ -428,13 +436,6 @@ function runRemoteHauler(creep, base, targetRoomName) {
             return
         }
 
-        if (!base) {
-            creep.suicide()
-        }
-
-        if (creep.room.name === base.name) {
-            return
-        }
 
         const closeBrokenThings = creep.pos.findInRange(creep.room.structures.damaged, 1).filter(structure => structure.structureType === STRUCTURE_ROAD)
         if (closeBrokenThings.length) {
@@ -613,8 +614,8 @@ function runAway(creep, roomName) {
 
     if (creep.memory.keeperLairId) {
         const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
-        if (keeperLair && keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) < 6) {
-            creep.fleeFrom(keeperLair, 6)
+        if (keeperLair && keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) < 8) {
+            creep.fleeFrom(keeperLair, 8)
             return
         }
     }
@@ -924,6 +925,33 @@ function manageInvasion(room, targetRoomName) {
     }
 }
 
+function getAllRemoteRoadPositions(room) {
+    const result = []
+    for (const targetRoomName of room.getRemoteNames()) {
+        const remoteInfo = room.getRemoteInfo(targetRoomName)
+        if (!remoteInfo) {
+            continue
+        }
+        const blueprint = remoteInfo.blueprint
+        if (!blueprint) {
+            continue
+        }
+
+        for (const info of blueprint) {
+            const packedStructures = info.structures
+            for (const packedStructure of packedStructures) {
+                const parsed = unpackInfraPos(packedStructure)
+                if (parsed.structureType !== STRUCTURE_ROAD) {
+                    continue
+                }
+                const pos = parsed.pos
+                result.push(pos)
+            }
+        }
+    }
+    return result
+}
+
 function constructRemote(room, targetRoomName) {
     const targetRoom = Game.rooms[targetRoomName]
     if (!room || !targetRoom) {
@@ -1044,7 +1072,7 @@ function getRemoteBlueprint(room, targetRoomName) {
     const result = []
 
     const sources = targetRoom.find(FIND_SOURCES)
-    const roadPositions = []
+    const roadPositions = [...getAllRemoteRoadPositions(room)]
     const basePlan = room.basePlan
 
     const remoteNames = room.getRemoteNames()
@@ -1061,16 +1089,17 @@ function getRemoteBlueprint(room, targetRoomName) {
                     return false
                 }
 
-                const currentRoom = Game.rooms[roomName];
-                if (!currentRoom) {
-                    return true;
-                }
-
                 const costs = new PathFinder.CostMatrix;
+
                 for (const pos of roadPositions) {
                     if (pos.roomName === roomName) {
-                        costs.set(pos.x, pos.y, 3)
+                        costs.set(pos.x, pos.y, 2)
                     }
+                }
+
+                const currentRoom = Game.rooms[roomName];
+                if (!currentRoom) {
+                    return costs;
                 }
 
                 currentRoom.find(FIND_STRUCTURES).forEach(function (structure) {
@@ -1105,6 +1134,11 @@ function getRemoteBlueprint(room, targetRoomName) {
                 if (roomName === roomNameInCharge && basePlan) {
                     for (let i = 1; i <= 8; i++) {
                         for (const structure of basePlan[`lv${i}`]) {
+                            if (structure.structureType === STRUCTURE_ROAD) {
+                                costs.set(structure.pos.x, structure.pos.y, 2)
+                                continue
+                            }
+
                             if (OBSTACLE_OBJECT_TYPES.includes(structure.structureType)) {
                                 costs.set(structure.pos.x, structure.pos.y, 255)
                             }

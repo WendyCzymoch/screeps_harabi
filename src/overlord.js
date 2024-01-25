@@ -74,15 +74,15 @@ Overlord.mapInfo = function () {
 
     const center = new RoomPosition(25, 25, roomName)
 
-    if (intel[scoutKeys.isClaimCandidate]) {
-      Game.map.visual.text(`🚩`, new RoomPosition(center.x - 15, center.y, center.roomName), { fontSize: 7, })
-      Game.map.visual.text(`⚡${intel[scoutKeys.numSource]}/2`, new RoomPosition(center.x + 12, center.y, center.roomName), { fontSize: 7, })
-      Game.map.visual.text(`💎${intel[scoutKeys.mineralType]}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
+    if (intel[scoutKeys.claimScore] !== undefined) {
+      Game.map.visual.text(`🚩`, new RoomPosition(center.x - 15, center.y - 15, center.roomName), { fontSize: 7, })
+      Game.map.visual.text(`⚡${intel[scoutKeys.numSource]}/2`, new RoomPosition(center.x + 12, center.y + 15, center.roomName), { fontSize: 7, })
+      Game.map.visual.text(`💎${intel[scoutKeys.mineralType]}`, new RoomPosition(center.x - 12, center.y + 15, center.roomName), { fontSize: 7, })
     }
 
     const inaccessible = intel[scoutKeys.inaccessible]
-    if (inaccessible && inaccessible > Game.time) {
-      Game.map.visual.text(`🚫${inaccessible - Game.time}`, new RoomPosition(center.x, center.y - 13, center.roomName), { fontSize: 7, color: '#f000ff' })
+    if (!intel[scoutKeys.isMy] && ((inaccessible && inaccessible > Game.time) || intel[scoutKeys.numTower] > 0)) {
+      Game.map.visual.text(`🚫`, new RoomPosition(center.x + 15, center.y - 15, center.roomName), { fontSize: 7, color: '#f000ff' })
     }
 
     if (intel[scoutKeys.reservationOwner]) {
@@ -112,7 +112,6 @@ Overlord.mapInfo = function () {
 }
 
 Overlord.observeRoom = function (roomName) {
-  data.info = false
   const observer = this.structures.observer.find(observer => Game.map.getRoomLinearDistance(observer.room.name, roomName) <= 10)
   if (observer) {
     observer.observeRoom(roomName)

@@ -581,7 +581,7 @@ Room.prototype.getSourceKeeperRoomSpawnUsage = function (targetRoomName) {
   result += sourceKeeperHandlerBody.length
 
   for (const info of infraPlan) {
-    result += sourceKeeperMinerBody.length
+    result += 15
     result += info.maxCarry * 1.5
     if (this.controller.level < 8) {
       result += 3 * 9 // upgrader. assume income is 9e/tick

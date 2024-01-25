@@ -797,7 +797,10 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
     nearClosestPositions.push(posClosestToController)
 
     // filter by range to controller<=2 and sort by num of available spots
-    let controllerLinkCandidates = nearClosestPositions.filter(pos => pos.getRangeTo(this.controller.pos) <= 2 && !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST)
+    let controllerLinkCandidates = nearClosestPositions.filter(pos =>
+      pos.getRangeTo(this.controller.pos) <= 2
+      && !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST
+      && costs.get(pos.x, pos.y) < STRUCTURE_COST)
     controllerLinkCandidates = controllerLinkCandidates.sort((a, b) => {
       const aResult = a.getInRange(1).filter(pos => !pos.isWall).length
       const bResult = b.getInRange(1).filter(pos => !pos.isWall).length
