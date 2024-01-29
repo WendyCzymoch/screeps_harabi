@@ -143,7 +143,7 @@ getCanBeKilled = function (creepBody, damage, heal) {
   let body = _.cloneDeep(creepBody)
 
   i = 0
-  while (i < 10) {
+  while (i < 20) {
     i++
     const hitsBefore = getHits(body)
     body = applyDamageAndHeal(body, damage, heal)

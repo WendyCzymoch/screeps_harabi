@@ -1,7 +1,7 @@
 const { config } = require("./config")
 
 const IGNORE_TOWER_DAMAGE = config.duo.IGNORE_TOWER_DAMAGE
-const IMPORTANT_STRUCTURE_TYPES = config.duo.IMPORTANT_STRUCTURE_TYPES
+const IMPORTANT_STRUCTURE_TYPES = config.IMPORTANT_STRUCTURE_TYPES
 
 const EDGE_COST = 20
 
@@ -138,8 +138,7 @@ Creep.prototype.getPathToAttackImportantStructures = function (names) {
     }
 
     const hostileStructures = this.room.find(FIND_HOSTILE_STRUCTURES)
-    const importantStructureTypes = IMPORTANT_STRUCTURE_TYPES
-    const importantStructures = hostileStructures.filter(structure => importantStructureTypes.includes(structure.structureType))
+    const importantStructures = hostileStructures.filter(structure => IMPORTANT_STRUCTURE_TYPES.includes(structure.structureType))
 
     const goals = importantStructures.map(structure => {
         return { pos: structure.pos, range: 0 }
@@ -155,8 +154,8 @@ Creep.prototype.getPathToAttackImportantStructures = function (names) {
 
     const damageArray = this.room.getTowerDamageArray()
 
-    for (let i = 0; i < damageArray.length; i++) {
-        if (!IGNORE_TOWER_DAMAGE) {
+    if (!IGNORE_TOWER_DAMAGE) {
+        for (let i = 0; i < damageArray.length; i++) {
             const netHeal = this.totalHealPower - this.getEffectiveDamage(damageArray[i])
             if (netHeal < 0) {
                 const parsed = parseCoord(i)

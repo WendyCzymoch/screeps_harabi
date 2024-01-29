@@ -131,7 +131,7 @@ Room.prototype.manageSpawn = function () {
     if (!this.memory.militaryThreat) {
         // extractor 생산
         if (this.terminal && this.structures.extractor.length && this.mineral.mineralAmount > 0 && this.terminal.store.getFreeCapacity() > 10000) {
-            if (this.creeps.extractor.filter(creep => (creep.ticksToLive || 1500 > 3) * creep.body.length).length === 0) {
+            if (this.creeps.extractor.filter(creep => (creep.ticksToLive || 1500) > (3 * creep.body.length)).length === 0) {
                 this.requestExtractor()
             }
         }

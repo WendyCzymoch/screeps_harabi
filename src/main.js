@@ -45,6 +45,7 @@ require('overlord_tasks_quad')
 require('overlord_tasks_occupy')
 require('overlord_tasks_powerBank')
 require('overlord_tasks_siege')
+require('overlord_tasks_singleton')
 require('overlord_tasks')
 
 require('quad_prototype')

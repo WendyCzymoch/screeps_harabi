@@ -30,7 +30,6 @@ Room.prototype.manageTowerAttack = function (targets) {
 
     if (killable) {
       const targets = killable.pos.findInRange(possible, 1)
-      data.recordLog(`found killable ${killable.name}. do some random shot`, this.name)
       this.towerAttackRandomly(targets)
       return
     }

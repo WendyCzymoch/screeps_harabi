@@ -1,3 +1,7 @@
+const { config } = require("./config")
+
+const NOT_BUILD = config.notBuild
+
 Room.prototype.manageConstruction = function () {
     if (!this.memory.level || Game.time % 5000 === 0) { // 5000 tick은 대략 7~8시간?
         this.memory.level = this.controller.level - 1
@@ -67,6 +71,11 @@ Room.prototype.constructByBasePlan = function (level) {
     structures.sort((a, b) => BUILD_PRIORITY[a.structureType] - BUILD_PRIORITY[b.structureType])
 
     for (const structure of structures) {
+
+        if (NOT_BUILD && NOT_BUILD.includes(structure.structureType)) {
+            continue
+        }
+
         if (numConstructionSitesThisRoom >= 5) {
             return false
         }
@@ -78,14 +87,8 @@ Room.prototype.constructByBasePlan = function (level) {
             }
             continue
         }
-        if (SHARD === 'swc') {
-            if (structure.structureType === 'powerSpawn') {
-                continue
-            }
-            if (structure.structureType === 'nuker') {
-                continue
-            }
-        }
+
+
 
         if (structure.pos.createConstructionSite(structure.structureType) === OK) {
             numConstructionSites++

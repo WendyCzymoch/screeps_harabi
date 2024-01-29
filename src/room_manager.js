@@ -361,7 +361,7 @@ Room.prototype.manageLab = function () {
         return
     }
 
-    if (!this.labs) {
+    if (this.structures.lab.length === 0) {
         return
     }
 

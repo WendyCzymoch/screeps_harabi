@@ -30,8 +30,8 @@ Overlord.managePowerBankTasks = function () {
 
     roomInCharge.runPowerBankRequest(powerBankRequest)
     const color = resourceColor.power
-    Game.map.visual.text('power', new RoomPosition(25, 5, powerBankRequest.roomName), { color })
-    Game.map.visual.line(new RoomPosition(25, 25, roomInCharge.name), new RoomPosition(25, 15, powerBankRequest.roomName), { color, width: 2 })
+    Game.map.visual.text('power', new RoomPosition(25, 35, powerBankRequest.roomName), { color })
+    Game.map.visual.line(new RoomPosition(25, 25, roomInCharge.name), new RoomPosition(25, 35, powerBankRequest.roomName), { color, width: 2 })
   }
 }
 
@@ -223,8 +223,11 @@ Overlord.checkPowerBanks = function (targetRoomName) {
       return false
     }
     const route = this.findRoutesWithPortal(targetRoomName, room.name)
+    if (route === ERR_NO_PATH) {
+      return false
+    }
     const length = route.map(segment => segment.length).reduce((acc, curr) => acc + curr, 0)
-    if (route === ERR_NO_PATH || length > POWERBANK_DISTANCE_THRESHOLD) {
+    if (length > POWERBANK_DISTANCE_THRESHOLD) {
       return false
     }
     if (Object.values(powerBankTasks).map(task => task.roomNameInCharge).includes(room.name)) {

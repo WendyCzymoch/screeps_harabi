@@ -620,7 +620,7 @@ function runAway(creep, roomName) {
         }
     }
 
-    if (hostileCreeps.length > 0 || isEdgeCoord(creep.pos.x, creep.pos.y)) {
+    if (hostileCreeps.length > 0 || creep.pos.getRangeToEdge() < 5) {
         creep.moveToRoom(roomName)
     }
 }

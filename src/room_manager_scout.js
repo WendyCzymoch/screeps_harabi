@@ -22,6 +22,7 @@ global.scoutKeys = {
   isRemoteCandidate: 12,
   claimScore: 13,
   lastScout: 14,
+
   inaccessible: 15,
   lastHarassTick: 16,
   roomStatus: 17,
@@ -193,9 +194,14 @@ Room.prototype.updateIntel = function () {
       break;
   }
 
-  const intelNew = this.analyzeIntel()
+  const intel = this.analyzeIntel()
 
-  const intel = { ...intelBefore, ...intelNew }
+  intel[scoutKeys.inaccessible] = intelBefore[scoutKeys.inaccessible]
+  intel[scoutKeys.lastHarassTick] = intelBefore[scoutKeys.lastHarassTick]
+  intel[scoutKeys.roomStatus] = intelBefore[scoutKeys.roomStatus]
+  intel[scoutKeys.roomStatusTime] = intelBefore[scoutKeys.roomStatusTime]
+  intel[scoutKeys.threat] = intelBefore[scoutKeys.threat]
+  intel[scoutKeys.notForRemote] = intelBefore[scoutKeys.notForRemote]
 
   this.memory.intel = intel
 }
@@ -353,7 +359,88 @@ Room.prototype.acquireVision = function (roomName) {
 }
 
 Room.prototype.getClaimScore = function () {
-  return 0
+  const terrain = new Room.Terrain(this.name)
+
+  let numSwamp = 0
+  let numWall = 0
+  let numPlain = 0
+
+  for (let x = 0; x < 50; x++) {
+    for (let y = 0; y < 50; y++) {
+      switch (terrain.get(x, y)) {
+        case TERRAIN_MASK_WALL:
+          numWall++
+          break;
+        case TERRAIN_MASK_SWAMP:
+          numSwamp++
+          break;
+        case 0:
+          numPlain++
+          break;
+      }
+    }
+  }
+
+  const swampRatio = numSwamp / (numSwamp + numPlain)
+
+  const swampScore = 1 - swampRatio
+
+  const numSource = this.find(FIND_SOURCES).length
+
+  const sourceScore = numSource >= 2 ? 1 : 0
+
+  const mineralTypes = this.find(FIND_MINERALS).map(mineral => mineral.mineralType)
+
+  const mineralCount = getMineralCount()
+
+  // U, K, L , Z : O : H : X = 1:5:3:3
+
+  let mineralScore = 0
+
+  for (const mineralType of mineralTypes) {
+    let mineralTypeScore = 1 / (mineralCount[mineralType] + 1)
+    if (mineralType === 'O') {
+    } else if (['X', 'H'].includes(mineralType)) {
+      mineralScore *= (3 / 5)
+    } else {
+      mineralScore *= 1 / 5
+    }
+    mineralScore += mineralTypeScore
+  }
+
+  const closestRangeToMyRoom = Math.min(...Overlord.myRooms.map(room => Game.map.getRoomLinearDistance(room.name, this.name)))
+
+  const rangeScore = Math.min(1, 0.5 * (closestRangeToMyRoom - 1))
+
+  const adjacentRoomNames = Overlord.getAdjacentRoomNames(this.name)
+
+  let remoteSourceLength = 0
+  for (const roomName of adjacentRoomNames) {
+    const intel = Overlord.getIntel(roomName)
+    if (intel && intel[scoutKeys.isRemoteCandidate]) {
+      remoteSourceLength += intel[scoutKeys.numSource]
+    }
+  }
+
+  const remoteScore = remoteSourceLength / 8
+
+  return Math.floor((swampScore + sourceScore + mineralScore + rangeScore + remoteScore) * 20) / 100
+}
+
+function getMineralCount() {
+  const myRooms = Overlord.myRooms
+  const result = {}
+
+  for (const room of myRooms) {
+    const minerals = room.find(FIND_MINERALS)
+    for (const mineral of minerals) {
+      const mineralType = mineral.mineralType
+      result[mineralType] = result[mineralType] || 0
+      result[mineralType]++
+    }
+  }
+
+  return result
 }
 
 Room.prototype.checkHighway = function () {

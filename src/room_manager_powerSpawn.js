@@ -16,7 +16,7 @@ Room.prototype.operatePowerSpawn = function () {
 
     if (powerSpawn.store[RESOURCE_POWER] < 10) {
         if (terminal.store[RESOURCE_POWER] < 100) {
-            terminal.gatherResource(RESOURCE_POWER, 1000)
+            terminal.gatherResource(RESOURCE_POWER, 100)
             return
         }
         if (!researcher) {

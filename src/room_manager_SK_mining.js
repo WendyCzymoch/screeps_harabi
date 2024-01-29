@@ -2,6 +2,7 @@ const { GuardRequest, getCombatInfo } = require("./overlord_tasks_guard")
 const { MAX_DISTANCE, unpackInfraPos, runRemoteMiner, runRemoteHauler, HAULER_RATIO, runAway } = require("./room_manager_remote")
 const { getRoomMemory } = require("./util")
 
+const SK_HAULER_RATIO = 0.7
 const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
 
 Room.prototype.manageSourceKeeperMining = function () {
@@ -282,6 +283,25 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
       return
     }
   }
+
+  const targetRoom = Game.rooms[targetRoomName]
+  if (!targetRoom) {
+    return
+  }
+
+  const minerals = targetRoom.find(FIND_MINERALS)
+
+  for (const mineral of minerals) {
+    if (mineral.mineralAmount > 0) {
+      const id = mineral.id
+      const mineralMiners = Overlord.getCreepsByRole(id, 'mineralMiner')
+      const activeMiner = mineralMiners.find(creep => creep.spawning || creep.ticksToLive > creep.body.length * CREEP_SPAWN_TIME)
+      if (!activeMiner) {
+        room.requestMineralMiner(id)
+        return
+      }
+    }
+  }
 }
 
 Room.prototype.checkSourceKeeperRoom = function (targetRoomName) {
@@ -433,7 +453,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
 
     info.pathLength = path.length
 
-    info.maxCarry = Math.floor(path.length * HAULER_RATIO * 1.5)
+    info.maxCarry = Math.floor(path.length * SK_HAULER_RATIO)
 
     info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
 
@@ -475,6 +495,37 @@ Room.prototype.requestSourceKeeperHandler = function (targetRoomName) {
   }
 
   const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['sourceKeeperHandler'], cost: cost })
+  this.spawnQueue.push(request)
+}
+
+Room.prototype.requestMineralMiner = function (id) {
+  return
+  if (!this.hasAvailableSpawn()) {
+    return
+  }
+
+  let body = []
+
+  for (let i = 0; i < 28; i++) {
+    body.push(WORK)
+  }
+
+  for (let i = 0; i < 8; i++) {
+    body.push(CARRY)
+  }
+
+  for (let i = 0; i < 14; i++) {
+    body.push(MOVE)
+  }
+
+  const name = `${id} mineralMiner ${Game.time}_${this.spawnQueue.length}`
+  const memory = {
+    role: 'mineralMiner',
+    base: this.name,
+    targetRoom: depositRequest.roomName,
+    task: { category: depositRequest.category, id: depositRequest.id }
+  }
+  const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['depositWorker'] })
   this.spawnQueue.push(request)
 }
 

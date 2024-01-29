@@ -74,7 +74,8 @@ Overlord.mapInfo = function () {
 
     const center = new RoomPosition(25, 25, roomName)
 
-    if (intel[scoutKeys.claimScore] !== undefined) {
+    if (intel[scoutKeys.claimScore] && intel[scoutKeys.claimScore] >= 0.7) {
+      Game.map.visual.text(intel[scoutKeys.claimScore], center, { fontSize: 7, })
       Game.map.visual.text(`🚩`, new RoomPosition(center.x - 15, center.y - 15, center.roomName), { fontSize: 7, })
       Game.map.visual.text(`⚡${intel[scoutKeys.numSource]}/2`, new RoomPosition(center.x + 12, center.y + 15, center.roomName), { fontSize: 7, })
       Game.map.visual.text(`💎${intel[scoutKeys.mineralType]}`, new RoomPosition(center.x - 12, center.y + 15, center.roomName), { fontSize: 7, })
@@ -85,7 +86,7 @@ Overlord.mapInfo = function () {
       Game.map.visual.text(`🚫`, new RoomPosition(center.x + 15, center.y - 15, center.roomName), { fontSize: 7, color: '#f000ff' })
     }
 
-    if (intel[scoutKeys.reservationOwner]) {
+    if (intel[scoutKeys.reservationOwner] && intel[scoutKeys.reservationOwner] !== MY_NAME) {
       Game.map.visual.text(`${intel[scoutKeys.reservationOwner]}`, new RoomPosition(center.x, center.y - 15, center.roomName), { fontSize: 7, })
     }
 
@@ -101,7 +102,7 @@ Overlord.mapInfo = function () {
       if (room.memory.scout) {
         Game.map.visual.text(`⏰${Game.time - room.memory.scout.startTick}`, new RoomPosition(center.x + 23, center.y - 16, center.roomName), { align: 'right', fontSize: 5, color: '#74ee15' })
 
-        Game.map.visual.text(`${room.memory.scout.state}`, new RoomPosition(center.x - 23, center.y - 18, center.roomName), { align: 'left', fontSize: 13, color: '#74ee15' })
+        Game.map.visual.text(`${room.memory.scout.state}`, new RoomPosition(center.x - 23, center.y - 18, center.roomName), { align: 'left', fontSize: 10, color: '#74ee15' })
         if (room.memory.scout.next) {
           Game.map.visual.line(center, new RoomPosition(25, 25, room.memory.scout.next), { color: '#ffe700', width: '2', opacity: 1 })
           Game.map.visual.circle(new RoomPosition(25, 25, room.memory.scout.next), { fill: '#ffe700' })

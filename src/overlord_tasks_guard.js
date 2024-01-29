@@ -14,7 +14,7 @@ Overlord.manageGuardTasks = function () {
             continue
         }
 
-        Game.map.visual.text('guard', new RoomPosition(25, 25, request.roomName), { color: COLOR_NEON_GREEN })
+        Game.map.visual.text('guard', new RoomPosition(25, 35, request.roomName), { color: COLOR_NEON_GREEN })
         roomInCharge.guardRoom(request)
     }
 }
@@ -95,7 +95,7 @@ Room.prototype.guardRoom = function (request) {
 
     if (request.cleared) {
         request.status = 'cleared'
-        doCleanUp(guardGroups.active)
+        doCleanUp(guardGroups.active, roomName)
         return
     }
 
@@ -114,21 +114,21 @@ Room.prototype.guardRoom = function (request) {
     request.rallied = this.rallyGuards(guardGroups.active)
 }
 
-function doCleanUp(guards) {
+function doCleanUp(guards, roomName) {
     for (const guard of guards) {
         guard.healWounded()
-    }
-}
-
-function doCombat(guards, roomName) {
-    for (const guard of guards) {
-        if (guard.room.name !== roomName) {
+        if (guard.room.name !== roomName || isEdgeCoord(guard.pos.x, guard.pos.y)) {
             guard.activeHeal()
             guard.harasserRangedAttack()
             guard.moveToRoom(roomName, 2)
             continue
         }
-        if (isEdgeCoord(guard.pos.x, guard.pos.y)) {
+    }
+}
+
+function doCombat(guards, roomName) {
+    for (const guard of guards) {
+        if (guard.room.name !== roomName || isEdgeCoord(guard.pos.x, guard.pos.y)) {
             guard.activeHeal()
             guard.harasserRangedAttack()
             guard.moveToRoom(roomName, 2)
@@ -222,14 +222,14 @@ Room.prototype.gatherGuards = function (roomName, enemyStrength, moveFirst) {
 
     const idlingGuards = [...this.getIdlingGuards()].sort((a, b) =>
         Game.map.getRoomLinearDistance(a.room.name, roomName) - Game.map.getRoomLinearDistance(b.room.name, roomName))
-    while (combatInfo.strength <= enemyStrength * 1.2) {
+    while (combatInfo.strength < enemyStrength * 1.2) {
         const idlingGuard = idlingGuards.pop()
         if (idlingGuard) {
             idlingGuard.memory.targetRoomName = roomName
             combatInfo.add(idlingGuard.getCombatInfo())
             continue
         }
-        this.requestGuard(roomName, moveFirst)
+        this.requestGuard(roomName, { moveFirst, neededStrength: enemyStrength * 1.2 })
         return false
     }
 
@@ -245,20 +245,29 @@ Room.prototype.getIdlingGuards = function () {
     return guards.filter(creep => !creep.memory.targetRoomName && !creep.memory.harass)
 }
 
-Room.prototype.requestGuard = function (targetRoomName, moveFirst = false) {
+Room.prototype.requestGuard = function (targetRoomName, options) {
     if (!this.hasAvailableSpawn()) {
         return
     }
 
+    const moveFirst = options.moveFirst
+    const neededStrength = options.neededStrength
+    const costMax = this.energyCapacityAvailable
+
     let body = undefined
+    let cost = 0
 
-    costMax = this.energyCapacityAvailable
+    const costs = Object.keys(harasserBody).map(cost => Number(cost))
 
-    const costs = Object.keys(harasserBody).sort((a, b) => b - a)
-    for (const bodyCost of costs) {
-        if (bodyCost <= costMax) {
-            cost = bodyCost
-            body = moveFirst ? harasserBodyMoveFirst[bodyCost] : harasserBody[bodyCost]
+    for (const currentCost of costs) {
+        if (currentCost > costMax) {
+            break
+        }
+
+        cost = currentCost
+        body = moveFirst ? harasserBodyMoveFirst[currentCost] : harasserBody[currentCost]
+
+        if (getStrength(body) >= neededStrength) {
             break
         }
     }
@@ -276,6 +285,22 @@ Room.prototype.requestGuard = function (targetRoomName, moveFirst = false) {
 
     const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['guard'] })
     this.spawnQueue.push(request)
+}
+
+function getStrength(body) {
+    let result = 0
+    for (const part of body) {
+        if ([RANGED_ATTACK, ATTACK].includes(part)) {
+            result += 10
+            continue
+        }
+
+        if (part === HEAL) {
+            result += 12
+        }
+    }
+
+    return result
 }
 
 function getCombatInfo(array) {

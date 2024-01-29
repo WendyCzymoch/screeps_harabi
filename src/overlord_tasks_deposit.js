@@ -27,8 +27,8 @@ Overlord.manageDepositTasks = function () {
 
     roomInCharge.runDepositWork(depositRequest)
     const color = resourceColor[depositRequest.depositType]
-    Game.map.visual.text(`${depositRequest.depositType}`, new RoomPosition(25, 25, depositRequest.roomName), { color })
-    Game.map.visual.text(`⏳${depositRequest.lastCooldown}/${depositRequest.maxCooldown}`, new RoomPosition(25, 35, depositRequest.roomName), { color, fontSize: 6 })
+    Game.map.visual.text(`${depositRequest.depositType}`, new RoomPosition(15, 35, depositRequest.roomName), { color })
+    Game.map.visual.text(`⏳${depositRequest.lastCooldown}/${depositRequest.maxCooldown}`, new RoomPosition(35, 35, depositRequest.roomName), { color, fontSize: 6 })
     Game.map.visual.line(new RoomPosition(25, 25, roomInCharge.name), new RoomPosition(25, 25, depositRequest.roomName), { color, width: 2 })
   }
 }
@@ -66,6 +66,9 @@ Overlord.checkDeposits = function (targetRoomName) {
         continue
       }
       const route = this.findRoutesWithPortal(targetRoomName, room.name)
+      if (route === ERR_NO_PATH) {
+        continue
+      }
       const length = route.map(segment => segment.length).reduce((acc, curr) => acc + curr, 0)
       if (route === ERR_NO_PATH || length > DEPOSIT_DISTANCE_THRESHOLD) {
         continue

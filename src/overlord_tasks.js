@@ -6,7 +6,8 @@ const METHODS_BY_CATEGORY = {
   duo: `manageDuoTasks`,
   siege: 'manageSiegeTasks',
   blinky: 'manageBlinkyTasks',
-  occupy: 'manageOccupyTasks'
+  occupy: 'manageOccupyTasks',
+  singleton: 'manageSingletonTasks',
 }
 
 Overlord.runTasks = function () {

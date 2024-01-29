@@ -23,6 +23,17 @@ global.occupy = function (targetRoomName, duration) {
   return `${base} start to occupy ${targetRoomName}`
 }
 
+global.stopOccupy = function (targetRoomName) {
+  targetRoomName = targetRoomName.toUpperCase()
+  const tasks = Overlord.getTasksWithCategory('occupy')
+  for (const request of Object.values(tasks)) {
+    if (request.roomName === targetRoomName) {
+      request.result = `ordered to stop occupy ${targetRoomName}`
+      request.complete = true
+    }
+  }
+}
+
 Overlord.manageOccupyTasks = function () {
   const tasks = this.getTasksWithCategory('occupy')
 

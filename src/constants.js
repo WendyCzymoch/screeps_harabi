@@ -98,7 +98,8 @@ global.CREEP_ROELS = [
     'remoteMiner',
     'remoteMiner',
     'coreAttacker',
-    'blinky'
+    'blinky',
+    'singleton'
 ]
 
 global.SELF_DIRECTED_CREEP_ROELS = [

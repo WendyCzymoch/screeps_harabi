@@ -8,7 +8,7 @@ const QUAD_COST_VISUAL = config.quad.QUAD_COST_VISUAL
 
 const BULLDOZE_COST_VISUAL = config.quad.BULLDOZE_COST_VISUAL
 
-const IMPORTANT_STRUCTURE_TYPES = config.quad.IMPORTANT_STRUCTURE_TYPES
+const IMPORTANT_STRUCTURE_TYPES = config.IMPORTANT_STRUCTURE_TYPES
 
 const HEAL_BUFFER = config.quad.HEAL_BUFFER
 
@@ -1071,7 +1071,7 @@ Creep.prototype.getPriorityTarget = function (pos) {
 
 Quad.prototype.retreat = function () {
   const costs = this.costMatrix
-  const damageArray = this.getDamageArray(this.moveCost)
+  const damageArray = this.getDamageArray()
   const packedNow = packCoord(this.pos.x, this.pos.y)
   const damageNow = damageArray[packedNow]
 
@@ -1544,4 +1544,5 @@ module.exports = {
   Quad,
   QUAD_BLINKY_BODY,
   QUAD_BLINKY_BOOST_RESOURCES,
+  moreImportantTarget,
 }

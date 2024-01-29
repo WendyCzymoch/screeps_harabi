@@ -14,7 +14,7 @@ Overlord.manageBlinkyTasks = function () {
             continue
         }
 
-        Game.map.visual.text('blinky', new RoomPosition(25, 25, request.roomName), { color: COLOR_NEON_BLUE })
+        Game.map.visual.text('blinky', new RoomPosition(25, 35, request.roomName), { color: COLOR_NEON_BLUE })
         roomInCharge.sendBlinkies(request)
     }
 }
@@ -86,7 +86,7 @@ function runBlinky(creep, targetRoomName) {
         creep.memory.flee = false
     }
 
-    const enemyCombatants = creep.room.getEnemyCombatants()
+    const enemyCombatants = creep.room.getEnemyCombatants().filter(creep => !creep.pos.isRampart)
     if (creep.memory.flee) {
         for (const enemy of enemyCombatants) {
             if (creep.pos.getRangeTo(enemy.pos) < 10) {
@@ -120,7 +120,7 @@ function runBlinky(creep, targetRoomName) {
         return
     }
 
-    const hostileCreeps = creep.room.findHostileCreeps()
+    const hostileCreeps = creep.room.findHostileCreeps().filter(creep => !creep.pos.isRampart)
 
     if (hostileCreeps.length > 0) {
         creep.heap.enemyLastDetectionTick = Game.time
@@ -151,6 +151,29 @@ function runBlinky(creep, targetRoomName) {
         creep.setWorkingInfo(creep.room.controller.pos, 5)
         return
     }
+
+    const hostileStructures = creep.room.find(FIND_HOSTILE_STRUCTURES).filter(structure => {
+        const structureType = structure.structureType
+        if (structureType === 'controller') {
+            return false
+        }
+        if (structureType === 'powerBank') {
+            return false
+        }
+        return true
+    })
+
+    const hostileStructuresInRange = creep.pos.findInRange(hostileStructures, 3)
+
+    if (hostileStructuresInRange.length > 0) {
+        creep.rangedAttack(hostileStructuresInRange[0])
+    } else {
+        const goals = hostileStructures.map(structure => {
+            return { pos: structure.pos, range: 3 }
+        })
+        creep.moveMy(goals)
+    }
+
 }
 
 module.exports = {

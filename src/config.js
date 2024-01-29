@@ -40,6 +40,12 @@ if (shardName === 'swc') {
     ZH2O: 1500,
     XZH2O: 1500,
   }
+
+  config.notBuild = [
+    'powerSpawn',
+    'nuker'
+  ]
+
 } else if (shardName === 'shardSeason') {
   config.allies = [
 
@@ -77,6 +83,14 @@ if (shardName === 'swc') {
     ZH2O: 1500,
     XZH2O: 1500,
   }
+
+  config.market = false
+
+  config.notBuild = [
+    'powerSpawn',
+    'factory'
+  ]
+
 } else { // world
   config.allies = [
 
@@ -143,17 +157,17 @@ config.economyStandard = {
 }
 
 // quad and duo settings
+config.IMPORTANT_STRUCTURE_TYPES = ['spawn', 'tower']
+
 config.duo = {
   IGNORE_TOWER_DAMAGE: true,
   IGNORE_DAMAGE: true,
-  IMPORTANT_STRUCTURE_TYPES: ['spawn', 'tower'],
 }
 
 config.quad = {
   IGNORE_DAMAGE_WHEN_PATHING: true,
   QUAD_COST_VISUAL: false,
   BULLDOZE_COST_VISUAL: false,
-  IMPORTANT_STRUCTURE_TYPES: ['spawn', 'tower'],
   HEAL_BUFFER: 100
 }
 
@@ -194,6 +208,8 @@ config.energyLevel = {
   RAMPART_HIGH: 170,
 
   STOP_FUNNEL: 180,
+
+  BALANCE: 200
 }
 
 module.exports = {

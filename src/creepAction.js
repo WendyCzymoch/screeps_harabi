@@ -396,7 +396,17 @@ function guard(creep) {
             creep.memory.harass = false
         }
     }
+    creep.healWounded()
     creep.harasserRangedAttack()
+
+    if (creep.room.name === creep.memory.base) {
+        const enemyCombatants = creep.room.getEnemyCombatants()
+        if (enemyCombatants.length > 0) {
+            creep.handleCombatants(enemyCombatants)
+            return
+        }
+    }
+
     creep.moveToRoom(creep.memory.base, 2)
 }
 

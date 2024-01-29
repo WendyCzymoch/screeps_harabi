@@ -167,6 +167,10 @@ Room.prototype.parsePos = function (packed) {
     return new RoomPosition(x, y, this.name)
 }
 
+RoomPosition.prototype.getRangeToEdge = function () {
+    return Math.min(this.x, 49 - this.x, this.y, 49 - this.y)
+}
+
 RoomPosition.prototype.getAtRange = function (range) {
     if (i = 0) {
         return [this]

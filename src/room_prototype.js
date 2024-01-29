@@ -226,10 +226,10 @@ Object.defineProperties(Room.prototype, {
     hostile: {
         get() {
             if (!this.controller) {
-                return true
+                return false
             }
             if (!this.controller.owner) {
-                return true
+                return false
             }
             if (this.isMy) {
                 return false

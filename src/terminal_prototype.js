@@ -10,6 +10,8 @@ const ENERGY_AMOUNT_TO_FUNNEL = 1000
 const ENERGY_LEVEL_TO_FUNNEL = config.energyLevel.FUNNEL
 const ENERGY_LEVEL_TO_HELP = config.energyLevel.HELP
 const ENERGY_LEVEL_TO_BE_HELPED = config.energyLevel.BE_HELPED
+const ENERGY_LEVEL_TO_BALANCE = config.energyLevel.BALANCE
+const ENERGY_AMOUNT_TO_STOP_FUNNEL = config.energyLevel.STOP_FUNNEL
 
 StructureTerminal.prototype.run = function () {
     const roomName = this.room.name
@@ -40,6 +42,15 @@ StructureTerminal.prototype.run = function () {
     if (this.room.controller.level >= 7 && this.room.energyLevel > ENERGY_LEVEL_TO_FUNNEL) {
         if (bestFunnelRequest && bestFunnelRequest.roomName !== roomName) {
             this.send(RESOURCE_ENERGY, ENERGY_AMOUNT_TO_FUNNEL, bestFunnelRequest.roomName)
+            simpleAllies.endRun()
+            return
+        }
+    }
+
+    if (this.room.controller.level === 8 && this.room.energyLevel > ENERGY_LEVEL_TO_BALANCE) {
+        const balanceTarget = getMinObject(Overlord.structures.terminal, (terminal) => terminal.room.energyLevel)
+        if (balanceTarget && balanceTarget.room.energyLevel < ENERGY_AMOUNT_TO_STOP_FUNNEL) {
+            this.send(RESOURCE_ENERGY, 10 * ENERGY_AMOUNT_TO_FUNNEL, balanceTarget.room.name)
             simpleAllies.endRun()
             return
         }
@@ -177,7 +188,7 @@ StructureTerminal.prototype.manageMinerals = function () {
             this.room.memory[`sell${resourceType}`] = false
         }
 
-        if (this.room.memory[`sell${resourceType}`] && (SHARD !== 'swc' || resourceType !== 'X')) {
+        if (this.room.memory[`sell${resourceType}`]) {
             const amount = Math.min(energyAmount, storeAmount - mineralAmountToSell + 1000)
             Business.sell(resourceType, amount, roomName)
             continue
@@ -207,9 +218,6 @@ StructureTerminal.prototype.manageMinerals = function () {
 
         simpleAllies.requestResource(request)
 
-        //try buy
-        if (SHARD !== 'swc' || resourceType !== 'X') {
-            Business.buy(resourceType, amountNeeded, roomName)
-        }
+        Business.buy(resourceType, amountNeeded, roomName)
     }
 }

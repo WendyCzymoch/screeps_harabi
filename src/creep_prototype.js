@@ -9,11 +9,7 @@ Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
 
     const target = new RoomPosition(25, 25, goalRoomName)
 
-    if (this.room.name === goalRoomName) {
-        this.setWorkingInfo(target, 23)
-    }
-
-    return this.moveMy({ pos: target, range: 23 }, { ignoreMap })
+    return this.moveMy({ pos: target, range: 15 }, { ignoreMap })
 }
 
 /**
