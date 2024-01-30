@@ -46,6 +46,7 @@ if (shardName === 'swc') {
     'nuker'
   ]
 
+  config.alwaysShowMapInfo = true
 } else if (shardName === 'shardSeason') {
   config.allies = [
 
@@ -91,6 +92,7 @@ if (shardName === 'swc') {
     'factory'
   ]
 
+  config.alwaysShowMapInfo = true
 } else { // world
   config.allies = [
 
@@ -141,6 +143,8 @@ if (shardName === 'swc') {
   }
 
   config.creditGoal = 3000000000
+
+  config.alwaysShowMapInfo = false
 }
 
 // economy standard

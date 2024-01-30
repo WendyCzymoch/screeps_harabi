@@ -80,9 +80,11 @@ Room.prototype.manageBuild = function () {
             targetsByPriority[i] = []
         }
         for (const constructionSite of constructionSites) {
-            const creepOnConstructionSite = constructionSite.pos.creep
-            if (creepOnConstructionSite) {
-                creepOnConstructionSite.moveRandom()
+            if (OBSTACLE_OBJECT_TYPES.includes(constructionSite.structureType)) {
+                const creepOnConstructionSite = constructionSite.pos.creep
+                if (creepOnConstructionSite) {
+                    creepOnConstructionSite.moveRandom()
+                }
             }
             targetsByPriority[BUILD_PRIORITY[constructionSite.structureType]].push(constructionSite)
         }

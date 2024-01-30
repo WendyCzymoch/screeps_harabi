@@ -1,5 +1,7 @@
 const MinHeap = require("./util_min_heap")
 
+const AVOID_SOURCE_KEEPER_RANGE = 6
+
 Overlord.findMyRoomsInRange = function (fromRoomName, range) {
   const myRooms = this.myRooms
   const myRoomsFiltered = myRooms.filter(room => {
@@ -149,12 +151,12 @@ Overlord.findPath = function (startPos, goals, options = {}) {
                   const parsed = parseCoord(packed)
                   const x = parsed.x
                   const y = parsed.y
-                  const minX = Math.clamp(x - 5, 0, 49)
-                  const maxX = Math.clamp(x + 5, 0, 49)
-                  const minY = Math.clamp(y - 5, 0, 49)
-                  const maxY = Math.clamp(y + 5, 0, 49)
-                  for (let i = minX; i < maxX; i++) {
-                    for (let j = minY; j < maxY; j++) {
+                  const minX = Math.clamp(x - AVOID_SOURCE_KEEPER_RANGE, 0, 49)
+                  const maxX = Math.clamp(x + AVOID_SOURCE_KEEPER_RANGE, 0, 49)
+                  const minY = Math.clamp(y - AVOID_SOURCE_KEEPER_RANGE, 0, 49)
+                  const maxY = Math.clamp(y + AVOID_SOURCE_KEEPER_RANGE, 0, 49)
+                  for (let i = minX; i <= maxX; i++) {
+                    for (let j = minY; j <= maxY; j++) {
                       costs.set(i, j, 254)
                     }
                   }

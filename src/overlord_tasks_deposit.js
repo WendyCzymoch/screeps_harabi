@@ -27,9 +27,9 @@ Overlord.manageDepositTasks = function () {
 
     roomInCharge.runDepositWork(depositRequest)
     const color = resourceColor[depositRequest.depositType]
-    Game.map.visual.text(`${depositRequest.depositType}`, new RoomPosition(15, 35, depositRequest.roomName), { color })
-    Game.map.visual.text(`⏳${depositRequest.lastCooldown}/${depositRequest.maxCooldown}`, new RoomPosition(35, 35, depositRequest.roomName), { color, fontSize: 6 })
-    Game.map.visual.line(new RoomPosition(25, 25, roomInCharge.name), new RoomPosition(25, 25, depositRequest.roomName), { color, width: 2 })
+    Game.map.visual.text(`${depositRequest.depositType}`, new RoomPosition(25, 35, depositRequest.roomName), { color, opacity: 1, backgroundColor: '#000000' })
+    Game.map.visual.text(`⏳${depositRequest.lastCooldown}/${depositRequest.maxCooldown}`, new RoomPosition(25, 45, depositRequest.roomName), { color, fontSize: 6, opacity: 1, backgroundColor: '#000000' })
+    Game.map.visual.line(new RoomPosition(25, 25, roomInCharge.name), new RoomPosition(25, 25, depositRequest.roomName), { color, width: 2, opacity: 1 })
   }
 }
 

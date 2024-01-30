@@ -372,14 +372,16 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
         }
     }
 
-    for (const creep of this.creeps.wallMaker) {
-        if (creep.spawning) {
-            continue
+    if (!storage) {
+        for (const creep of this.creeps.wallMaker) {
+            if (creep.spawning) {
+                continue
+            }
+            if (Game.time > creep.heap.deliveryCallTime + 1) {
+                continue
+            }
+            requests.set(creep.id, new Request(creep))
         }
-        if (Game.time > creep.heap.deliveryCallTime + 1) {
-            continue
-        }
-        requests.set(creep.id, new Request(creep))
     }
 
 

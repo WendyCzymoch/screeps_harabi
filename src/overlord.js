@@ -1,3 +1,5 @@
+const { config } = require("./config")
+
 INTEL_EXPIRATION_TICK = 60000
 
 global.Overlord = {
@@ -60,8 +62,17 @@ global.Overlord = {
 }
 
 Overlord.mapInfo = function () {
-  if (Memory.showMapInfo === 0 && Game.time % 1000 !== 0) {
-    return
+  if (!config.alwaysShowMapInfo) {
+    // turn off the showMapInfo after 1000 ticks
+    if (Memory.showMapInfo === 1 && Memory.mapInfoTime && Game.time > Memory.mapInfoTime + 1000) {
+      Memory.showMapInfo = 0
+    }
+
+    // even if Memory.shoaMapInfo === 0, do mapInfo for every 1000 ticks
+    // this is for deleting outdated memories
+    if (Memory.showMapInfo === 0 && Game.time % 1000 !== 0) {
+      return
+    }
   }
 
   for (const roomName in Memory.rooms) {

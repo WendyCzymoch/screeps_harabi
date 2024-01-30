@@ -120,16 +120,18 @@ Room.prototype.runSiegeTask = function (request) {
     }
   }
 
-  if (Game.time % 100 === 0 && this.canProduceSquad()) {
+  const quadTasks = Overlord.getTasksWithCategory('quad')
+  const activeQuadTask = Object.values(quadTasks).find(task => task.roomName === targetRoomName && task.ticksToLive > 1000)
+
+  if (!activeQuadTask && this.canProduceSquad()) {
     const quadRequest = new QuadRequest(this, targetRoomName, { modelNumber: request.modelNumber })
     Overlord.registerTask(quadRequest)
     console.log(`${this.name} send quad ${request.modelNumber} to ${targetRoomName}`)
   }
-
 }
 
 const SiegeRequest = function (room, targetRoomName, options) {
-  const defaultOptions = { type: 'quad', species: 'blinky', modelNumber: undefined, duration: 3000 }
+  const defaultOptions = { type: 'quad', species: 'blinky', modelNumber: undefined, duration: 20000 }
   const mergedOptions = { ...defaultOptions, ...options }
   const { type, species, duration, modelNumber } = mergedOptions
 

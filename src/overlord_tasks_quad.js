@@ -261,6 +261,7 @@ const QuadRequest = function (room, targetRoomName, options) {
   this.quadName = `${targetRoomName} Quad ${Game.time}`
   this.species = species
   this.modelNumber = modelNumber
+  this.ticksToLive = 1500
 }
 
 Overlord.manageClearAreaTasks = function () {

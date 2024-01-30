@@ -49,13 +49,13 @@ function wallMaker(creep) { //스폰을 대입하는 함수 (이름 아님)
     }
 
     if (creep.memory.working && creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-        delete creep.memory.targetId
         creep.memory.working = false
     } else if (!creep.memory.working && creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
         creep.memory.working = true;
     }
 
     if (!creep.memory.working) {
+        delete creep.memory.targetId
         if (room.storage) {
             if (creep.pos.getRangeTo(room.storage) > 1) {
                 creep.moveMy({ pos: room.storage.pos, range: 1 })
@@ -66,6 +66,10 @@ function wallMaker(creep) { //스폰을 대입하는 함수 (이름 아님)
             creep.heap.deliveryCallTime = Game.time
         }
         return
+    }
+
+    if (!room.storage && Math.random() < 0.05) {
+        delete creep.memory.targetId
     }
 
     let target = Game.getObjectById(creep.memory.targetId)
@@ -80,13 +84,12 @@ function wallMaker(creep) { //스폰을 대입하는 함수 (이름 아님)
         }
     }
 
-    if (creep.pos.getRangeTo(target) > 3) {
-        creep.moveMy({ pos: target.pos, range: 3 })
+    if (creep.pos.getRangeTo(target) > 2) {
+        creep.moveMy({ pos: target.pos, range: 2 })
         return
     }
 
     target = getMinObject(creep.pos.findInRange(creep.room.structures.rampart, 3), rampart => rampart.hits)
-
     creep.repair(target)
 }
 

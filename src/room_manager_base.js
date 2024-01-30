@@ -3,7 +3,7 @@ const { config } = require("./config")
 const NOT_BUILD = config.notBuild
 
 Room.prototype.manageConstruction = function () {
-    if (!this.memory.level || Game.time % 5000 === 0) { // 5000 tick은 대략 7~8시간?
+    if (this.memory.level === undefined || Game.time % 5000 === 0) { // 5000 tick은 대략 7~8시간?
         this.memory.level = this.controller.level - 1
     }
 
@@ -19,13 +19,17 @@ Room.prototype.manageConstruction = function () {
     this.GRCL
 
     if (this.memory.doOptimizeBasePlan) {
+        if (Game.cpu.bucket < 100) {
+            console.log(`bucket is not enough`)
+            return
+        }
         if (this.optimizeBasePlan() === OK) {
             delete this.memory.doOptimizeBasePlan
         }
         return
     }
 
-    if (Math.random() < 0.1 && this.constructByBasePlan(this.memory.level + 1)) {
+    if ((!this.memory.level || Math.random() < 0.1) && this.constructByBasePlan(this.memory.level + 1)) {
         this.memory.level++
     }
 }
@@ -33,7 +37,7 @@ Room.prototype.manageConstruction = function () {
 Room.prototype.constructByBasePlan = function (level) {
     const basePlan = this.basePlan
     if (!basePlan) {
-        if (Game.cpu.bucket < 2000) {
+        if (Game.cpu.bucket < 100) {
             return false
         }
         const spawn = this.structures.spawn[0]

@@ -2,7 +2,7 @@ const { config } = require("./config")
 const { getRemoteValue } = require("./room_manager_remote")
 
 const SCOUT_INTERVAL_UNDER_RCL_8 = 6000 // scout 시작 후 얼마나 지나야 리셋할건지 1000보다 커야함.
-const SCOUT_INTERVAL_AT_RCL_8 = 4000
+const SCOUT_INTERVAL_AT_RCL_8 = 1000
 
 const DISTANCE_TO_REMOTE = config.DISTANCE_TO_REMOTE
 
@@ -62,12 +62,13 @@ Room.prototype.manageScout = function () {
     return
   }
 
-  if (status.state === 'BFS') {
+  outer:
+  while (status.state === 'BFS') {
     if (status.adjacents && status.adjacents.length > 0) {
       while (status.adjacents.length > 0) {
         status.next = status.adjacents.shift()
         status.state = 'scout'
-        return
+        break outer
       }
     }
 
@@ -107,11 +108,11 @@ Room.prototype.manageScout = function () {
       while (status.adjacents.length > 0) {
         status.next = status.adjacents.shift()
         status.state = 'scout'
-        return
+        break outer
       }
     }
     status.state = 'wait'
-    return
+    break outer
   }
 
   if (status.state === 'scout') {

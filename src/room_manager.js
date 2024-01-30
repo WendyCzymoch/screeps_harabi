@@ -371,6 +371,10 @@ Room.prototype.manageLab = function () {
         return
     }
 
+    if (!this.labs) {
+        return
+    }
+
     if (this.structures.lab.length < 3) {
         return
     }

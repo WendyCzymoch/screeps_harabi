@@ -142,6 +142,8 @@ Room.prototype.optimizeBasePlan = function () {
     this.visual.text('score: ' + this.memory.basePlanScore, 25, 48)
     this.visualizeBasePlan()
   }
+
+  data.info = true
   return OK
 }
 
@@ -690,11 +692,6 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
 
   const costsForRoad = new PathFinder.CostMatrix
 
-  if (Game.cpu.bucket < 1000) {
-    console.log(`bucket is not enough`)
-    return { basePlan: basePlan, score: 0 }
-  }
-
   if (!firstAnchor) {
     console.log('cannot get 1st anchor')
     return { basePlan: basePlan, score: 0 }
@@ -1124,7 +1121,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
 
     structures.rampart.push(pos)
 
-    basePlan[`lv${RAMPART_BUILD_LEVEL}`].push(pos.packStructurePlan('road'))
+    basePlan[`lv6`].push(pos.packStructurePlan('road'))
     costs.set(pos.x, pos.y, ROAD_COST)
     costsForRoad.set(pos.x, pos.y, ROAD_COST)
 
@@ -1210,7 +1207,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
         continue
       }
 
-      if (costs.get(pathPos.x, pathPos.y) !== ROAD_COST) {
+      if (costsForRoad.get(pathPos.x, pathPos.y) !== ROAD_COST) {
         basePlan[`lv6`].push(pathPos.packStructurePlan('road'))
         costs.set(pathPos.x, pathPos.y, ROAD_COST)
         costsForRoad.set(pathPos.x, pathPos.y, ROAD_COST)

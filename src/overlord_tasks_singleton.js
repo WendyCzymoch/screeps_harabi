@@ -3,7 +3,7 @@ const { moreImportantTarget } = require("./quad_prototype")
 
 const IMPORTANT_STRUCTURE_TYPES = config.IMPORTANT_STRUCTURE_TYPES
 
-global.sendSingleton = function (targetRoomName, number) {
+global.sendSingleton = function (targetRoomName, number = 1) {
   const level = 8
 
   targetRoomName = targetRoomName.toUpperCase()
@@ -20,7 +20,7 @@ global.sendSingleton = function (targetRoomName, number) {
   const request = new SingletonRequest(base, targetRoomName, options)
 
   Overlord.registerTask(request)
-  return `${base} send ${number} singleton(s) to ${targetRoomName}`
+  return `${base} send ${number > 1 ? number : 'a'} ${number > 1 ? 'singletons' : 'singleton'} to ${targetRoomName}`
 }
 
 Overlord.manageSingletonTasks = function () {
@@ -69,7 +69,7 @@ Room.prototype.runSingletonTask = function (request) {
 
   if (request.status === 'engage') {
     if (singletons.length === 0) {
-      request.completed = true
+      request.complete = true
       return
     }
 
@@ -83,7 +83,7 @@ Room.prototype.runSingletonTask = function (request) {
 }
 
 const SingletonRequest = function (room, targetRoomName, options) {
-  const defaultOptions = { number: 2, boost: 0 }
+  const defaultOptions = { number: 1 }
   const mergedOptions = { ...defaultOptions, ...options }
   const { number } = mergedOptions
 

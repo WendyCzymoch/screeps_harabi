@@ -178,8 +178,6 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
         }
     }
 
-    room.heap.remoteIncome = income
-
     const totalIncome = Math.floor(10 * income) / 10
     const content = `${totalIncome}e/t(${num})`
 
@@ -365,25 +363,25 @@ function visualizeTasks() {
         i++
         for (const request of requests) {
             new RoomVisual().text(`|`, topRightCorner.x, topRightCorner.y + i, { color: 'cyan', align: 'left' })
-            new RoomVisual().text(`${request.currentRoom || request.roomNameInCharge}➔${request.roomName}`, topRightCorner.x + 0.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'left', opacity: OPACITY })
+            new RoomVisual().text(`${request.currentRoom || request.roomNameInCharge}➔${request.roomName}`, topRightCorner.x + 0.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'left', opacity: OPACITY, font: 0.7 })
             switch (category) {
                 case 'quad':
-                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY, font: 0.6 })
                     break
                 case 'duo':
-                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY, font: 0.6 })
                     break
                 case 'guard':
-                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${Game.time - request.startTime})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.status.toUpperCase()}) (${Game.time - request.startTime})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY, font: 0.6 })
                     break
                 case 'siege':
-                    new RoomVisual().text(`(${request.endTime - Game.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.endTime - Game.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY, font: 0.6 })
                     break
                 case 'occupy':
-                    new RoomVisual().text(`(${request.endTime - Game.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.endTime - Game.time})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY, font: 0.6 })
                     break
                 case 'blinky':
-                    new RoomVisual().text(`(${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY })
+                    new RoomVisual().text(`(${request.ticksToLive})`, 49.5, topRightCorner.y + i, { color: COLOR_NEON_YELLOW, align: 'right', opacity: OPACITY, font: 0.6 })
                     break
                 default:
             }

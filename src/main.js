@@ -112,6 +112,7 @@ module.exports.loop = () => {
                 quads: new Map(),
                 overlord: {}
             }
+            console.log('respawn')
         }
 
         // bucket check. 8000 5000 2000

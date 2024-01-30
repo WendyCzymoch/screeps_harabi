@@ -23,6 +23,7 @@ global.SPAWN_PRIORITY = {
     'manager': 3,
     'distributor': 3,
     'laborer': 3,
+    'wallMaker': 3.1,
 
     'colonyDefender': 4,
     'guard': 4,
@@ -32,7 +33,6 @@ global.SPAWN_PRIORITY = {
     'remoteHauler': 4.3,
     'coreAttacker': 4.4,
 
-    'wallMaker': 5.1,
     'scouter': 5.2,
 
     'powerBankAttacker': 6,

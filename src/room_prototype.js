@@ -165,7 +165,7 @@ Object.defineProperties(Room.prototype, {
             }
             for (const source of this.find(FIND_SOURCES)) {
                 for (const pos of source.pos.getAtRange(1)) {
-                    if (pos.terrain !== 1) {
+                    if (pos.terrain !== TERRAIN_MASK_WALL) {
                         costs.set(pos.x, pos.y, 10)
                     }
                 }
@@ -181,11 +181,22 @@ Object.defineProperties(Room.prototype, {
             for (const cs of this.constructionSites) {
                 if (OBSTACLE_OBJECT_TYPES.includes(cs.structureType)) {
                     costs.set(cs.pos.x, cs.pos.y, 255)
+                } else {
+                    if (cs.pos.terrain !== TERRAIN_MASK_WALL && costs.get(cs.pos.x, cs.pos.y) < 20) {
+                        costs.set(cs.pos.x, cs.pos.y, 20)
+                    }
                 }
             }
             for (const rampart of this.structures.rampart) {
                 if (!rampart.my && !rampart.isPublic) {
                     costs.set(rampart.pos.x, rampart.pos.y, 255)
+                }
+            }
+            for (const sourceKeeper of this.find(FIND_HOSTILE_CREEPS).filter(creep => creep.owner.username === 'Source Keeper')) {
+                for (const pos of sourceKeeper.pos.getInRange(5)) {
+                    if (pos.terrain !== TERRAIN_MASK_WALL) {
+                        costs.set(pos.x, pos.y, 254)
+                    }
                 }
             }
 
@@ -283,7 +294,7 @@ Object.defineProperties(Room.prototype, {
             }
             const ramparts = this.structures.rampart
             if (ramparts.length) {
-                this._weakestRampart = ramparts.sort((a, b) => a.hits - b.hits)[0]
+                this._weakestRampart = getMinObject(ramparts, rampart => rampart.hits)
             }
             return this._weakestRampart
         }
@@ -311,12 +322,12 @@ Room.prototype.getMaxWork = function () {
     if (!this.storage) {
         if (this.constructionSites.length > 0) {
             const basicNumWork = (this.heap.sourceUtilizationRate || 0) * Math.max(numWorkEach, 4)
-            const remoteSurplusNumWork = Math.max(0, (this.heap.remoteIncome || 0))
+            const remoteSurplusNumWork = Math.max(0, (this.memory.currentRemoteIncome || 0))
             return this.heap.maxWork = Math.floor(basicNumWork + remoteSurplusNumWork / 2)
         }
         // former is spawn limit. latter is income limit
         const basicNumWork = (this.heap.sourceUtilizationRate || 0) * 16
-        const remoteSurplusNumWork = Math.max(0, (this.heap.remoteIncome || 0))
+        const remoteSurplusNumWork = Math.max(0, (this.memory.currentRemoteIncome || 0))
         const numUpgradeSpot = this.controller.available
         return this.heap.maxWork = Math.min(numUpgradeSpot * numWorkEach, Math.floor(basicNumWork + remoteSurplusNumWork))
     }
@@ -333,7 +344,7 @@ Room.prototype.getMaxWork = function () {
         // if constructing, maxWork = energyLevel * 5
         if (this.constructionSites.length > 0) {
             this.heap.upgrading = false
-            return this.energyLevel >= config.energyLevel.CONSTRUCT ? 10 : 0
+            return this.energyLevel >= config.energyLevel.CONSTRUCT ? 15 : 0
         }
 
         this.heap.upgrading = this.energyLevel >= config.energyLevel.UPGRADE
@@ -347,7 +358,7 @@ Room.prototype.getMaxWork = function () {
 
     const upperLimit = this.getUpgradeUpperLimit()
 
-    const extra = Math.max(0, Math.floor((this.energyLevel - config.energyLevel.UPGRADE) / 20))
+    const extra = Math.max(0, Math.floor((this.energyLevel - config.energyLevel.UPGRADE) / 10))
 
     return Math.min(upperLimit, numWorkEach * (1 + extra))
 }
@@ -404,7 +415,7 @@ Room.prototype.getBasicSpawnCapacity = function () {
 
     // manager + researcher
     const numManager = this.getMaxNumManager()
-    result += 3 * Math.min(12, Math.floor(this.energyCapacityAvailable / 150), 16) * numManager
+    result += 3 * Math.min(12, Math.floor(this.energyCapacityAvailable / 150)) * numManager
 
     //laborer
     const basicNumWork = (this.storage ? 1 : (this.heap.sourceUtilizationRate || 0)) * 12

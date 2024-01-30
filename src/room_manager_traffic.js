@@ -121,7 +121,7 @@ Creep.prototype.getMoveIntent = function () {
   }
 
 
-  const adjacents = this.pos.getAtRange(1).sort((a, b) => Math.random() > 0.5)
+  const adjacents = this.pos.getAtRange(1).sort((a, b) => Math.random() - 0.5)
 
   const workingInfo = this.getWorkingInfo()
 

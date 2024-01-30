@@ -11,6 +11,8 @@ Room.prototype.manageRemotes = function () {
 
     const invaderStrengthThreshold = getInvaderStrengthThreshold(this.controller.level) // 1에서 100, 8에서 1644정도
 
+    const reserve = this.energyCapacityAvailable >= 650
+
     let remoteNameToConstruct = undefined
     for (const targetRoomName of activeRemoteNames) {
 
@@ -65,7 +67,7 @@ Room.prototype.manageRemotes = function () {
             continue
         }
 
-        if (!remoteNameToConstruct && targetRoom && (!info.constructionComplete || Game.time > (info.constructionCompleteTime + 3000))) {
+        if (reserve && !remoteNameToConstruct && targetRoom && (!info.constructionComplete || Game.time > (info.constructionCompleteTime + 3000))) {
             remoteNameToConstruct = targetRoomName
         }
 
@@ -116,15 +118,7 @@ Room.prototype.deleteRemote = function (targetRoomName) {
 }
 
 Room.prototype.getActiveRemoteNames = function () {
-    if (this._activeRemoteNames) {
-        return this._activeRemoteNames
-    }
-
-    if (Math.random() < 0.1) {
-        delete this.memory.activeRemoteNames
-    }
-
-    if (this.memory.activeRemoteNames) {
+    if (this.memory.activeRemoteNames && this.memory.activeRemoteNamesTime && (Game.time < this.memory.activeRemoteNamesTime + 10)) {
         return this.memory.activeRemoteNames
     }
 
@@ -155,9 +149,7 @@ Room.prototype.getActiveRemoteNames = function () {
 
         const intermediateNames = memory.intermediates || []
 
-        if (intermediateNames.some(intermediateName => {
-            !result.includes(intermediateName)
-        })) {
+        if (intermediateNames.some(intermediateName => !result.includes(intermediateName))) {
             continue
         }
 
@@ -171,17 +163,12 @@ Room.prototype.getActiveRemoteNames = function () {
         result.push(targetRoomName)
     }
 
-    return this._activeRemoteNames = this.memory.activeRemoteNames = result
+    this.memory.activeRemoteNamesTime = Game.time
+    return this.memory.activeRemoteNames = result
 }
 
 function sortRemotesByValue(room) {
     room.memory.remotes = room.memory.remotes || {}
-
-    function getRemoteValuePerSpawnUsage(room, targetRoomName) {
-        const value = getRemoteValue(room, targetRoomName)
-        const spawnUsage = room.getRemoteSpawnUsage(targetRoomName)
-        return value / spawnUsage
-    }
 
     const entries = Object.entries(room.memory.remotes).sort((a, b) =>
         getRemoteValuePerSpawnUsage(room, b[0]) - getRemoteValuePerSpawnUsage(room, a[0]))
@@ -193,6 +180,12 @@ function sortRemotesByValue(room) {
     }
 
     room.memory.remotes = sorted
+}
+
+function getRemoteValuePerSpawnUsage(room, targetRoomName) {
+    const value = getRemoteValue(room, targetRoomName)
+    const spawnUsage = room.getRemoteSpawnUsage(targetRoomName)
+    return value / spawnUsage
 }
 
 // get remote net income per tick with EMA
@@ -209,14 +202,16 @@ Room.prototype.getRemoteNetIncomePerTick = function (targetRoomName) {
 
     const interval = Game.time - remoteInfo.lastTick
 
-    // 1000 tick = 1 unit with alpha = 0.2
-    // so, recent 1000 tick is weighted by 0.2
-    // previous 1000 tick is wighted by 0.2 * 0.8
+    const unit = 1000
+
+    // 1 unit with alpha = 0.2
+    // recent unit is weighted by 0.2
+    // previous unit is wighted by 0.2 * 0.8
     const alpha = 0.2
 
-    if (interval >= 1000) {
+    if (interval >= unit) {
         if (remoteInfo.netIncomePerTick) {
-            const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / 1000)
+            const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / unit)
             remoteInfo.netIncomePerTick = modifiedAlpha * (netIncome / interval) + (1 - modifiedAlpha) * remoteInfo.netIncomePerTick
         } else {
             remoteInfo.netIncomePerTick = netIncome / interval
@@ -330,10 +325,11 @@ function runRemoteMiner(creep, targetRoomName) {
 
     const source = Game.getObjectById(creep.memory.sourceId)
     const container = Game.getObjectById(creep.memory.containerId) || (source ? source.container : undefined)
+    const isOtherCreep = container && container.pos.creep && container.pos.creep.memory && container.pos.creep.memory.role === creep.memory.role
 
-    const target = container || source
+    const target = container && !isOtherCreep ? container : source
 
-    const range = container ? 0 : 1
+    const range = container && !isOtherCreep ? 0 : 1
 
     if (creep.pos.getRangeTo(target) > range) {
         creep.moveMy({ pos: target.pos, range })
@@ -627,22 +623,34 @@ function runAway(creep, roomName) {
 
 // invaderCore 추가하기
 function spawnRemoteWorkers(room, targetRoomNames) {
+    room.memory.currentRemoteIncome = 0
+
+    let requested = false
+
     const reserve = room.energyCapacityAvailable >= 650
 
     const maxWork = reserve ? 6 : 3
 
+    outer:
     for (const targetRoomName of targetRoomNames) {
         const memory = getRoomMemory(targetRoomName)
 
         if (memory.invaderCore) {
             const coreAttackers = Overlord.getCreepsByRole(targetRoomName, 'coreAttacker')
             if (coreAttackers.length === 0) {
-                room.requestCoreAttacker(targetRoomName)
-                return
+                if (!requested) {
+                    room.requestCoreAttacker(targetRoomName)
+                    requested = true
+                }
+                continue outer
             }
         }
 
         const blueprint = getRemoteBlueprint(room, targetRoomName)
+
+        if (!blueprint) {
+            continue
+        }
 
         const remoteInfo = room.getRemoteInfo(targetRoomName)
 
@@ -655,8 +663,11 @@ function spawnRemoteWorkers(room, targetRoomNames) {
             const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
 
             if (numClaimParts < 3 && reservers.length < (remoteInfo.controllerAvailable || 3)) {
-                room.requestReserver(targetRoomName)
-                return
+                if (!requested) {
+                    room.requestReserver(targetRoomName)
+                    requested = true
+                }
+                continue outer
             }
         }
 
@@ -697,8 +708,11 @@ function spawnRemoteWorkers(room, targetRoomNames) {
             sourceStat[sourceId].repair += haluer.getActiveBodyparts(WORK)
         }
 
+        remoteInfo.sourceStat = sourceStat
+
         const constructionComplete = !!remoteInfo.constructionComplete
         const constructionSites = targetRoom ? targetRoom.constructionSites : []
+        const constructing = constructionSites.length > 0
 
         for (const info of blueprint) {
             const sourceId = info.sourceId
@@ -720,20 +734,24 @@ function spawnRemoteWorkers(room, targetRoomNames) {
                     }
                 }
 
-                room.requestRemoteMiner(targetRoomName, sourceId, { containerId })
-                return
+                if (!requested) {
+                    room.requestRemoteMiner(targetRoomName, sourceId, { containerId })
+                    requested = true
+                }
+                continue outer
             }
 
-            const constructing = constructionSites.length > 0
-
-            if (constructing && stat.repair < 6) {
-                room.requestRemoteHauler(targetRoomName, sourceId, { constructing })
-                return
+            if (reserve && constructing && stat.repair < 6) {
+                if (!requested) {
+                    room.requestRemoteHauler(targetRoomName, sourceId, { constructing })
+                    requested = true
+                }
+                continue outer
             }
 
             const maxCarry = reserve ? info.maxCarry : info.maxCarry / 2
 
-            if (!constructing && stat.carry < maxCarry) {
+            if ((!reserve || !constructing) && stat.carry < maxCarry) {
                 const sourcePathLength = info.pathLength
 
                 const maxHaulerCarry = constructionComplete
@@ -746,9 +764,16 @@ function spawnRemoteWorkers(room, targetRoomNames) {
 
                 const isRepairer = stat.repair < 2
 
-                room.requestRemoteHauler(targetRoomName, sourceId, { constructing, sourcePathLength, maxCarry: eachCarry, noRoad: !constructionComplete, isRepairer, })
-                return
+                if (!requested) {
+                    room.requestRemoteHauler(targetRoomName, sourceId, { constructing, sourcePathLength, maxCarry: eachCarry, noRoad: !constructionComplete, isRepairer, })
+                    requested = true
+                }
+                continue outer
             }
+        }
+
+        if (!constructing) {
+            room.memory.currentRemoteIncome += getRemoteValue(room, targetRoomName)
         }
     }
 }
@@ -1010,7 +1035,7 @@ function constructRemote(room, targetRoomName) {
 function getRemoteValue(room, targetRoomName) {
     const remoteInfo = room.getRemoteInfo(targetRoomName)
 
-    if (remoteInfo && remoteInfo.remoteValue) {
+    if (remoteInfo && remoteInfo.remoteValue && remoteInfo.remoteValueTime && Game.time < (remoteInfo.remoteValueTime + 100)) {
         return remoteInfo.remoteValue
     }
 
@@ -1045,6 +1070,7 @@ function getRemoteValue(room, targetRoomName) {
     }
 
     if (remoteInfo) {
+        remoteInfo.remoteValueTime = Game.time
         remoteInfo.remoteValue = result
     }
 
@@ -1228,7 +1254,7 @@ Room.prototype.getRemoteSpawnUsage = function (targetRoomName) {
 
     for (const info of blueprint) {
         if (this.controller.level < 8) {
-            result += 3 * 6 // upgrader. assume that income is 6e/tick
+            result += 3 * 5 // upgrader. assume that income is 5e/tick
         }
         result += 13 // miner
         result += Math.floor(info.maxCarry * (reserve ? 1.5 : 2)) // hauler
@@ -1237,7 +1263,7 @@ Room.prototype.getRemoteSpawnUsage = function (targetRoomName) {
     if (!reserve) {
         result = result * 0.5
     } else if (result > 0) {
-        result += 5 // reserver. 2/tick
+        result += 5 // reserver. 1/tick
     }
 
     return Math.ceil(result)

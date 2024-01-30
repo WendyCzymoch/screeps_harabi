@@ -14,6 +14,7 @@ module.exports = function (grunt) {
         email: email,
         token: token,
         branch: branch,
+        password: password,
         ptr: ptr,
         // server: 'season'
       },
@@ -24,27 +25,33 @@ module.exports = function (grunt) {
       mmo: {
         options: {
           server: 'persistent',
-          email: email,
-          token: token,
-          branch: branch,
-          ptr: ptr,
         },
         src: ['src/*.js']
       },
 
       season: {
         options: {
-          branch: branch,
           server: 'season',
-          email: email,
-          token: token,
         },
         src: ['src/*.js']
       },
+
+      private: {
+        options: {
+          token: undefined,
+          server: {
+            host: '127.0.0.1',
+            port: 21025,
+            http: true
+          },
+        },
+        src: ['src/*.js']
+      }
     },
   });
 
   grunt.registerTask('default', ['screeps:mmo'])
-  grunt.registerTask('all', ['screeps:mmo', 'screeps:season'])
+  grunt.registerTask('all', ['screeps:mmo', 'screeps:season', 'screeps:private'])
   grunt.registerTask('season', ['screeps:season'])
+  grunt.registerTask('private', ['screeps:private'])
 }
