@@ -229,7 +229,6 @@ module.exports.loop = () => {
                 const role = creep.memory.role
                 creepAction[role](creep)
             } catch (error) {
-                console.log(`error occured during ${creep.name} ${creep.memory.role}`)
             }
         }
 

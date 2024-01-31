@@ -141,11 +141,12 @@ Room.prototype.getActiveRemoteNames = function () {
 
     if (this.memory.activeSK) {
         for (const targetRoomName of this.memory.activeSK) {
-            spawnCapacityForRemotes -= this.getSourceKeeperRoomSpawnUsage(targetRoomName)
+            spawnCapacityForRemotes -= Math.floor(this.getSourceKeeperRoomSpawnUsage(targetRoomName))
         }
     }
 
     // vaules
+
     const table = new Array(spawnCapacityForRemotes + 1).fill(0)
 
     // remoteNames
@@ -192,7 +193,6 @@ Room.prototype.getActiveRemoteNames = function () {
             result = resultTable[i]
         }
     }
-
     this.memory.activeRemoteNamesTime = Game.time
     return this.memory.activeRemoteNames = result
 }
