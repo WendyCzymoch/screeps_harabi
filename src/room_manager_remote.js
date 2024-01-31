@@ -118,19 +118,26 @@ Room.prototype.deleteRemote = function (targetRoomName) {
 }
 
 Room.prototype.getActiveRemoteNames = function () {
-    if (this.memory.activeRemoteNames && this.memory.activeRemoteNamesTime && (Game.time < this.memory.activeRemoteNamesTime + 10)) {
+    if (this.memory.activeRemoteNames && this.memory.activeRemoteNamesTime && (Game.time < this.memory.activeRemoteNamesTime + 20)) {
         return this.memory.activeRemoteNames
     }
 
-    const result = []
+    const remoteNames = this.getRemoteNames().filter(remoteName => {
+        const memory = this.getRemoteInfo(remoteName)
+        return memory && !memory.forbiddn
+    })
 
-    sortRemotesByValue(this)
+    const remoteValues = remoteNames.map(remoteName => getRemoteValue(this, remoteName))
 
-    const remoteNames = this.getRemoteNames()
+    const remoteWeights = remoteNames.map(remoteName => Math.ceil(this.getRemoteSpawnUsage(remoteName)))
 
-    let spawnCapacityForRemotes = this.structures.spawn.length * 500
+    // intermediate destinations should be also our remotes.
+    const intermediates = remoteNames.map(remoteName => {
+        const memory = this.getRemoteInfo(remoteName)
+        return memory.intermediates
+    })
 
-    spawnCapacityForRemotes -= this.getBasicSpawnCapacity()
+    let spawnCapacityForRemotes = Math.floor(this.structures.spawn.length * 500 - this.getBasicSpawnCapacity())
 
     if (this.memory.activeSK) {
         for (const targetRoomName of this.memory.activeSK) {
@@ -138,54 +145,56 @@ Room.prototype.getActiveRemoteNames = function () {
         }
     }
 
-    let remotesSpawnUsage = 0
+    // vaules
+    const table = new Array(spawnCapacityForRemotes + 1).fill(0)
 
-    for (const targetRoomName of remoteNames) {
-        const memory = this.getRemoteInfo(targetRoomName)
+    // remoteNames
+    const resultTable = new Array(spawnCapacityForRemotes + 1)
+    for (let i = 0; i < resultTable.length; i++) {
+        resultTable[i] = []
+    }
 
-        if (memory.forbidden) {
+    for (let i = 0; i < remoteNames.length; i++) {
+        const remoteName = remoteNames[i]
+        const w = remoteWeights[i]
+        const v = remoteValues[i]
+        const intermediateNames = intermediates[i]
+        for (let j = spawnCapacityForRemotes; j > 0; j--) {
+            if (j + w > spawnCapacityForRemotes || table[j] === 0) {
+                continue
+            }
+
+            if (intermediateNames && intermediateNames.some(intermediateName => !resultTable[j].includes(intermediateName))) {
+                continue
+            }
+
+            if (table[j] + v > table[j + w]) {
+                table[j + w] = table[j] + v
+                resultTable[j + w] = [...resultTable[j], remoteName]
+            }
+        }
+
+        if (intermediateNames && intermediateNames.length > 0) {
             continue
         }
 
-        const intermediateNames = memory.intermediates || []
-
-        if (intermediateNames.some(intermediateName => !result.includes(intermediateName))) {
-            continue
+        if (v > table[w]) {
+            table[w] = v
+            resultTable[w] = [...resultTable[0], remoteName]
         }
+    }
 
-        const currentSpawnUsage = this.getRemoteSpawnUsage(targetRoomName)
-
-        if (remotesSpawnUsage + currentSpawnUsage > spawnCapacityForRemotes) {
-            continue
+    let result = undefined
+    let bestValue = 0
+    for (let i = 0; i < table.length; i++) {
+        if (table[i] > bestValue) {
+            bestValue = table[i]
+            result = resultTable[i]
         }
-
-        remotesSpawnUsage += currentSpawnUsage
-        result.push(targetRoomName)
     }
 
     this.memory.activeRemoteNamesTime = Game.time
     return this.memory.activeRemoteNames = result
-}
-
-function sortRemotesByValue(room) {
-    room.memory.remotes = room.memory.remotes || {}
-
-    const entries = Object.entries(room.memory.remotes).sort((a, b) =>
-        getRemoteValuePerSpawnUsage(room, b[0]) - getRemoteValuePerSpawnUsage(room, a[0]))
-
-    const sorted = {}
-
-    for (const pair of entries) {
-        sorted[pair[0]] = pair[1]
-    }
-
-    room.memory.remotes = sorted
-}
-
-function getRemoteValuePerSpawnUsage(room, targetRoomName) {
-    const value = getRemoteValue(room, targetRoomName)
-    const spawnUsage = room.getRemoteSpawnUsage(targetRoomName)
-    return value / spawnUsage
 }
 
 // get remote net income per tick with EMA
