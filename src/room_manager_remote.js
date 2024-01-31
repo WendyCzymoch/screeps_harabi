@@ -155,6 +155,7 @@ Room.prototype.getActiveRemoteNames = function () {
         resultTable[i] = []
     }
 
+    // DP starts
     for (let i = 0; i < remoteNames.length; i++) {
         const remoteName = remoteNames[i]
         const w = remoteWeights[i]
@@ -185,6 +186,7 @@ Room.prototype.getActiveRemoteNames = function () {
         }
     }
 
+    // find best option
     let result = undefined
     let bestValue = 0
     for (let i = 0; i < table.length; i++) {
