@@ -39,6 +39,8 @@ Creep.prototype.fleeFrom = function (from, range = 10, maxRooms = 2) {
     costsForFlee.set(this.pos.x, this.pos.y, this.room.basicCostmatrix.get(this.pos.x, this.pos.y))
     this.setNextPos(nextPos)
   }
+
+  this.resetPath()
 }
 
 Room.prototype.getCostMatrixForConflict = function () {

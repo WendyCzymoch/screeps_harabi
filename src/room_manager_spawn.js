@@ -93,6 +93,7 @@ Room.prototype.manageSpawn = function () {
 
     const maxNumLaborer = Math.min(this.controller.available, Math.ceil(maxWork / this.laborer.numWorkEach))
     const numLaborer = this.creeps.laborer.filter(creep => (creep.ticksToLive || 1500) > 3 * creep.body.length).length
+    const numWorkEach = Math.ceil(maxWork / maxNumLaborer)
     // source 가동률만큼만 생산 
 
     if (TRAFFIC_TEST) {
@@ -100,14 +101,14 @@ Room.prototype.manageSpawn = function () {
             this.requestLaborer(1)
         }
     } else {
-        if (numLaborer < maxNumLaborer && this.laborer.numWork < maxWork) {
+        if (this.laborer.numWork < maxWork) {
             if (repairingForNuke) {
                 const boost = this.hasEnoughCompounds('XLH2O') ? 'XLH2O' : undefined
-                this.requestLaborer(Math.min(maxWork - this.laborer.numWork, this.laborer.numWorkEach), boost)
+                this.requestLaborer(numWorkEach, boost)
             } else if (this.getIsNeedBoostedUpgrader()) {
-                this.requestLaborer(Math.min(maxWork - this.laborer.numWork, this.laborer.numWorkEach), 'XGH2O')
+                this.requestLaborer(numWorkEach, 'XGH2O')
             } else {
-                this.requestLaborer(Math.min(maxWork - this.laborer.numWork, this.laborer.numWorkEach))
+                this.requestLaborer(numWorkEach)
             }
         }
     }
@@ -478,7 +479,7 @@ Room.prototype.requestHauler = function (numCarry, option = { isUrgent: false, o
 
 /**
  * 
- * @param {number} numWork - number of work parts
+ * @param {number} numWork - desired number of work parts
  * @param {string} boost - name of resource used to be boost
  * @returns 
  */

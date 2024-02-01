@@ -233,7 +233,7 @@ Room.prototype.manageSource = function () {
         }
 
         if (haulerRatio < 1 && source.info.numHauler < source.info.maxNumHauler) {
-            this.requestHauler(source.info.maxCarry - source.info.numCarry, { isUrgent: false, office: source })
+            this.requestHauler(source.info.eachCarry, { isUrgent: false, office: source })
             continue
         }
 

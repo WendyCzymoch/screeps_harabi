@@ -15,6 +15,17 @@ if (shardName === 'swc') {
 
   config.harass = true
 
+  config.economyStandard = {
+    1: 10000,
+    2: 10000,
+    3: 10000,
+    4: 20000,
+    5: 40000,
+    6: 80000,
+    7: 160000,
+    8: 320000,
+  }
+
   config.compoundGoal = {
     // for defense, ant
     XUH2O: 2000,
@@ -46,7 +57,12 @@ if (shardName === 'swc') {
     'nuker'
   ]
 
+  config.rampartLevel = 4
+
   config.alwaysShowMapInfo = true
+
+  config.publicRamparts = true
+
 } else if (shardName === 'shardSeason') {
   config.allies = [
 
@@ -85,6 +101,19 @@ if (shardName === 'swc') {
     XZH2O: 1500,
   }
 
+  config.economyStandard = {
+    1: 10000,
+    2: 10000,
+    3: 10000,
+    4: 20000,
+    5: 40000,
+    6: 80000,
+    7: 160000,
+    8: 320000,
+  }
+
+  config.rampartLevel = 4
+
   config.market = false
 
   config.notBuild = [
@@ -93,7 +122,10 @@ if (shardName === 'swc') {
   ]
 
   config.alwaysShowMapInfo = true
-} else { // world
+
+  config.publicRamparts = false
+
+} else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) { // world
   config.allies = [
 
   ]
@@ -142,22 +174,89 @@ if (shardName === 'swc') {
     G: 5000,
   }
 
+  config.economyStandard = {
+    1: 10000,
+    2: 10000,
+    3: 10000,
+    4: 20000,
+    5: 40000,
+    6: 80000,
+    7: 160000,
+    8: 320000,
+  }
+
+  config.rampartLevel = 4
+
   config.creditGoal = 3000000000
 
   config.alwaysShowMapInfo = false
-}
 
-// economy standard
+  config.publicRamparts = false
+} else { // local
+  config.allies = [
 
-config.economyStandard = {
-  1: 10000,
-  2: 10000,
-  3: 10000,
-  4: 20000,
-  5: 40000,
-  6: 80000,
-  7: 160000,
-  8: 320000,
+  ]
+
+  config.task = {
+    powerBank: true,
+    deposit: true,
+  }
+
+  config.harass = false
+
+  config.buyPixel = false
+
+  config.compoundGoal = {
+    // for defense, ant
+    XUH2O: 4000,
+    UH2O: 1000,
+    UH: 1000,
+
+    // for blinky quad
+    XKHO2: 6000,
+    XLHO2: 8000,
+    XZHO2: 4000,
+    XGHO2: 2000,
+
+    KHO2: 1500,
+    LHO2: 1000,
+    ZHO2: 1000,
+
+    KO: 1000,
+    LO: 1000,
+    ZO: 2000,
+
+    // for worm
+    ZH: 1500,
+    ZH2O: 1500,
+    XZH2O: 1500,
+
+    // repair
+    XLH2O: 6000,
+
+    // upgrade
+    XGH2O: 6000,
+
+    // nuker
+    G: 5000,
+  }
+
+  config.economyStandard = {
+    1: 6000,
+    2: 6000,
+    3: 6000,
+    4: 12000,
+    5: 24000,
+    6: 48000,
+    7: 96000,
+    8: 192000,
+  }
+
+  config.rampartLevel = 5
+
+  config.alwaysShowMapInfo = true
+
+  config.publicRamparts = false
 }
 
 // quad and duo settings

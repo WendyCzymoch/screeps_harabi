@@ -20,7 +20,7 @@ Room.prototype.manageDefense = function () {
         this.memory.lastHostileTick = Game.time
     }
 
-    if (this.memory.level >= 4) {
+    if (config.publicRamparts && this.memory.level >= 4) {
         if (this.memory.publicRampart && targets.length > 0) {
             for (const rampart of this.structures.rampart) {
                 rampart.setPublic(false)
@@ -31,6 +31,13 @@ Room.prototype.manageDefense = function () {
                 rampart.setPublic(true)
             }
             this.memory.publicRampart = true
+        }
+    } else {
+        if (this.memory.publicRampart) {
+            for (const rampart of this.structures.rampart) {
+                rampart.setPublic(false)
+            }
+            this.memory.publicRampart = false
         }
     }
 

@@ -1,4 +1,4 @@
-const VISUALIZE_GOAL = true
+const VISUALIZE_GOAL = false
 const VISUALIZE_MOVE = false
 const VISUALIZE_PATH_TO_MAP = false
 

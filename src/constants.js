@@ -48,27 +48,33 @@ global.STRUCTURE_TYPES = [
 global.BUILD_PRIORITY = {
     spawn: 0,
 
-    link: 1,
-    storage: 1,
+    tower: 1,
 
-    tower: 2,
+    terminal: 2,
 
-    terminal: 3,
+    rampart: 3,
 
-    extension: 4,
-    road: 4,
+    storage: 4,
 
-    container: 5,
+    link: 5,
 
-    extractor: 6,
-    rampart: 6,
+    extension: 6,
 
-    lab: 7,
-    observer: 8,
+    road: 7,
 
-    powerSpawn: 9,
-    nuker: 9,
-    factory: 9,
+    container: 8,
+
+    extractor: 9,
+
+    lab: 10,
+
+    observer: 11,
+
+    factory: 12,
+
+    powerSpawn: 13,
+
+    nuker: 14,
 }
 
 global.CREEP_ROELS = [
@@ -99,7 +105,8 @@ global.CREEP_ROELS = [
     'remoteMiner',
     'coreAttacker',
     'blinky',
-    'singleton'
+    'singleton',
+    'idler'
 ]
 
 global.SELF_DIRECTED_CREEP_ROELS = [

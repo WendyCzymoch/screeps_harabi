@@ -110,6 +110,8 @@ Object.defineProperties(Source.prototype, {
 
             this._info.maxNumHauler = Math.ceil(this._info.maxCarry / (Math.floor(this.room.energyCapacityAvailable / 150) * 2))
 
+            this._info.eachCarry = Math.ceil(this._info.maxCarry / this._info.maxNumHauler)
+
             return this._info
         }
     },

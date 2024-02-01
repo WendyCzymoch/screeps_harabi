@@ -142,13 +142,15 @@ Overlord.findPath = function (startPos, goals, options = {}) {
             }
           }
 
-          if (roomType === 'center' || roomType === 'sourceKeeper') {
+          if (roomType === 'sourceKeeper') {
+            console.log(`${roomName} is source keeper room`)
             const memory = Memory.rooms[roomName]
             if (memory && memory.resourceInfo) {
               for (const infos of Object.values(memory.resourceInfo)) {
                 for (const info of infos) {
                   const packed = info.packed
                   const parsed = parseCoord(packed)
+                  console.log(parsed.x)
                   const x = parsed.x
                   const y = parsed.y
                   const minX = Math.clamp(x - AVOID_SOURCE_KEEPER_RANGE, 0, 49)
@@ -157,6 +159,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
                   const maxY = Math.clamp(y + AVOID_SOURCE_KEEPER_RANGE, 0, 49)
                   for (let i = minX; i <= maxX; i++) {
                     for (let j = minY; j <= maxY; j++) {
+                      new RoomVisual(roomName).circle(i, j, { color: COLOR_RED })
                       costs.set(i, j, 254)
                     }
                   }

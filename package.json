@@ -12,6 +12,7 @@
   "author": "Harabi",
   "license": "ISC",
   "dependencies": {
+    "@types/screeps": "^3.3.7",
     "grunt-screeps": "^1.5.0"
   },
   "devDependencies": {

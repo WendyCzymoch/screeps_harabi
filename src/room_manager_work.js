@@ -156,7 +156,7 @@ Room.prototype.manageUpgrade = function () {
             }
         }
 
-        if (container && laborer.pos.getRangeTo(container) <= 1) {
+        if (container && (laborer.pos.getRangeTo(container) <= 1 || (laborer.store[RESOURCE_ENERGY] / laborer.store.getCapacity()) <= 0.3)) {
             if (container.store[RESOURCE_ENERGY] > 0) {
                 laborer.getEnergyFrom(container.id)
             }

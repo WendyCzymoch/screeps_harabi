@@ -1,3 +1,5 @@
+const { config } = require("./config")
+
 const DT_VISUAL = false
 const REGION_VISUAL = false
 const MINCUT_COSTS_VISUAL = false
@@ -34,7 +36,7 @@ const WORKSPACE_COST = 5
 const ROAD_COST = 1
 const INSIDE_COST = 0
 
-const RAMPART_BUILD_LEVEL = 4
+const RAMPART_BUILD_LEVEL = config.rampartLevel
 
 const CLUSTER_STAMP = [
   { x: -1, y: -1, structureType: 'spawn' },

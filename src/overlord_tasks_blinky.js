@@ -86,7 +86,7 @@ function runBlinky(creep, targetRoomName) {
         creep.memory.flee = false
     }
 
-    const enemyCombatants = creep.room.getEnemyCombatants().filter(creep => !creep.pos.isRampart)
+    const enemyCombatants = creep.room.getEnemyCombatants().filter(creep => !creep.pos.isRampart && creep.owner.username !== 'Source Keeper')
     if (creep.memory.flee) {
         for (const enemy of enemyCombatants) {
             if (creep.pos.getRangeTo(enemy.pos) < 10) {

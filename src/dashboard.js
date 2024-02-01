@@ -174,7 +174,11 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
     if (activeSK) {
         for (const targetRoomName of activeSK) {
             num += 3
-            income += room.getSourceKeeperMiningNetIncomePerTick(targetRoomName)
+            const currentIncome = room.getSourceKeeperMiningNetIncomePerTick(targetRoomName)
+            income += currentIncome
+            Game.map.visual.text(currentIncome.toFixed(1), new RoomPosition(25, 10, targetRoomName), { fontSize: 7, color: COLOR_NEON_YELLOW, backgroundColor: '#000000', opacity: 1 })
+            Game.map.visual.line(new RoomPosition(25, 25, room.name), new RoomPosition(25, 25, targetRoomName), { color: COLOR_NEON_YELLOW, width: 0.5, lineStyle: 'dashed' })
+
         }
     }
 

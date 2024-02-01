@@ -493,13 +493,13 @@ Room.prototype.cacheResourceInfo = function () {
 
   const sourceInfo = this.memory.resourceInfo.sources = []
   for (const source of sources) {
-    const packed = packCoord(source.pos)
+    const packed = packCoord(source.pos.x, source.pos.y)
     sourceInfo.push({ packed })
   }
 
   const mineralInfo = this.memory.resourceInfo.minerals = []
   for (const mineral of minerals) {
-    const packed = packCoord(mineral.pos)
+    const packed = packCoord(mineral.pos.x, mineral.pos.y)
     const resourceType = mineral.mineralType
     mineralInfo.push({ packed, resourceType })
   }
