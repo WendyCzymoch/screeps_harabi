@@ -74,6 +74,7 @@ global.resetRemote = function (roomName) {
         }
         delete room.memory.remotes
         delete room.memory.activeRemoteNames
+        delete room.memory.activeRemotes
     }
 }
 
@@ -239,6 +240,7 @@ global.resetScout = function (roomName) {
             delete myRoom.memory.scout
             delete myRoom.memory.remotes
             delete myRoom.memory.activeRemoteNames
+            delete myRoom.memory.activeRemotes
             const scouters = Overlord.getCreepsByRole(myRoom.name, 'scouter')
             for (const scouter of scouters) {
                 scouter.suicide()
@@ -261,6 +263,7 @@ global.resetScout = function (roomName) {
         delete room.memory.scout
         delete room.memory.remotes
         delete room.memory.activeRemoteNames
+        delete room.memory.activeRemotes
         const scouter = Overlord.getCreepsByRole(roomName, 'scouter')[0]
         if (scouter) {
             scouter.suicide()

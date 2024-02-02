@@ -165,17 +165,16 @@ Room.prototype.defenseNuke = function () {
 Room.prototype.repairStructure = function (rampart) {
   let laborers = this.creeps.laborer
   const rampartLowest = rampart
-  this.laborersNeedDelivery = true
   for (const laborer of laborers) {
     // energy 없으면 energy 받아라
     if (!laborer.working) {
+      laborer.needDelivery = true
       //storage가 가까우면 storage에서 energy 받자
       if (this.storage) {
         laborer.getEnergyFrom(this.storage.id)
         continue
       }
       // 그게 아니면 hauler들이 갖다주길 기다리자
-      this.laborersNeedDelivery = true
     }
     // energy 있으면 일해라
     laborer.repairMy(rampartLowest)

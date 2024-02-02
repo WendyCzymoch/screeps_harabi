@@ -235,24 +235,36 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
     for (const creep of arrayOfCreeps) {
         if (creep.heap.engaged) {
             const client = Game.getObjectById(creep.heap.engaged.id)
+            const amountLeft = creep.store[RESOURCE_ENERGY] - creep.heap.engaged.amount
+
+            delete creep.heap.engaged
+            let pushed = false
+
             if (!client || client.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
-                delete creep.heap.engaged
                 applicants.push(new Applicant(creep))
                 continue
             }
             // if energy supply is suceeded, creep is free again
-            if (creep.giveEnergyTo(client.id) === OK) {
-                if (creep.store[RESOURCE_ENERGY] - creep.heap.engaged.amount > 0) {
+            if (client && creep.transfer(client, RESOURCE_ENERGY) === OK) {
+
+                if (amountLeft > 0) {
                     const applicant = new Applicant(creep)
+                    applicant.amount = amountLeft
                     applicant.giveEnergy = true
                     applicants.push(applicant)
+                    pushed = true
                 }
-                delete creep.heap.engaged
-
             }
+
             const request = requests.get(client.id)
             if (request) {
                 request.amount -= creep.store.getUsedCapacity(RESOURCE_ENERGY)
+                if (!pushed) {
+                    const applicant = new Applicant(creep)
+                    applicant.engaged = request
+                    applicant.married = true
+                    applicants.push(applicant)
+                }
             }
         } else {
             applicants.push(new Applicant(creep))
@@ -264,6 +276,10 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
     for (const request of requestsArray) {
         request.applicants = new MinHeap(a => a.pos.getRangeTo(request.pos))
         for (const applicant of applicants) {
+            if (applicant.engaged && request.id === applicant.engaged.id) {
+                continue
+            }
+
             if (this.storage && applicant.creep.memory.role === 'colonyHauler' && applicant.pos.getRangeTo(request.pos) > 5) {
                 continue
             }
@@ -287,12 +303,15 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
             if (existingRequest.priority < request.priority) {
                 continue
             }
-            if (existingRequest.priority === request.priority && bestApplicant.pos.getRangeTo(existingRequest.pos) <= bestApplicant.pos.getRangeTo(request.pos)) {
+
+            if (existingRequest.priority === request.priority && (bestApplicant.pos.getRangeTo(existingRequest.pos) <= bestApplicant.pos.getRangeTo(request.pos) + (bestApplicant.married ? 3 : 0))) {
                 continue
             }
+
             request.amount -= bestApplicant.amount
             existingRequest.amount += bestApplicant.amount
             bestApplicant.engaged = request
+            bestApplicant.married = false
         }
     }
     const spawn = this.structures.spawn[0]
@@ -385,7 +404,7 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
     }
 
 
-    if (controllerContainer) {
+    if (this.constructionSites.length === 0 && controllerContainer) {
         const amount = controllerContainer.store[RESOURCE_ENERGY]
         if (this.heap.refillControllerContainer && amount > 1900) {
             this.heap.refillControllerContainer = false
@@ -422,14 +441,28 @@ function Applicant(creep) {
     this.amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
     this.isManager = creep.memory.role === 'manager' ? true : false
     this.engaged = null
+    this.married = false
     this.giveEnergy = false
 }
 
 function Request(client) {
     this.id = client.id
     this.pos = client.pos
-    this.priority = ENERGY_PRIORITY[client.structureType] || (!client.working ? 3 : ((client.store.getUsedCapacity() / client.store.getCapacity()) > 0.5 ? 5 : 4))
     this.amount = client.store.getFreeCapacity(RESOURCE_ENERGY)
+
+    if (client.structureType) {
+        this.priority = ENERGY_PRIORITY[client.structureType]
+    } else if (!client.working) {
+        this.priority = 3
+        this.amount += client.store.getCapacity()
+    } else if ((client.store.getUsedCapacity() / client.store.getCapacity()) < 0.5) {
+        this.priority = 4
+        this.amount += client.store.getCapacity()
+    } else {
+        this.priority = 5
+        this.amount += client.store.getCapacity()
+    }
+
     // new RoomVisual(this.pos.roomName).text(this.priority, this.pos) // for debug
 }
 

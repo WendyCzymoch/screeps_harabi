@@ -1,4 +1,5 @@
 const { config } = require("./config")
+const { getLaborerModel } = require("./room_manager_spawn")
 
 const MAX_WORK = 80
 const COST_FOR_HUB_CENTER = 30
@@ -103,7 +104,7 @@ Object.defineProperties(Room.prototype, {
             }
             this._laborer = {}
             this._laborer.numWork = 0
-            this._laborer.numWorkEach = Math.min(Math.floor(this.energyCapacityAvailable / 200), 16)
+            this._laborer.numWorkEach = getLaborerModel(this.energyCapacityAvailable).numWork
             for (const laborer of this.creeps.laborer.filter(creep => (creep.ticksToLive || 1500) > 3 * creep.body.length)) {
                 this._laborer.numWork += laborer.body.filter(part => part.type === WORK).length
             }
@@ -164,7 +165,10 @@ Object.defineProperties(Room.prototype, {
                 costs.set(structure.pos.x, structure.pos.y, 1)
             }
             for (const source of this.find(FIND_SOURCES)) {
-                for (const pos of source.pos.getAtRange(1)) {
+                const miners = [...this.creeps.miner, ...this.creeps.remoteMiner]
+                const workingMiners = source.pos.findInRange(miners, 1)
+                for (const miner of workingMiners) {
+                    const pos = miner.pos
                     if (pos.terrain !== TERRAIN_MASK_WALL) {
                         costs.set(pos.x, pos.y, 10)
                     }
@@ -323,7 +327,7 @@ Room.prototype.getMaxWork = function () {
         if (this.constructionSites.length > 0) {
             const basicNumWork = (this.heap.sourceUtilizationRate || 0) * Math.max(numWorkEach, 4)
             const remoteSurplusNumWork = Math.max(0, (this.memory.currentRemoteIncome || 0))
-            return this.heap.maxWork = Math.floor(basicNumWork + remoteSurplusNumWork / 2)
+            return this.heap.maxWork = Math.floor(basicNumWork + (remoteSurplusNumWork / 5))
         }
         // former is spawn limit. latter is income limit
         const basicNumWork = (this.heap.sourceUtilizationRate || 0) * 16
@@ -418,8 +422,8 @@ Room.prototype.getBasicSpawnCapacity = function () {
     result += 3 * Math.min(12, Math.floor(this.energyCapacityAvailable / 150)) * numManager
 
     //laborer
-    const basicNumWork = (this.storage ? 1 : (this.heap.sourceUtilizationRate || 0)) * 12
-    result += Math.floor(basicNumWork) * 3
+    const basicNumWork = 12
+    result += basicNumWork * 3
 
     //extractor
     if (level >= 6 && this.structures.extractor.length > 0 && this.mineral.mineralAmount > 0) {
@@ -444,9 +448,10 @@ Room.prototype.getSpawnCapacity = function () {
         }
     }
 
-    if (this.memory.activeRemoteNames) {
-        for (const remoteName of this.memory.activeRemoteNames) {
-            result += this.getRemoteSpawnUsage(remoteName)
+    const activeRemotes = this.getActiveRemotes()
+    if (activeRemotes) {
+        for (const info of activeRemotes) {
+            result += info.weight
         }
     }
 

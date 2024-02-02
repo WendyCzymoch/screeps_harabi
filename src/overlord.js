@@ -1,4 +1,5 @@
 const { config } = require("./config")
+const { toTwoDigits } = require("./data")
 
 INTEL_EXPIRATION_TICK = 60000
 
@@ -43,7 +44,7 @@ global.Overlord = {
     }
     Game._remotes = []
     for (const myRoom of this.myRooms) {
-      const activeRemoteNames = myRoom.memory.activeRemoteNames
+      const activeRemoteNames = myRoom.getActiveRemoteNames()
       if (!activeRemoteNames) {
         continue
       }
@@ -118,6 +119,28 @@ Overlord.mapInfo = function () {
           Game.map.visual.line(center, new RoomPosition(25, 25, room.memory.scout.next), { color: '#ffe700', width: '2', opacity: 1 })
           Game.map.visual.circle(new RoomPosition(25, 25, room.memory.scout.next), { fill: '#ffe700' })
         }
+      }
+
+      if (config.showTimeToClose) {
+        const status = this.getRoomStatus(roomName)
+        const timestampNow = new Date().getTime()
+        const timestampClose = status.timestamp
+
+        const difference = Math.floor(new Date(timestampClose - timestampNow) / 1000)
+
+        const day = toTwoDigits(Math.floor(difference / 60 / 60 / 24))
+
+        const dayRemainder = difference % (60 * 60 * 24)
+
+        const hour = toTwoDigits(Math.floor(dayRemainder / 60 / 60))
+
+        const hourRemainder = dayRemainder % (60 * 60)
+
+        const minutes = Math.floor(hourRemainder / 60)
+
+        const seconds = toTwoDigits(hourRemainder % 60)
+
+        Game.map.visual.text(`${day} Days and ${hour}:${minutes}:${seconds}`, new RoomPosition(25, 40, roomName), { fontSize: 5, color: '#74ee15' })
       }
     }
   }

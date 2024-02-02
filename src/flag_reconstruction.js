@@ -136,7 +136,7 @@ Flag.prototype.manageReconstruction = function () {
             this.room.buildersGetEnergyFromStorage = true
             const maxLaborer = Math.ceil(maxWork / (thisRoom.laborer.numWorkEach)) + 2
             if (thisRoom.laborer.numWork < maxWork && thisRoom.creeps.laborer.filter(creep => (creep.ticksToLive || 1500) > 3 * creep.body.length).length < maxLaborer) {
-                thisRoom.requestLaborer(Math.min((maxWork - thisRoom.laborer.numWork), thisRoom.laborer.numWorkEach))
+                thisRoom.requestLaborer()
             }
             if (this.memory.lastSpawnId && thisRoom.structures.spawn.length > 1) {
                 Game.getObjectById(this.memory.lastSpawnId).destroy()

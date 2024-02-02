@@ -50,7 +50,7 @@ Room.prototype.guardRoom = function (request) {
         return
     }
 
-    if (Game.time > request.time + 1000) {
+    if (Game.time > request.startTime + 1000) {
         request.result = 'expire'
         request.completed = true
         for (const guard of guardGroups.total) {
@@ -214,30 +214,31 @@ Room.prototype.gatherGuards = function (roomName, enemyStrength, moveFirst) {
 
     const activeCombatInfo = getCombatInfo(guardGroups.active)
 
-    if (activeCombatInfo.strength > enemyStrength * 1.2) {
+    if (activeCombatInfo.strength >= enemyStrength * 1.2) {
         return true
     }
 
-    const combatInfo = getCombatInfo(guardGroups.total)
+    const totalCombatInfo = getCombatInfo(guardGroups.total)
+
+    if (totalCombatInfo.strength >= enemyStrength * 1.2) {
+        return false
+    }
 
     const idlingGuards = [...this.getIdlingGuards()].sort((a, b) =>
-        Game.map.getRoomLinearDistance(a.room.name, roomName) - Game.map.getRoomLinearDistance(b.room.name, roomName))
-    while (combatInfo.strength < enemyStrength * 1.2) {
+        Game.map.getRoomLinearDistance(b.room.name, roomName) - Game.map.getRoomLinearDistance(a.room.name, roomName))
+
+    while (idlingGuards.length > 0) {
         const idlingGuard = idlingGuards.pop()
-        if (idlingGuard) {
-            idlingGuard.memory.targetRoomName = roomName
-            combatInfo.add(idlingGuard.getCombatInfo())
-            continue
+        idlingGuard.memory.targetRoomName = roomName
+        totalCombatInfo.add(idlingGuard.getCombatInfo())
+
+        if (totalCombatInfo.strength >= enemyStrength * 1.2) {
+            return false
         }
-        this.requestGuard(roomName, { moveFirst, neededStrength: enemyStrength * 1.2 })
-        return false
     }
 
-    if (guardGroups.spawning.length > 0) {
-        return false
-    }
-
-    return true
+    this.requestGuard(roomName, { moveFirst, neededStrength: enemyStrength * 1.2 })
+    return false
 }
 
 Room.prototype.getIdlingGuards = function () {

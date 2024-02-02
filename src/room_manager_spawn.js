@@ -22,8 +22,9 @@ global.SPAWN_PRIORITY = {
 
     'manager': 3,
     'distributor': 3,
-    'laborer': 3,
     'wallMaker': 3.1,
+    'extractor': 3.2,
+    'scouter': 3.3,
 
     'colonyDefender': 4,
     'guard': 4,
@@ -33,7 +34,8 @@ global.SPAWN_PRIORITY = {
     'remoteHauler': 4.3,
     'coreAttacker': 4.4,
 
-    'scouter': 5.2,
+    'laborer': 5,
+
 
     'powerBankAttacker': 6,
     'powerBankHealer': 6,
@@ -41,7 +43,6 @@ global.SPAWN_PRIORITY = {
     'highwayHauler': 7,
 
     'researcher': 8,
-    'extractor': 8.1,
 
     'dismantler': 9,
 
@@ -98,17 +99,17 @@ Room.prototype.manageSpawn = function () {
 
     if (TRAFFIC_TEST) {
         if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
-            this.requestLaborer(1)
+            this.requestLaborer({ maxWork: 1 })
         }
     } else {
         if (this.laborer.numWork < maxWork) {
             if (repairingForNuke) {
                 const boost = this.hasEnoughCompounds('XLH2O') ? 'XLH2O' : undefined
-                this.requestLaborer(numWorkEach, boost)
+                this.requestLaborer({ maxWork: numWorkEach, boost })
             } else if (this.getIsNeedBoostedUpgrader()) {
-                this.requestLaborer(numWorkEach, 'XGH2O')
+                this.requestLaborer({ maxWork: numWorkEach, boost: 'XGH2O' })
             } else {
-                this.requestLaborer(numWorkEach)
+                this.requestLaborer({ maxWork: numWorkEach })
             }
         }
     }
@@ -477,34 +478,67 @@ Room.prototype.requestHauler = function (numCarry, option = { isUrgent: false, o
     this.spawnQueue.push(request)
 }
 
+function getLaborerModel(energyCapacity, maxWork) {
+    const body = []
+    let cost = 0
+    let numWork = 0
+
+    while (energyCapacity > cost) {
+        if (numWork >= maxWork) {
+            break
+        }
+
+        if (energyCapacity >= cost + 300) {
+            if (body.length + 4 > 50) {
+                break
+            }
+            body.push(WORK, WORK, CARRY, MOVE)
+            numWork += 2
+            cost += 300
+            continue
+        }
+        if (energyCapacity >= cost + 200) {
+            if (body.length + 3 > 50) {
+                break
+            }
+            body.push(WORK, CARRY, MOVE)
+            numWork += 1
+            cost += 200
+            continue
+        }
+        if (energyCapacity >= cost + 100) {
+            if (body.length + 1 > 50) {
+                break
+            }
+            body.push(WORK)
+            numWork += 1
+            cost += 100
+            continue
+        }
+        break
+    }
+    return { body, numWork, cost }
+}
+
 /**
  * 
  * @param {number} numWork - desired number of work parts
  * @param {string} boost - name of resource used to be boost
  * @returns 
  */
-Room.prototype.requestLaborer = function (numWork, boost = undefined) {
+Room.prototype.requestLaborer = function (options) {
+    const defaultOptions = { maxWork: undefined, boost: undefined }
+    const mergedOptions = { ...defaultOptions, ...options }
+
+    const { maxWork, boost } = mergedOptions
+
     if (!this.hasAvailableSpawn()) {
         return
     }
 
-    let body = []
+    const model = getLaborerModel(this.energyCapacityAvailable, maxWork)
 
-    const maxWork = Math.min(numWork, this.laborer.numWorkEach)
-
-    for (let i = 0; i < maxWork - 1; i++) {
-        body.push(WORK)
-    }
-
-    for (let i = 0; i < maxWork - 1; i++) {
-        body.push(CARRY)
-    }
-
-    for (let i = 0; i < maxWork - 1; i++) {
-        body.push(MOVE)
-    }
-
-    body.push(WORK, CARRY, MOVE)
+    const body = model.body
 
     const name = `${this.name} laborer ${Game.time}_${this.spawnQueue.length}`
 
@@ -514,14 +548,20 @@ Room.prototype.requestLaborer = function (numWork, boost = undefined) {
         working: false
     }
 
-    const options = { priority: SPAWN_PRIORITY['laborer'] }
+    let priority = SPAWN_PRIORITY['laborer']
+
+    if (!this.storage || this.laborer.numWork === 0) {
+        priority -= 2
+    }
+
+    const spawnOptions = { priority }
 
     if (boost) {
         memory.boosted = false
-        options.boostResources = [boost]
+        spawnOptions.boostResources = [boost]
     }
 
-    const request = new RequestSpawn(body, name, memory, options)
+    const request = new RequestSpawn(body, name, memory, spawnOptions)
     this.spawnQueue.push(request)
 }
 
@@ -910,4 +950,8 @@ Room.prototype.requestScouter = function () {
 
     const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['scouter'] })
     this.spawnQueue.push(request)
+}
+
+module.exports = {
+    getLaborerModel
 }

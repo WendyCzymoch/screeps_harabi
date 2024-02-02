@@ -75,3 +75,7 @@ global.log = function () {
   }
   return 'end.'
 }
+
+module.exports = {
+  toTwoDigits
+}

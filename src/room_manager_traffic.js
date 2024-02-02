@@ -65,6 +65,10 @@ function dfs(a, creeps, visited, costs) {
     return false
   }
 
+  if (creep.fatigue > 0) {
+    return false
+  }
+
   const moveIntent = [...creep.getMoveIntent()]
 
   if (creep.getNextPos()) {

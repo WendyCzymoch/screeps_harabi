@@ -125,6 +125,8 @@ if (shardName === 'swc') {
 
   config.publicRamparts = false
 
+  config.showTimeToClose = true
+
 } else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) { // world
   config.allies = [
 

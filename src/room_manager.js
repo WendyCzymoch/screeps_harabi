@@ -434,10 +434,10 @@ Room.prototype.manageVisual = function () {
         this.visual.text(` 🔋${Math.floor(this.storage.store.getUsedCapacity(RESOURCE_ENERGY) / 1000)}K`, this.storage.pos.x - 2.9, this.storage.pos.y, { font: 0.5, align: 'left' })
     }
     const GRCLhistory = this.memory.GRCLhistory
-    if (SHOW_RCL_HISTORY && GRCLhistory) {
+    if ((this.controller.level >= 5 || SHOW_RCL_HISTORY) && GRCLhistory) {
         let i = 2
         while (GRCLhistory[i] && GRCLhistory[1]) {
-            this.visual.text(`got RCL${i} at tick ${GRCLhistory[i] - GRCLhistory[1]}`, 25, 25 - i)
+            this.visual.text(`got RCL${i} at tick ${GRCLhistory[i] - GRCLhistory[1] - 2}`, 25, 25 - i)
             i++
         }
     }

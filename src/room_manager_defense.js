@@ -211,7 +211,7 @@ Room.prototype.manageTower = function (targets) {
         return
     }
 
-    const threshold = (this.controller.level - 3) * RAMPART_HITS_PER_RCL
+    const threshold = ((this.controller.level) ^ 2) * RAMPART_HITS_PER_RCL
     const weakestRampart = this.weakestRampart
 
     // 제일 약한 rampart도 threshold 넘으면 종료
@@ -223,8 +223,8 @@ Room.prototype.manageTower = function (targets) {
     this.heap.rampartOK = false
 
     // 제일 약한 rampart가 RAMPART_HITS_TO_REPAIR_WITH_TOWERS 안되면 수리
-    if (weakestRampart.hits < RAMPART_HITS_TO_REPAIR_WITH_TOWERS && this.storage && this.storage.store[RESOURCE_ENERGY] > 5000) {
-        const weakRamparts = this.structures.rampart.filter(ramart => ramart.hits < 20000).sort((a, b) => a.hits - b.hits)
+    if (weakestRampart.hits < RAMPART_HITS_TO_REPAIR_WITH_TOWERS && (!this.storage || this.storage.store[RESOURCE_ENERGY] > 5000)) {
+        const weakRamparts = this.structures.rampart.filter(ramart => ramart.hits < RAMPART_HITS_TO_REPAIR_WITH_TOWERS).sort((a, b) => a.hits - b.hits)
         outer:
         for (const structure of weakRamparts) {
             const towers = this.structures.tower.filter(tower => !tower.busy)
@@ -476,7 +476,7 @@ Room.prototype.assignLaborers = function () {
             }
             if (!this._requestedLaborer && this.laborer.numWork < EMERGENCY_WORK_MAX) {
                 this._requestedLaborer = true
-                this.requestLaborer(this.laborer.numWorkEach)
+                this.requestLaborer()
             }
             break outer
         }

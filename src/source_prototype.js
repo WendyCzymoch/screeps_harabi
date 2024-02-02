@@ -1,12 +1,20 @@
 Object.defineProperties(Source.prototype, {
     waitingArea: {
         get() {
+            if (this._waitingArea) {
+                return this._waitingArea
+            }
+
+            if (Math.random() < 0.1) {
+                delete this.heap.waitingArea
+            }
+
             if (this.heap.waitingArea) {
                 return this.heap.waitingArea
             }
             const costs = this.room.basicCostmatrix
             const floodFill = this.room.floodFill([this.pos], { maxLevel: 3, costMatrix: costs }).positions
-            return this.heap.waitingArea = [...floodFill[2], ...floodFill[3]].filter(pos => costs.get(pos.x, pos.y) < 5)
+            return this._waitingArea = this.heap.waitingArea = [...floodFill[2], ...floodFill[3]].filter(pos => costs.get(pos.x, pos.y) < 5)
         }
     },
     available: {
@@ -103,7 +111,7 @@ Object.defineProperties(Source.prototype, {
             for (const hauler of haulers) {
                 this._info.numCarry += (hauler.body.filter(part => part.type === CARRY).length)
             }
-            this._info.maxCarry = this.linked ? 0 : (this.room.controller.linked || this.room.heap.constructing) ? Math.max(10, Math.ceil(0.6 * this.range.spawn)) : Math.max(10, Math.ceil(0.6 * this.range.controller))
+            this._info.maxCarry = this.linked ? 0 : (this.room.controller.linked || this.room.heap.constructing) ? Math.ceil(0.4 * this.range.spawn) + 2 : Math.ceil(0.4 * this.range.controller) + 2
             if (this.energyAmountNear > 1500) {
                 this._info.maxCarry += 10
             }

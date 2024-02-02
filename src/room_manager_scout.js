@@ -432,6 +432,10 @@ function getMineralCount() {
   const myRooms = Overlord.myRooms
   const result = {}
 
+  for (const mineralType of BASIC_MINERALS) {
+    result[mineralType] = 0
+  }
+
   for (const room of myRooms) {
     const minerals = room.find(FIND_MINERALS)
     for (const mineral of minerals) {

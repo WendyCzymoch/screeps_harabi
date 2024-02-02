@@ -75,10 +75,8 @@ Room.prototype.manageBuild = function () {
     let constructionSites = this.constructionSites
     if (constructionSites.length && laborers.length) {
         // 업무 배치 시작
-        const targetsByPriority = new Array(10)
-        for (let i = 0; i < targetsByPriority.length; i++) {
-            targetsByPriority[i] = []
-        }
+        const targetsByPriority = {}
+
         for (const constructionSite of constructionSites) {
             if (OBSTACLE_OBJECT_TYPES.includes(constructionSite.structureType)) {
                 const creepOnConstructionSite = constructionSite.pos.creep
@@ -86,9 +84,15 @@ Room.prototype.manageBuild = function () {
                     creepOnConstructionSite.moveRandom()
                 }
             }
-            targetsByPriority[BUILD_PRIORITY[constructionSite.structureType]].push(constructionSite)
+
+            const priority = BUILD_PRIORITY[constructionSite.structureType]
+
+            targetsByPriority[priority] = targetsByPriority[priority] || []
+            targetsByPriority[priority].push(constructionSite)
         }
-        const priorityTargets = targetsByPriority.find(targets => targets.length > 0)
+
+        const priorityMin = Math.min(...Object.keys(targetsByPriority).map(key => Number(key)))
+        const priorityTargets = targetsByPriority[priorityMin]
         for (const laborer of laborers) {
             if (laborer.room.name !== this.name) {
                 continue
@@ -101,10 +105,9 @@ Room.prototype.manageBuild = function () {
     }
 
     for (const laborer of laborers) {
+        laborer.needDelivery = true
         // energy 없으면 energy 받아라
         if (!laborer.working) {
-            laborer.needDelivery = true
-
             const energySource = this.storage || this.terminal
             if (energySource) {
                 laborer.getEnergyFrom(energySource.id)
@@ -121,8 +124,20 @@ Room.prototype.manageUpgrade = function () {
     // laborer 동작 및 이용가능한 laborer 찾기
     let laborers = this.creeps.laborer
     const controllerLink = this.controller.linked ? this.controller.link : undefined
+    if (controllerLink) {
+        this.visual.text(` 🔋${controllerLink.store[RESOURCE_ENERGY]}/800`,
+            controllerLink.pos.x + 0.5, controllerLink.pos.y,
+            { font: 0.5, align: 'left' }
+        )
+    }
 
     const container = this.controller.container
+    if (container) {
+        this.visual.text(` 🔋${container.store[RESOURCE_ENERGY]}/2000`,
+            container.pos.x + 0.5, container.pos.y,
+            { font: 0.5, align: 'left' }
+        )
+    }
 
     const tombstones = this.controller.pos.findInRange(FIND_TOMBSTONES, 3).filter(tombstone => tombstone.store[RESOURCE_ENERGY] > 0)
     const droppedEnergies = this.controller.pos.findInRange(FIND_DROPPED_RESOURCES, 3).filter(droppedResource => droppedResource.resourceType === RESOURCE_ENERGY)
@@ -147,19 +162,24 @@ Room.prototype.manageUpgrade = function () {
                 }
                 continue
             }
-            laborer.needDelivery = true
             if (container) {
                 if (container.store[RESOURCE_ENERGY] > 0) {
                     laborer.getEnergyFrom(container.id)
+                    continue
+                } else if (laborer.pos.getRangeTo(container) >= 2) {
+                    laborer.moveMy({ pos: container.pos, range: 2 })
+                    continue
                 }
-                continue
             }
+            laborer.needDelivery = true
         }
 
-        if (container && (laborer.pos.getRangeTo(container) <= 1 || (laborer.store[RESOURCE_ENERGY] / laborer.store.getCapacity()) <= 0.3)) {
-            if (container.store[RESOURCE_ENERGY] > 0) {
-                laborer.getEnergyFrom(container.id)
-            }
+        if (container && container.store[RESOURCE_ENERGY] > 0 && (laborer.pos.getRangeTo(container) <= 1 || (laborer.store[RESOURCE_ENERGY] / laborer.store.getCapacity()) <= 0.3)) {
+            laborer.getEnergyFrom(container.id)
+        }
+
+        if (controllerLink && controllerLink.store[RESOURCE_ENERGY] > 0 && (laborer.pos.getRangeTo(controllerLink) <= 1 || (laborer.store[RESOURCE_ENERGY] / laborer.store.getCapacity()) <= 0.3)) {
+            laborer.getEnergyFrom(controllerLink.id)
         }
 
         laborer.upgradeRCL()

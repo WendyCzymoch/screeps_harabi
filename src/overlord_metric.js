@@ -143,14 +143,12 @@ Overlord.findPath = function (startPos, goals, options = {}) {
           }
 
           if (roomType === 'sourceKeeper') {
-            console.log(`${roomName} is source keeper room`)
             const memory = Memory.rooms[roomName]
             if (memory && memory.resourceInfo) {
               for (const infos of Object.values(memory.resourceInfo)) {
                 for (const info of infos) {
                   const packed = info.packed
                   const parsed = parseCoord(packed)
-                  console.log(parsed.x)
                   const x = parsed.x
                   const y = parsed.y
                   const minX = Math.clamp(x - AVOID_SOURCE_KEEPER_RANGE, 0, 49)

@@ -52,9 +52,9 @@ global.BUILD_PRIORITY = {
 
     terminal: 2,
 
-    rampart: 3,
+    storage: 3,
 
-    storage: 4,
+    rampart: 4,
 
     link: 5,
 

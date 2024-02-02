@@ -6,7 +6,7 @@ const MAX_DISTANCE = 120
 const HAULER_RATIO = 0.4
 
 Room.prototype.manageRemotes = function () {
-    const remoteNames = this.getRemoteNames()
+    const remoteNames = this.getRemoteNames().sort((a, b) => getRemoteValue(this, b) - getRemoteValue(this, a))
     const activeRemoteNames = this.getActiveRemoteNames()
     const remoteNamesToSpawn = []
 
@@ -15,11 +15,17 @@ Room.prototype.manageRemotes = function () {
     const canReserve = this.energyCapacityAvailable >= 650
 
     let remoteNameToConstruct = undefined
+
+    let priority = 1
     for (const targetRoomName of remoteNames) {
-        runRemoteWorkers(this, targetRoomName)
+
         if (!activeRemoteNames.includes(targetRoomName)) {
+            runRemoteWorkers(this, targetRoomName)
             continue
         }
+
+        Game.map.visual.text(priority, new RoomPosition(5, 5, targetRoomName))
+        priority++
 
         const memory = getRoomMemory(targetRoomName)
 
@@ -72,7 +78,9 @@ Room.prototype.manageRemotes = function () {
             continue
         }
 
-        if (canReserve && !remoteNameToConstruct && targetRoom && (!info.constructionComplete || Game.time > (info.constructionCompleteTime + 3000))) {
+        runRemoteWorkers(this, targetRoomName)
+
+        if (canReserve && !remoteNameToConstruct && (!info.constructionComplete || Game.time > (info.constructionCompleteTime + 3000))) {
             remoteNameToConstruct = targetRoomName
         }
 
@@ -108,6 +116,7 @@ Room.prototype.addRemote = function (targetRoomName) {
     memory.roomNameInCharge = this.name
 
     delete this.memory.activeRemoteNames
+    delete this.memory.activeRemotes
 }
 
 Room.prototype.deleteRemote = function (targetRoomName) {
@@ -118,33 +127,60 @@ Room.prototype.deleteRemote = function (targetRoomName) {
     delete memory.roomNameInCharge
 
     delete this.memory.activeRemoteNames
+    delete this.memory.activeRemotes
 }
 
 Room.prototype.getActiveRemoteNames = function () {
-    if (this.memory.activeRemoteNames && this.memory.activeRemoteNamesTime && (Game.time < this.memory.activeRemoteNamesTime + 20)) {
-        return this.memory.activeRemoteNames
+    const activeRemotes = this.getActiveRemotes()
+    return activeRemotes.map(info => info.remoteName)
+}
+
+Room.prototype.getActiveRemotes = function () {
+    if (this.memory.activeRemotes && this.memory.activeRemotesTime && (Game.time < this.memory.activeRemotesTime + 20)) {
+        return this.memory.activeRemotes
     }
 
-    const remoteNames = this.getRemoteNames().filter(remoteName => {
+    const remoteInfos = []
+
+    for (const remoteName of this.getRemoteNames()) {
         const memory = this.getRemoteInfo(remoteName)
-        return memory && !memory.forbiddn
-    })
+        if (!memory) {
+            continue
+        }
+        if (memory.forbiddn) {
+            continue
+        }
 
-    const remoteValues = remoteNames.map(remoteName => getRemoteValue(this, remoteName))
+        // basic
 
-    const remoteWeights = remoteNames.map(remoteName => Math.ceil(this.getRemoteSpawnUsage(remoteName)))
+        const value = getRemoteValue(this, remoteName)
+        const weight = Math.ceil(this.getRemoteSpawnUsage(remoteName))
+        const intermediate = memory.intermediates
 
-    // intermediate destinations should be also our remotes.
-    const intermediates = remoteNames.map(remoteName => {
-        const memory = this.getRemoteInfo(remoteName)
-        return memory.intermediates
-    })
+        const info = { remoteName, intermediate, value, weight, oneSource: false }
+
+        remoteInfos.push(info)
+
+        const blueprint = getRemoteBlueprint(this, remoteName)
+
+        if (blueprint.length <= 1) {
+            continue
+        }
+
+        // oneSource
+        const value2 = getRemoteValue(this, remoteName, true)
+        const weight2 = Math.ceil(this.getRemoteSpawnUsage(remoteName, true))
+
+        const info2 = { remoteName, intermediate, value: value2, weight: weight2, oneSource: true }
+
+        remoteInfos.push(info2)
+    }
 
     let spawnCapacityForRemotes = Math.floor(this.structures.spawn.length * 500 - this.getBasicSpawnCapacity())
 
     if (spawnCapacityForRemotes < 0) {
-        this.memory.activeRemoteNamesTime = Game.time
-        return this.memory.activeRemoteNames = []
+        this.memory.activeRemotesTime = Game.time
+        return this.memory.activeRemotes = []
     }
 
     if (this.memory.activeSK) {
@@ -163,23 +199,30 @@ Room.prototype.getActiveRemoteNames = function () {
     }
 
     // DP starts
-    for (let i = 0; i < remoteNames.length; i++) {
-        const remoteName = remoteNames[i]
-        const w = remoteWeights[i]
-        const v = remoteValues[i]
-        const intermediateNames = intermediates[i]
+    for (let i = 0; i < remoteInfos.length; i++) {
+        const info = remoteInfos[i]
+        const remoteName = remoteInfos[i].remoteName
+        const w = info.weight
+        const v = info.value
+        const intermediateNames = info.intermediate
         for (let j = spawnCapacityForRemotes; j > 0; j--) {
             if (j + w > spawnCapacityForRemotes || table[j] === 0) {
                 continue
             }
 
-            if (intermediateNames && intermediateNames.some(intermediateName => !resultTable[j].includes(intermediateName))) {
+            const resultRemoteNames = resultTable[j].map(info => info.remoteName)
+
+            if (resultRemoteNames.includes(remoteName)) {
+                continue
+            }
+
+            if (intermediateNames && intermediateNames.some(intermediateName => !resultRemoteNames.includes(intermediateName))) {
                 continue
             }
 
             if (table[j] + v > table[j + w]) {
                 table[j + w] = table[j] + v
-                resultTable[j + w] = [...resultTable[j], remoteName]
+                resultTable[j + w] = [...resultTable[j], info]
             }
         }
 
@@ -189,12 +232,12 @@ Room.prototype.getActiveRemoteNames = function () {
 
         if (v > table[w]) {
             table[w] = v
-            resultTable[w] = [...resultTable[0], remoteName]
+            resultTable[w] = [...resultTable[0], info]
         }
     }
 
     // find best option
-    let result = undefined
+    let result = []
     let bestValue = 0
     for (let i = 0; i < table.length; i++) {
         if (table[i] > bestValue) {
@@ -202,8 +245,8 @@ Room.prototype.getActiveRemoteNames = function () {
             result = resultTable[i]
         }
     }
-    this.memory.activeRemoteNamesTime = Game.time
-    return this.memory.activeRemoteNames = result || []
+    this.memory.activeRemotesTime = Game.time
+    return this.memory.activeRemotes = result
 }
 
 // get remote net income per tick with EMA
@@ -479,11 +522,18 @@ function runRemoteHauler(creep, base, targetRoomName) {
         return
     }
 
-
     if (creep.room.name === targetRoomName) {
+        if (creep.memory.targetId) {
+            if (Game.getObjectById(creep.memory.targetId) && creep.getEnergyFrom(creep.memory.targetId) !== ERR_INVALID_TARGET) {
+                return
+            }
+            delete creep.memory.targetId
+        }
+
         const tombstone = creep.pos.findInRange(FIND_TOMBSTONES, 5).find(tombstone => tombstone.store[RESOURCE_ENERGY] >= 50)
 
         if (tombstone) {
+            creep.memory.targetId = tombstone.id
             creep.getEnergyFrom(tombstone.id)
             return
         }
@@ -492,6 +542,7 @@ function runRemoteHauler(creep, base, targetRoomName) {
             resource.resourceType === RESOURCE_ENERGY && resource.amount >= 50)
 
         if (droppedEnergy) {
+            creep.memory.targetId = droppedEnergy.id
             creep.getEnergyFrom(droppedEnergy.id)
             return
         }
@@ -647,8 +698,12 @@ function spawnRemoteWorkers(room, targetRoomNames) {
 
     const canReserve = room.energyCapacityAvailable >= 650
 
+    const activeRemotes = room.getActiveRemotes()
+
     outer:
     for (const targetRoomName of targetRoomNames) {
+        const oneSource = activeRemotes.find(info => info.remoteName === targetRoomName).oneSource
+
         const blueprint = getRemoteBlueprint(room, targetRoomName)
 
         if (!blueprint) {
@@ -657,22 +712,30 @@ function spawnRemoteWorkers(room, targetRoomNames) {
 
         const reservationTick = getReservationTick(targetRoomName)
 
+        const remoteInfo = room.getRemoteInfo(targetRoomName)
+
         if (reservationTick < 0) {
+            if (canReserve) {
+                const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
+                const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
+
+                if (numClaimParts < 2 && reservers.length < (remoteInfo.controllerAvailable || 2)) {
+                    room.requestReserver(targetRoomName)
+                    requested = true
+                    continue outer
+                }
+            }
             continue
         }
 
-        const reserving = reservationTick > 0
-
-        const maxWork = reserving ? 5 : 3
+        const maxWork = canReserve ? 5 : 3
 
         const sourceStat = {}
 
         for (const info of blueprint) {
             const sourceId = info.sourceId
-            sourceStat[sourceId] = { numMiner: 0, work: 0, carry: 0, repair: 0, pathLength: info.pathLength, maxCarry: info.maxCarry * (reserving ? 1 : 0.5), maxWork }
+            sourceStat[sourceId] = { numMiner: 0, work: 0, carry: 0, repair: 0, pathLength: info.pathLength, maxCarry: info.maxCarry * (canReserve ? 1 : 0.5), maxWork }
         }
-
-        const remoteInfo = room.getRemoteInfo(targetRoomName)
 
         const targetRoom = Game.rooms[targetRoomName]
 
@@ -719,16 +782,31 @@ function spawnRemoteWorkers(room, targetRoomNames) {
         }
 
         let x = 10
-        for (const stat of Object.values(sourceStat)) {
-            Game.map.visual.text(`${stat.work}/${maxWork}`, new RoomPosition(x, 20, targetRoomName), { fontSize: 5 })
-            Game.map.visual.text(`${stat.carry}/${stat.maxCarry} `, new RoomPosition(x, 30, targetRoomName), { fontSize: 5 })
+        for (const sourceId of Object.keys(sourceStat)) {
+            const stat = sourceStat[sourceId]
+            const fontSize = 4
+            const opacity = 1
+            const black = '#000000'
+            Game.map.visual.text(`⛏️${stat.work}/${maxWork}`, new RoomPosition(x, 20, targetRoomName), { fontSize, backgroundColor: stat.work >= maxWork ? black : COLOR_NEON_RED, opacity })
+            Game.map.visual.text(`🚚${stat.carry}/${stat.maxCarry} `, new RoomPosition(x, 25, targetRoomName), { fontSize, backgroundColor: stat.carry >= stat.maxCarry ? black : COLOR_NEON_RED, opacity })
+            const source = Game.getObjectById(sourceId)
+            if (source) {
+                const amountNear = source.energyAmountNear
+                Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, 30, targetRoomName), { fontSize, backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED, opacity })
+                if (amountNear > 2000) {
+                    stat.overload = true
+                }
+            }
             x += 30
+
+            if (oneSource) {
+                break
+            }
         }
 
-
-        // if (requested) {
-        //     continue
-        // }
+        if (requested) {
+            continue
+        }
 
         const memory = getRoomMemory(targetRoomName)
         if (memory.invaderCore) {
@@ -781,9 +859,13 @@ function spawnRemoteWorkers(room, targetRoomNames) {
                 continue outer
             }
 
-            const maxCarry = stat.maxCarry
+            let maxCarry = stat.maxCarry
             if (!constructing && stat.carry < maxCarry) {
                 const sourcePathLength = info.pathLength
+
+                if (stat.overload) {
+                    maxCarry += 6
+                }
 
                 const maxHaulerCarry = constructionComplete
                     ? 2 * Math.min(Math.floor((room.energyCapacityAvailable - 150) / 150), 16) // with road
@@ -793,16 +875,15 @@ function spawnRemoteWorkers(room, targetRoomNames) {
 
                 const eachCarry = Math.min(maxHaulerCarry, Math.ceil(maxCarry / maxNumHauler))
 
-                console.log(`maxCarry ${maxCarry}`)
-                console.log(`maxHaulerCarry ${maxHaulerCarry}`)
-                console.log(`maxNumHauler ${maxNumHauler}`)
-                console.log(`eachCarry ${eachCarry}`)
-
                 const isRepairer = stat.repair < 2
 
                 room.requestRemoteHauler(targetRoomName, sourceId, { constructing, sourcePathLength, maxCarry: eachCarry, noRoad: !constructionComplete, isRepairer, })
                 requested = true
                 continue outer
+            }
+
+            if (oneSource) {
+                break
             }
         }
     }
@@ -840,7 +921,7 @@ Room.prototype.requestRemoteHauler = function (targetRoomName, sourceId, options
             cost += 150
         }
 
-        const energyCapacity = this.energyCapacityAvailable - (options.isRepairer ? 150 : 0)
+        const energyCapacity = this.energyCapacityAvailable
 
         const maxCarry = options.maxCarry || 32
 
@@ -1046,7 +1127,7 @@ function constructRemote(room, targetRoomName) {
                 numConstructionSites = 0
             }
 
-            if (numConstructionSites >= 3) {
+            if (numConstructionSites >= 10) {
                 continue
             }
 
@@ -1076,14 +1157,13 @@ function constructRemote(room, targetRoomName) {
     }
 }
 
-function getRemoteValue(room, targetRoomName) {
+function getRemoteValue(room, targetRoomName, oneSource = false) {
     const remoteInfo = room.getRemoteInfo(targetRoomName)
 
-    if (remoteInfo && remoteInfo.remoteValue && remoteInfo.remoteValueTime && Game.time < (remoteInfo.remoteValueTime + 100)) {
+    if (remoteInfo && remoteInfo.remoteValue && remoteInfo.remoteValueTime && (!!remoteInfo.oneSource === oneSource) && Game.time < (remoteInfo.remoteValueTime + 100)) {
         return remoteInfo.remoteValue
     }
 
-    const road = room.energyCapacityAvailable >= 650
     const canReserve = room.energyCapacityAvailable >= 650
 
     let result = 0
@@ -1100,20 +1180,25 @@ function getRemoteValue(room, targetRoomName) {
         const distance = info.pathLength
 
         const minerCost = (950 / (1500 - distance))
-        const haluerCost = (distance * HAULER_RATIO * (road ? 75 : 100) + 100) / 1500
+        const haluerCost = (distance * HAULER_RATIO * (canReserve ? 75 : 100) + 100) / 1500
         const creepCost = (minerCost + haluerCost) * (canReserve ? 1 : 0.5)
 
-        const containerCost = road ? 0.5 : 0
-        const roadCost = road ? (1.6 * distance + 10 * distance / (1500 - distance) + 1.5 * distance / (600 - distance)) * 0.001 : 0
+        const containerCost = canReserve ? 0.5 : 0
+        const roadCost = canReserve ? (1.6 * distance + 10 * distance / (1500 - distance) + 1.5 * distance / (600 - distance)) * 0.001 : 0
 
         const totalCost = creepCost + containerCost + roadCost
 
         const netIncome = income - totalCost
 
         result += netIncome
+
+        if (oneSource) {
+            break
+        }
     }
 
     if (remoteInfo) {
+        remoteInfo.oneSource = oneSource
         remoteInfo.remoteValueTime = Game.time
         remoteInfo.remoteValue = result
     }
@@ -1245,7 +1330,7 @@ function getRemoteBlueprint(room, targetRoomName) {
 
         info.pathLength = pathLength
 
-        info.maxCarry = Math.floor(path.length * HAULER_RATIO)
+        info.maxCarry = Math.floor(path.length * HAULER_RATIO) + 2
 
         const structures = []
 
@@ -1285,7 +1370,7 @@ function getRemoteBlueprint(room, targetRoomName) {
     return result
 }
 
-Room.prototype.getRemoteSpawnUsage = function (targetRoomName) {
+Room.prototype.getRemoteSpawnUsage = function (targetRoomName, oneSource = false) {
     let result = 0
 
     const canReserve = this.energyCapacityAvailable >= 650
@@ -1302,6 +1387,10 @@ Room.prototype.getRemoteSpawnUsage = function (targetRoomName) {
         }
         result += 13 // miner
         result += Math.floor(info.maxCarry * (canReserve ? 1.5 : 2)) // hauler
+
+        if (oneSource) {
+            break
+        }
     }
 
     if (!canReserve) {

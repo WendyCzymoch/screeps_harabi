@@ -147,6 +147,7 @@ const storedEnergy = new VisualItem('Storage', 4.5, (room) => {
 
 // Remote
 const remoteIncome = new VisualItem('Remote', 4, (room) => {
+    const activeRemotes = room.getActiveRemotes()
     const activeRemoteNames = room.getActiveRemoteNames()
 
     if (!activeRemoteNames) {
@@ -158,12 +159,13 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
     let income = 0
     let num = 0
 
-    for (const targetRoomName of activeRemoteNames) {
+    for (const info of activeRemotes) {
+        const targetRoomName = info.remoteName
         const remoteInfo = room.getRemoteInfo(targetRoomName)
         if (!remoteInfo) {
             continue
         }
-        num += remoteInfo.blueprint.length
+        num += info.oneSource ? 1 : remoteInfo.blueprint.length
         const currentIncome = room.getRemoteNetIncomePerTick(targetRoomName)
         income += currentIncome
         Game.map.visual.text(currentIncome.toFixed(1), new RoomPosition(25, 10, targetRoomName), { fontSize: 7, color: COLOR_NEON_YELLOW, backgroundColor: '#000000', opacity: 1 })

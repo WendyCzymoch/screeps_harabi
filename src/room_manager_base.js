@@ -80,7 +80,7 @@ Room.prototype.constructByBasePlan = function (level) {
             continue
         }
 
-        if (numConstructionSitesThisRoom >= 5) {
+        if (numConstructionSitesThisRoom >= 10) {
             return false
         }
         if (structure.structureType === 'spawn') {
@@ -102,7 +102,7 @@ Room.prototype.constructByBasePlan = function (level) {
     }
 
 
-    if (newConstructionSites === 0 && numConstructionSitesThisRoom === 0 && numConstructionSites < 90) {
+    if (newConstructionSites === 0 && numConstructionSitesThisRoom === 0 && numConstructionSites < 100) {
         return true
     }
     return false

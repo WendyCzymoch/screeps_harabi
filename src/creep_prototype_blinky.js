@@ -138,53 +138,28 @@ Creep.prototype.harasserRangedAttack = function (attackNeutralStructures = false
 }
 
 Creep.prototype.activeHeal = function () {
-  const myCreepsInRange = this.pos.findInRange(FIND_MY_CREEPS, 3)
+  const myCreepsInRange = this.pos.findInRange(FIND_MY_CREEPS, 1)
 
-  let adjacentWounded = undefined
-  let rangedWounded = undefined
+  let target = undefined
 
   for (const creep of myCreepsInRange) {
     if (creep.hits === creep.hitsMax) {
       continue
     }
-
-    // find creep with lowest hits ratio
-    if (this.pos.getRangeTo(creep.pos) <= 1) {
-      if (!adjacentWounded) {
-        adjacentWounded = creep
-        continue
-      }
-      const hitsRatioBefore = adjacentWounded.hits / adjacentWounded.hitsMax
-      const hitsRatioNow = creep.hits / creep.hitsMax
-      if (hitsRatioNow < hitsRatioBefore) {
-        adjacentWounded = creep
-      }
+    if (!target) {
+      target = creep
       continue
     }
-
-    if (adjacentWounded) {
-      continue
-    }
-
-    // find creep with lowest hits ratio
-    if (!rangedWounded) {
-      rangedWounded = creep
-      continue
-    }
-    const hitsRatioBefore = rangedWounded.hits / rangedWounded.hitsMax
+    const hitsRatioBefore = target.hits / target.hitsMax
     const hitsRatioNow = creep.hits / creep.hitsMax
     if (hitsRatioNow < hitsRatioBefore) {
-      rangedWounded = creep
+      target = creep
     }
+    continue
   }
 
-  if (adjacentWounded) {
-    this.heal(adjacentWounded)
-    return
-  }
-
-  if (rangedWounded) {
-    this.rangedHeal(rangedWounded)
+  if (target) {
+    this.heal(target)
     return
   }
 

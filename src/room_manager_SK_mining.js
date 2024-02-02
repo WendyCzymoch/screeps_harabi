@@ -1,8 +1,8 @@
 const { GuardRequest, getCombatInfo } = require("./overlord_tasks_guard")
-const { MAX_DISTANCE, unpackInfraPos, runRemoteMiner, runRemoteHauler, HAULER_RATIO, runAway } = require("./room_manager_remote")
+const { MAX_DISTANCE, unpackInfraPos, runRemoteMiner, runRemoteHauler, runAway } = require("./room_manager_remote")
 const { getRoomMemory } = require("./util")
 
-const SK_HAULER_RATIO = 0.7
+const SK_HAULER_RATIO = 0.6
 const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
 
 Room.prototype.manageSourceKeeperMining = function () {
@@ -453,7 +453,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
 
     info.pathLength = path.length
 
-    info.maxCarry = Math.floor(path.length * SK_HAULER_RATIO)
+    info.maxCarry = Math.floor(path.length * SK_HAULER_RATIO) + 2
 
     info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
 
