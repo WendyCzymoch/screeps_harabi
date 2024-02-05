@@ -30,15 +30,16 @@ Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
  */
 Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, ignoreMap}
     const defaultOptions = {
-        staySafe: (this.room.memory.militaryThreat && this.room.isWalledUp),
+        staySafe: (this.room.heap.isEnemy && this.room.isWalledUp),
         ignoreMap: (this.memory.ignoreMap || 1),
         ignoreCreeps: true,
         ignoreOrder: false,
         visualize: false,
+        useRoad: this.memory.useRoad
     }
     const mergedOptions = { ...defaultOptions, ...options }
 
-    const { staySafe, ignoreMap, ignoreCreeps, ignoreOrder, visualize } = mergedOptions
+    const { staySafe, ignoreMap, ignoreCreeps, ignoreOrder, visualize, useRoad } = mergedOptions
 
     goals = normalizeGoals(goals)
 
@@ -70,7 +71,6 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
         if (this.heap.stay > Game.time) {
             this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' })
             this.say(`🛌${this.heap.stay - Game.time}`, true)
-            this.moveTo(mainTargetPos)
             return ERR_NO_PATH
         } else {
             delete this.heap.stay
@@ -87,7 +87,11 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
 
     if (this.needNewPath(goals)) {
         this.resetPath()
-        const moveCost = this.getMoveCost()
+        let moveCost = this.getMoveCost()
+        if (useRoad) {
+            moveCost = Math.max(1, moveCost)
+        }
+
         const result = this.searchPath(goals, { ignoreCreeps, staySafe, ignoreMap, moveCost })
         // 도착지까지 길이 안찾아지는 경우
         if (result === ERR_NO_PATH) {
@@ -98,6 +102,11 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
                 this.heap.stay = Game.time + 10
             }
             return ERR_NO_PATH
+        }
+
+        if (this.pos.roomName === 'W8N4') {
+            console.log(`start:${this.pos} goals:${JSON.stringify(goals)} ignoreCreeps:${ignoreCreeps}, staySafe:${staySafe}, ignoreMap:${ignoreMap}, moveCost:${moveCost}`)
+            console.log(result)
         }
 
         // 찾아진 경우
@@ -118,7 +127,11 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
     if (this.heap.stuck >= 5) {
         this.say(`🚧`, true)
         const doIgnoreCreeps = Math.random() < 0.5
-        const result = this.searchPath(goals, { staySafe, ignoreMap, ignoreCreeps: doIgnoreCreeps })
+        let moveCost = this.getMoveCost()
+        if (useRoad) {
+            moveCost = Math.max(1, moveCost)
+        }
+        const result = this.searchPath(goals, { staySafe, ignoreMap, ignoreCreeps: doIgnoreCreeps, moveCost })
         if (result === ERR_NO_PATH) {
             this.heap.noPath = this.heap.noPath || 0
             this.heap.noPath++
@@ -249,8 +262,7 @@ Creep.prototype.checkEmpty = function (pos) {
 }
 
 Creep.prototype.moveRandom = function () {
-    const costs = this.room.basicCostmatrix
-    const adjacents = this.pos.getAtRange(1).filter(pos => costs.get(pos.x, pos.y) < 255)
+    const adjacents = this.pos.getAtRange(1)
     const index = Math.floor(Math.random() * adjacents.length)
     const targetPos = adjacents[index]
     this.moveMy(targetPos)
@@ -308,7 +320,7 @@ Creep.prototype.getEnergyFrom = function (id) {
  * @param {object} options 
  * @returns ERR_NO_PATH if there is no path. otherwise path(an array of roomPositions)
  */
-Creep.prototype.searchPath = function (goals, options = {}) {
+Creep.prototype.searchPath = function (goals, options) {
     return Overlord.findPath(this.pos, goals, options)
 }
 

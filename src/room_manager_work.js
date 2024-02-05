@@ -1,32 +1,27 @@
 Room.prototype.manageWork = function () {
-    // 위협이 있으면 일단 막자
+    let usingBuilders = false
+
+    // builder
     if (this.memory.militaryThreat && this.isWalledUp) {
-        return this.manageReinforce()
+        this.manageReinforce()
+        usingBuilders = true
+    } else if (this.constructionSites.length > 0) {
+        this.manageBuild()
+        usingBuilders = true
     }
 
-    // downgrade가 너무 임박한 상태면 일단 upgrade부터
-    if (!this.heap.upgradeFirst && this.controller.ticksToDowngrade < 5000) {
-        this.heap.upgradeFirst = true
-    } else if (this.heap.upgradeFirst && this.controller.ticksToDowngrade >= 10000) {
-        this.heap.upgradeFirst = false
-    }
+    // upgrader
+    this.manageUpgrade(usingBuilders)
 
-    // 건설할 곳이 있고 downgrade가 급하지 않으면 build부터
-    if (this.constructionSites.length > 0 && !this.heap.upgradeFirst) {
-        this.heap.constructing = true
-        return this.manageBuild()
-    } else {
-        this.heap.constructing = false
-    }
-
-    // 아니면 upgrade부터
-    return this.manageUpgrade()
 }
 
 Room.prototype.manageReinforce = function () {
     const REPAIR_RANGE = 4
     const rampartAnchorsStatus = this.getRampartAnchorsStatus()
-    for (const laborer of this.creeps.laborer) {
+
+    const builders = this.creeps.laborer.filter(creep => creep.memory.isBuilder)
+
+    for (const laborer of builders) {
         const status = rampartAnchorsStatus[laborer.memory.assign]
         if (!status) {
             continue
@@ -69,11 +64,11 @@ Room.prototype.manageReinforce = function () {
 
 Room.prototype.manageBuild = function () {
     // laborer 찾기
-    let laborers = Overlord.getCreepsByRole(this.name, 'laborer')
+    const builders = this.creeps.laborer.filter(creep => creep.memory.isBuilder)
 
     // construction site 목록 작성
     let constructionSites = this.constructionSites
-    if (constructionSites.length && laborers.length) {
+    if (constructionSites.length && builders.length) {
         // 업무 배치 시작
         const targetsByPriority = {}
 
@@ -93,7 +88,7 @@ Room.prototype.manageBuild = function () {
 
         const priorityMin = Math.min(...Object.keys(targetsByPriority).map(key => Number(key)))
         const priorityTargets = targetsByPriority[priorityMin]
-        for (const laborer of laborers) {
+        for (const laborer of builders) {
             if (laborer.room.name !== this.name) {
                 continue
             }
@@ -104,7 +99,7 @@ Room.prototype.manageBuild = function () {
         }
     }
 
-    for (const laborer of laborers) {
+    for (const laborer of builders) {
         laborer.needDelivery = true
         // energy 없으면 energy 받아라
         if (!laborer.working) {
@@ -120,9 +115,9 @@ Room.prototype.manageBuild = function () {
 
 }
 
-Room.prototype.manageUpgrade = function () {
+Room.prototype.manageUpgrade = function (usingBuilders) {
     // laborer 동작 및 이용가능한 laborer 찾기
-    let laborers = this.creeps.laborer
+    let laborers = usingBuilders ? this.creeps.laborer.filter(creep => !creep.memory.isBuilder) : this.creeps.laborer
     const controllerLink = this.controller.linked ? this.controller.link : undefined
     if (controllerLink) {
         this.visual.text(` 🔋${controllerLink.store[RESOURCE_ENERGY]}/800`,

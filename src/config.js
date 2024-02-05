@@ -63,6 +63,8 @@ if (shardName === 'swc') {
 
   config.publicRamparts = true
 
+  config.rampartHitsPerRclSquare = 16000
+
 } else if (shardName === 'shardSeason') {
   config.allies = [
 
@@ -121,11 +123,17 @@ if (shardName === 'swc') {
     'factory'
   ]
 
+  config.labConstructLevel = 7
+
   config.alwaysShowMapInfo = true
 
   config.publicRamparts = false
 
   config.showTimeToClose = true
+
+  config.rampartHitsPerRclSquare = 6000
+
+  config.blockUpragade = true
 
 } else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) { // world
   config.allies = [
@@ -194,6 +202,9 @@ if (shardName === 'swc') {
   config.alwaysShowMapInfo = false
 
   config.publicRamparts = false
+
+  config.rampartHitsPerRclSquare = 16000
+
 } else { // local
   config.allies = [
 
@@ -259,6 +270,10 @@ if (shardName === 'swc') {
   config.alwaysShowMapInfo = true
 
   config.publicRamparts = false
+
+  config.showTicks = true
+
+  config.rampartHitsPerRclSquare = 16000
 }
 
 // quad and duo settings
@@ -276,7 +291,7 @@ config.quad = {
   HEAL_BUFFER: 100
 }
 
-config.RCL_THRESHOLD_TO_SAFEMODE = 5
+config.RCL_THRESHOLD_TO_SAFEMODE = 2
 
 // Remote
 config.DISTANCE_TO_REMOTE = 1

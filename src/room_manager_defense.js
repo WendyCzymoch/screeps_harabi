@@ -49,10 +49,13 @@ Room.prototype.manageDefense = function () {
 
     aggressiveTargets.push(...targetPowerCreeps)
 
-    if (aggressiveTargets.length === 0 && status.state === 'normal') {
+    this.heap.isEnemy = aggressiveTargets.length > 0
+
+    if (!this.heap.isEnemy && status.state === 'normal') {
         this.manageTower(targets)
         return
     }
+
     this.visual.text(`⚔️${status.state}`, this.controller.pos.x + 0.75, this.controller.pos.y - 1.5, { align: 'left' })
 
     const invulnerables = this.getInvulnerables(aggressiveTargets)
@@ -86,14 +89,14 @@ Room.prototype.manageDefense = function () {
         }
         const repairingForNuke = this.memory.defenseNuke && ['build', 'repair'].includes(this.memory.defenseNuke.state) && this.energyLevel > config.energyLevel.REACT_TO_NUKES
         if (!repairingForNuke && this.controller.level === 8) {
-            const laborers = this.creeps.laborer
+            const laborers = this.creeps.laborer.filter(creep => creep.memory.isBuilder)
             for (const laborer of laborers) {
                 laborer.memory.role = 'wallMaker'
             }
         }
     }
 
-    if (invulnerables.length > 0 && !this.isWalledUp && this.controller.level >= RCL_THRESHOLD_TO_SAFEMODE && !this.controller.safeMode && !this.controller.safeModeCooldown) {
+    if (invulnerables.length > 0 && this.getMyCombatants().length === 0 && !this.isWalledUp && this.controller.level >= RCL_THRESHOLD_TO_SAFEMODE && !this.controller.safeMode && !this.controller.safeModeCooldown) {
         const invaderName = invulnerables[0].owner.username
         data.recordLog(`WAR: Emergency occured by ${invaderName}. safemode activated`, this.name, 0)
         this.controller.activateSafeMode()
@@ -118,6 +121,7 @@ Room.prototype.manageDefense = function () {
                 if (creep.memory.role === 'wallMaker') {
                     creep.memory.assignedRoom = this.name
                     creep.memory.role = 'laborer'
+                    creep.memory.isBuilder = true
                 }
 
                 if (creep.heap.backToBase > 0) {
@@ -141,6 +145,7 @@ Room.prototype.manageDefense = function () {
             creep.memory.assignedRoom = this.name
             if (creep.getActiveBodyparts(WORK) > 5) {
                 creep.memory.role = 'laborer'
+                creep.memory.isBuilder = true
                 continue
             }
             if (creep.attackPower > 500) {
@@ -211,7 +216,7 @@ Room.prototype.manageTower = function (targets) {
         return
     }
 
-    const threshold = ((this.controller.level) ^ 2) * RAMPART_HITS_PER_RCL
+    const threshold = ((this.controller.level) ^ 2) * config.rampartHitsPerRclSquare
     const weakestRampart = this.weakestRampart
 
     // 제일 약한 rampart도 threshold 넘으면 종료
@@ -439,7 +444,8 @@ Room.prototype.assignLaborers = function () {
     const keys = anchorStatusesSorted.map(status => packCoord(status.pos.x, status.pos.y))
 
     // get freeLaborers
-    const laborers = [...this.creeps.laborer]
+    const builders = this.creeps.laborer.filter(creep => creep.memory.isBuilder)
+    const laborers = [...builders]
     const freeLaborers = laborers.filter(laborer => {
         if (!laborer.memory.assign) {
             return true
@@ -476,7 +482,7 @@ Room.prototype.assignLaborers = function () {
             }
             if (!this._requestedLaborer && this.laborer.numWork < EMERGENCY_WORK_MAX) {
                 this._requestedLaborer = true
-                this.requestLaborer()
+                this.requestLaborer({ maxWork: 16, isBuilder: true })
             }
             break outer
         }
@@ -716,8 +722,8 @@ Object.defineProperties(Room.prototype, {
             if (VISUALIZE_DANGER_AREA && !this._visualizeDefenseCostMatrix) {
                 for (let x = 0; x < 50; x++) {
                     for (let y = 0; y < 50; y++) {
-                        if (this.defensiveAssessment.costs.get(x, y) === DANGER_TILE_COST) {
-                            this.visual.rect(x - 0.5, y - 0.5, 1, 1, { fill: 'red', opacity: 0.15 })
+                        if (this.defensiveAssessment.costs.get(x, y) >= DANGER_TILE_COST) {
+                            this.visual.rect(x - 0.5, y - 0.5, 1, 1, { fill: 'red', opacity: 0.1 })
                         }
                     }
                 }
@@ -934,6 +940,17 @@ Room.prototype.getDefensiveAssessment = function () {
         const coord = parseCoord(packed)
         return new RoomPosition(coord.x, coord.y, this.name)
     })
+
+    for (const creep of killerCreeps) {
+        const range = creep.rangedAttackPower > 0 ? 3 : creep.attackPower > 0 ? 1 : 0
+        if (range > 0) {
+            for (const pos of creep.pos.getInRange(range)) {
+                if (!pos.isRampart && !pos.isWall) {
+                    costMatrix.set(pos.x, pos.y, 255)
+                }
+            }
+        }
+    }
 
     return this._defensiveAssessment = this.heap._defensiveAssessment = { costs: costMatrix, frontLine, frontRampartPositions }
 }

@@ -1,7 +1,6 @@
 const { config } = require("./config")
 
 global.SPAWN_CAPACITY_THRESHOLD = 0.9
-const SHOW_RCL_HISTORY = false
 
 Room.prototype.runRoomManager = function () {
     this.updateIntel()
@@ -50,10 +49,9 @@ Room.prototype.runRoomManager = function () {
         this.managePowerSpawn()
 
     }
-
-    this.manageEnergy()
     this.manageLab() // boosting이 우선이라 밑에 둠
 
+    this.manageEnergy()
     this.manageSource()
     this.manageSpawn()
     this.manageVisual()
@@ -233,7 +231,13 @@ Room.prototype.manageSource = function () {
         }
 
         if (haulerRatio < 1 && source.info.numHauler < source.info.maxNumHauler) {
-            this.requestHauler(source.info.eachCarry, { isUrgent: false, office: source })
+            const numCarry = source.info.numHauler < source.info.maxNumHauler - 1 ? source.info.eachCarry : Math.min(source.info.eachCarry, source.info.maxCarry - source.info.numCarry)
+            this.requestHauler(numCarry, { isUrgent: false, office: source })
+            continue
+        }
+
+        if (source.energyAmountNear > 2000 && source.info.numCarry < source.info.maxCarry + 6) {
+            this.requestHauler((source.info.maxCarry + 6 - source.info.numCarry), { isUrgent: false, office: source })
             continue
         }
 
@@ -434,7 +438,7 @@ Room.prototype.manageVisual = function () {
         this.visual.text(` 🔋${Math.floor(this.storage.store.getUsedCapacity(RESOURCE_ENERGY) / 1000)}K`, this.storage.pos.x - 2.9, this.storage.pos.y, { font: 0.5, align: 'left' })
     }
     const GRCLhistory = this.memory.GRCLhistory
-    if ((this.controller.level >= 5 || SHOW_RCL_HISTORY) && GRCLhistory) {
+    if (config.showTicks && GRCLhistory) {
         let i = 2
         while (GRCLhistory[i] && GRCLhistory[1]) {
             this.visual.text(`got RCL${i} at tick ${GRCLhistory[i] - GRCLhistory[1] - 2}`, 25, 25 - i)

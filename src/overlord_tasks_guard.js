@@ -6,6 +6,7 @@ Overlord.manageGuardTasks = function () {
 
         if (request.completed === true) {
             this.deleteTask(request)
+            data.recordLog(`GUARD: gaurd room ${request.roomName} ended. result ${request.result}`, request.roomName)
             continue
         }
 
@@ -69,12 +70,13 @@ Room.prototype.guardRoom = function (request) {
             hostileCreeps = hostileCreeps.filter(creep => creep.owner.username !== 'Source Keeper')
         }
         const enemyInfo = getCombatInfo(hostileCreeps)
+        request.try = false
         request.lastUpdateTime = Game.time
         request.enemyStrength = enemyInfo.strength
         request.isEnemy = hostileCreeps.length > 0
         request.moveFirst = (enemyInfo.attack === enemyInfo.rangedAttack)
     } else if (request.enemyStrength > 0 && (Game.time > (request.lastUpdateTime || request.startTime) + 100)) {
-        request.enemyStrength = 0
+        request.try = true
     }
 
     if (!request.cleared && request.isEnemy === false) {
@@ -101,7 +103,7 @@ Room.prototype.guardRoom = function (request) {
 
     request.gathered = this.gatherGuards(roomName, request.enemyStrength, request.moveFirst)
 
-    if (request.gathered && request.rallied) {
+    if (request.try || (request.gathered && request.rallied)) {
         request.status = 'combat'
         doCombat(guardGroups.active, roomName)
         return
@@ -214,14 +216,8 @@ Room.prototype.gatherGuards = function (roomName, enemyStrength, moveFirst) {
 
     const activeCombatInfo = getCombatInfo(guardGroups.active)
 
-    if (activeCombatInfo.strength >= enemyStrength * 1.2) {
+    if (activeCombatInfo.strength > enemyStrength * 1.2) {
         return true
-    }
-
-    const totalCombatInfo = getCombatInfo(guardGroups.total)
-
-    if (totalCombatInfo.strength >= enemyStrength * 1.2) {
-        return false
     }
 
     const idlingGuards = [...this.getIdlingGuards()].sort((a, b) =>
@@ -230,11 +226,17 @@ Room.prototype.gatherGuards = function (roomName, enemyStrength, moveFirst) {
     while (idlingGuards.length > 0) {
         const idlingGuard = idlingGuards.pop()
         idlingGuard.memory.targetRoomName = roomName
-        totalCombatInfo.add(idlingGuard.getCombatInfo())
-
-        if (totalCombatInfo.strength >= enemyStrength * 1.2) {
-            return false
+        const combatInfo = idlingGuard.getCombatInfo()
+        activeCombatInfo.add(combatInfo)
+        if (activeCombatInfo.strength > enemyStrength * 1.2) {
+            return true
         }
+    }
+
+    const spawiningCombatInfo = getCombatInfo(guardGroups.spawning)
+
+    if (activeCombatInfo.add(spawiningCombatInfo).strength > enemyStrength * 1.2) {
+        return false
     }
 
     this.requestGuard(roomName, { moveFirst, neededStrength: enemyStrength * 1.2 })
@@ -357,6 +359,7 @@ class CombatInfo {
         this.heal += combatInfo.heal
         this.hits += combatInfo.hits
         this.strength += combatInfo.strength
+        return this
     }
 }
 

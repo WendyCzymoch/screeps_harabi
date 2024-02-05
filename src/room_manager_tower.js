@@ -35,7 +35,7 @@ Room.prototype.manageTowerAttack = function (targets) {
     }
   }
 
-  if (Math.random() < 0.05) {
+  if (Math.random() < 0.01) {
     this.towerAttackRandomly(targets)
     return
   }

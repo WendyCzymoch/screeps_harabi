@@ -384,7 +384,7 @@ Room.prototype.getClaimScore = function () {
 
   const swampRatio = numSwamp / (numSwamp + numPlain)
 
-  const swampScore = 1 - swampRatio
+  const swampScore = Math.clamp((0.5 - swampRatio) / 0.5, 0, 1)
 
   const numSource = this.find(FIND_SOURCES).length
 
@@ -423,7 +423,7 @@ Room.prototype.getClaimScore = function () {
     }
   }
 
-  const remoteScore = remoteSourceLength / 8
+  const remoteScore = Math.clamp(0.25 * (remoteSourceLength - 3), 0, 1)
 
   return Math.floor((swampScore + sourceScore + mineralScore + rangeScore + remoteScore) * 20) / 100
 }

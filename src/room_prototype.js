@@ -3,7 +3,6 @@ const { getLaborerModel } = require("./room_manager_spawn")
 
 const MAX_WORK = 80
 const COST_FOR_HUB_CENTER = 30
-const COST_FOR_UPGRADE_SPOT = 10
 
 Object.defineProperties(Room.prototype, {
     GRCL: {
@@ -38,12 +37,8 @@ Object.defineProperties(Room.prototype, {
                 return this._sources
             }
             this._sources = this.find(FIND_SOURCES)
-            if (this.controller) {
-                this._sources = this._sources.sort((a, b) => a.info.maxCarry - b.info.maxCarry)
-                if (this.structures.spawn.length > 0) {
-                    this.heap.sources = this._sources.map(source => source.id)
-                }
-                return this._sources
+            if (this.structures.spawn.length > 0) {
+                this._sources.sort((a, b) => a.range.spawn - b.range.spawn)
             }
             this.heap.sources = this._sources.map(source => source.id)
             return this._sources
@@ -105,7 +100,18 @@ Object.defineProperties(Room.prototype, {
             this._laborer = {}
             this._laborer.numWork = 0
             this._laborer.numWorkEach = getLaborerModel(this.energyCapacityAvailable).numWork
-            for (const laborer of this.creeps.laborer.filter(creep => (creep.ticksToLive || 1500) > 3 * creep.body.length)) {
+
+            const upgraders = this.creeps.laborer.filter(creep => {
+                if (creep.memory.isBuilder) {
+                    return false
+                }
+                if ((creep.ticksToLive || 1500) < 3 * creep.body.length) {
+                    return false
+                }
+                return true
+            })
+
+            for (const laborer of upgraders) {
                 this._laborer.numWork += laborer.body.filter(part => part.type === WORK).length
             }
             return this._laborer
@@ -169,7 +175,7 @@ Object.defineProperties(Room.prototype, {
                 const workingMiners = source.pos.findInRange(miners, 1)
                 for (const miner of workingMiners) {
                     const pos = miner.pos
-                    if (pos.terrain !== TERRAIN_MASK_WALL) {
+                    if (pos.terrain !== TERRAIN_MASK_WALL && costs.get(pos.x, pos.y) < 10) {
                         costs.set(pos.x, pos.y, 10)
                     }
                 }
@@ -322,18 +328,18 @@ Room.prototype.getIsWrecked = function () {
 
 Room.prototype.getMaxWork = function () {
     const numWorkEach = this.laborer.numWorkEach
+    const constructing = this.constructionSites.length > 0
 
     if (!this.storage) {
-        if (this.constructionSites.length > 0) {
-            const basicNumWork = (this.heap.sourceUtilizationRate || 0) * Math.max(numWorkEach, 4)
-            const remoteSurplusNumWork = Math.max(0, (this.memory.currentRemoteIncome || 0))
-            return this.heap.maxWork = Math.floor(basicNumWork + (remoteSurplusNumWork / 5))
-        }
         // former is spawn limit. latter is income limit
-        const basicNumWork = (this.heap.sourceUtilizationRate || 0) * 16
+        const basicNumWork = (this.heap.sourceUtilizationRate || 0) * 12
         const remoteSurplusNumWork = Math.max(0, (this.memory.currentRemoteIncome || 0))
         const numUpgradeSpot = this.controller.available
-        return this.heap.maxWork = Math.min(numUpgradeSpot * numWorkEach, Math.floor(basicNumWork + remoteSurplusNumWork))
+
+        const result = Math.floor(basicNumWork + remoteSurplusNumWork) - (constructing ? 6 * BUILD_POWER : 0)
+        const max = numUpgradeSpot * numWorkEach
+        const min = 0
+        return this.heap.maxWork = Math.clamp(result, min, max)
     }
 
     const level = this.controller.level
@@ -342,16 +348,23 @@ Room.prototype.getMaxWork = function () {
         // if downgrade is close, upgrade
         if (this.controller.ticksToDowngrade < 120000) {
             this.heap.upgrading = true
+            if (config.blockUpragade) {
+                return 1
+            }
             return 15
         }
 
-        // if constructing, maxWork = energyLevel * 5
-        if (this.constructionSites.length > 0) {
-            this.heap.upgrading = false
-            return this.energyLevel >= config.energyLevel.CONSTRUCT ? 15 : 0
+        if (config.blockUpragade) {
+            return 0
         }
 
-        this.heap.upgrading = this.energyLevel >= config.energyLevel.UPGRADE
+        const upgrading = this.heap.upgrading = this.energyLevel >= config.energyLevel.UPGRADE
+
+        // if constructing, maxWork = energyLevel * 5
+        if (constructing) {
+            this.heap.upgrading = false
+            return upgrading ? 5 : 0
+        }
 
         return this.heap.upgrading ? 15 : 0
     }
@@ -364,7 +377,7 @@ Room.prototype.getMaxWork = function () {
 
     const extra = Math.max(0, Math.floor((this.energyLevel - config.energyLevel.UPGRADE) / 10))
 
-    return Math.min(upperLimit, numWorkEach * (1 + extra))
+    return Math.clamp(10 * (1 + extra), 5, upperLimit)
 }
 
 Room.prototype.getUpgradeUpperLimit = function () {
@@ -405,7 +418,7 @@ Room.prototype.getBasicSpawnCapacity = function () {
 
     const level = this.controller.level
 
-    // 2 miners, 13 parts each
+    // 2 miners, 10 parts each
     let result = 20
 
     // haulers
@@ -419,7 +432,7 @@ Room.prototype.getBasicSpawnCapacity = function () {
 
     // manager + researcher
     const numManager = this.getMaxNumManager()
-    result += 3 * Math.min(12, Math.floor(this.energyCapacityAvailable / 150)) * numManager
+    result += 1.5 * Math.min(MANAGER_MAX_CARRY, 2 * Math.floor(this.energyCapacityAvailable / 150)) * numManager
 
     //laborer
     const basicNumWork = 12

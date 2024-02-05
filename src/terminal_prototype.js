@@ -39,7 +39,7 @@ StructureTerminal.prototype.run = function () {
         simpleAllies.requestFunnel(bestFunnelRequest)
     }
 
-    if (this.room.controller.level >= 7 && this.room.energyLevel > ENERGY_LEVEL_TO_FUNNEL) {
+    if (this.room.controller.level >= 6 && this.room.energyLevel > ENERGY_LEVEL_TO_FUNNEL) {
         if (bestFunnelRequest && bestFunnelRequest.roomName !== roomName) {
             this.send(RESOURCE_ENERGY, ENERGY_AMOUNT_TO_FUNNEL, bestFunnelRequest.roomName)
             simpleAllies.endRun()

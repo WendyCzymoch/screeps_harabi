@@ -114,8 +114,8 @@ Overlord.findPath = function (startPos, goals, options = {}) {
     const maxRoomsNow = routeNow.length
 
     const search = PathFinder.search(posNow, goalsNow, {
-      plainCost: Math.max(1, Math.ceil(2 * moveCost)),
-      swampCost: Math.max(1, Math.ceil(10 * moveCost)),
+      plainCost: Math.max(1, Math.ceil(2 * Number(moveCost))),
+      swampCost: Math.max(1, Math.ceil(10 * Number(moveCost))),
       roomCallback: function (roomName) {
         // route에 있는 방만 써라
         if (routeNow !== undefined && !routeNow.includes(roomName)) {
@@ -170,9 +170,9 @@ Overlord.findPath = function (startPos, goals, options = {}) {
         }
 
         // staySafe가 true면 defenseCostMatrix 사용. 아니면 basicCostmatrix 사용.
-        const costs = ((startRoomName === roomName) && staySafe) ? room.defenseCostMatrix.clone() : room.basicCostmatrix.clone()
+        const costs = ((room.isMy) && staySafe) ? room.defenseCostMatrix.clone() : room.basicCostmatrix.clone()
         // 방 보이고 ignoreCreeps가 false고 지금 이 방이 creep이 있는 방이면 creep 위치에 cost 255 설정
-        if (ignoreCreeps !== true && startRoomName === roomName) {
+        if (!ignoreCreeps && startRoomName === roomName) {
           const creepCost = ignoreCreeps === false ? 255 : ignoreCreeps
           for (const creep of startRoom.find(FIND_CREEPS)) {
             costs.set(creep.pos.x, creep.pos.y, creepCost)

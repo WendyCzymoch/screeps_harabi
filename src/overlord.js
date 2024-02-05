@@ -116,8 +116,8 @@ Overlord.mapInfo = function () {
 
         Game.map.visual.text(`${room.memory.scout.state}`, new RoomPosition(center.x - 23, center.y - 18, center.roomName), { align: 'left', fontSize: 10, color: '#74ee15' })
         if (room.memory.scout.next) {
-          Game.map.visual.line(center, new RoomPosition(25, 25, room.memory.scout.next), { color: '#ffe700', width: '2', opacity: 1 })
-          Game.map.visual.circle(new RoomPosition(25, 25, room.memory.scout.next), { fill: '#ffe700' })
+          Game.map.visual.line(center, new RoomPosition(25, 25, room.memory.scout.next), { color: '#ffe700', width: '1', opacity: 0.5 })
+          Game.map.visual.circle(new RoomPosition(25, 25, room.memory.scout.next), { radius: 5, fill: '#ffe700' })
         }
       }
 

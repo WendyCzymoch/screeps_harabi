@@ -209,7 +209,7 @@ global.checkCPU = function (name) {
 
 global.claim = function (targetRoomName, baseName) {
     targetRoomName = targetRoomName.toUpperCase()
-    const base = baseName ? Game.rooms[baseName.toUpperCase()] : Overlord.findClosestMyRoom(targetRoomName, 4)
+    const base = baseName ? Game.rooms[baseName.toUpperCase()] : Overlord.findClosestMyRoom(targetRoomName, 4, 2)
     baseName = base.name
     base.memory.claimRoom = base.memory.claimRoom || {}
     base.memory.claimRoom[targetRoomName] = base.memory.claimRoom[targetRoomName] || {}
@@ -346,4 +346,37 @@ global.parseBody = function (str) {
         while (count--) res.push(shorts[label]);
     }
     return res;
+}
+
+global.pathDebuggingTool = function (startX, startY, startRoomName, goalX, goalY, goalRoomName, range) {
+    const start = new RoomPosition(startX, startY, startRoomName)
+    const goal = new RoomPosition(goalX, goalY, goalRoomName)
+    const search = PathFinder.search(start, { pos: goal, range: 3 }, {
+        plainCost: 2,
+        swampCost: 10,
+        heuristicWeight: 1.1,
+        roomCallback(roomName) {
+            const costs = new PathFinder.CostMatrix
+            const room = Game.rooms[roomName]
+            if (room) {
+                const roads = room.find(FIND_STRUCTURES).filter(structure => structure.structureType === STRUCTURE_ROAD)
+                for (const road of roads) {
+                    const pos = road.pos
+                    costs.set(pos.x, pos.y, 1)
+                }
+            }
+
+            for (let x = 0; x < 50; x++) {
+                for (let y = 0; y < 50; y++) {
+                    new RoomVisual(roomName).text(costs.get(x, y), x, y)
+                }
+            }
+
+            return costs
+        }
+    })
+
+    const path = search.path
+
+    visualizePath(path)
 }

@@ -21,7 +21,9 @@ data.recordLog = function (text, roomName, groupInterval = 180) {
     Memory._log = []
   }
 
-  const roomURL = `https://screeps.com/a/#!/room/${SHARD}/${roomName}`
+
+
+  const roomURL = `https://screeps.com/${SHARD === 'shardSeason' ? 'season' : 'a'}/#!/room/${SHARD}/${roomName}`
   const roomHyperLink = `<a href="${roomURL}" target="_blank">${roomName}</a>`
 
   const roomNameWithColor = `<span style = "color: yellow">[${roomHyperLink}]</span>`

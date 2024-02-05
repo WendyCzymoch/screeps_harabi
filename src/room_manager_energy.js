@@ -2,8 +2,6 @@ const TERMINAL_ENERGY_THRESHOLD_MAX_RCL = 60000
 const TERMINAL_ENERGY_THRESHOLD_LOW_RCL = 10000
 const TERMINAL_ENERGY_BUFFER = 3000
 
-const CONTROLLER_LINK_ENERGY_THRESHOLD = 100
-
 const { config } = require('./config')
 let MinHeap = require('./util_min_heap')
 
@@ -27,15 +25,70 @@ global.ENERGY_DEPOT_PRIORITY = {
     terminal: 3,
 }
 
+function EnergyRequest(creep) {
+    this.id = creep.id
+    this.creep = creep
+    this.pos = creep.pos
+    this.amount = creep.store.getFreeCapacity()
+    this.reserved = undefined
+}
+
+function EnergyDepot(depot) {
+    this.id = depot.id
+    this.pos = depot.pos
+    this.priority = ENERGY_DEPOT_PRIORITY[depot.structureType] || (depot.destroyTime ? 2 : 1)
+    this.amount = depot.amount || depot.store[RESOURCE_ENERGY]
+}
+
+function Applicant(creep) {
+    this.id = creep.id
+    this.creep = creep
+    this.pos = creep.pos
+    this.amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
+    this.isManager = creep.memory.role === 'manager' ? true : false
+    this.engaged = null
+    this.married = false
+    this.giveEnergy = false
+}
+
+function Request(client) {
+    this.id = client.id
+    this.pos = client.pos
+    this.amount = client.store.getFreeCapacity(RESOURCE_ENERGY)
+
+    if (client.structureType) {
+        this.priority = ENERGY_PRIORITY[client.structureType]
+    } else if (!client.working || client.memory.idBuilder) {
+        this.priority = 3
+        this.amount += client.store.getCapacity()
+    } else if ((client.store.getUsedCapacity() / client.store.getCapacity()) < 0.5) {
+        this.priority = 4
+        this.amount += client.store.getCapacity()
+    } else {
+        this.priority = 5
+        this.amount += client.store.getCapacity()
+    }
+
+    // new RoomVisual(this.pos.roomName).text(this.priority, this.pos) // for debug
+}
+
 Room.prototype.manageEnergy = function () {
     let suppliers = []
     let fetchers = []
     const haulers = this.creeps.hauler.concat(this.creeps.manager)
-    const researcher = this.creeps.researcher[0]
     const remoteHaulers = this.getSupplyingRemoteHaulers()
 
-    if (researcher && researcher.beHauler === true) {
-        haulers.push(researcher)
+    outer:
+    for (const researcher of this.creeps.researcher) {
+        if (researcher.isFree) {
+            for (const resourceType in researcher.store) {
+                if (resourceType !== RESOURCE_ENERGY) {
+                    researcher.returnAll()
+                    continue outer
+                }
+            }
+            haulers.push(researcher)
+        }
     }
 
     for (const remoteHauler of remoteHaulers) {
@@ -192,7 +245,9 @@ Room.prototype.getHubEnergyRequestId = function () {
     const storageLink = storage ? storage.link : undefined
     const controllerLink = this.controller.link
 
-    if (controllerLink && storageLink && controllerLink.store.getUsedCapacity(RESOURCE_ENERGY) < CONTROLLER_LINK_ENERGY_THRESHOLD) {
+    const controllerLinkThreshold = this.laborer.numWork * 3
+
+    if (controllerLink && storageLink && controllerLink.store.getUsedCapacity(RESOURCE_ENERGY) < controllerLinkThreshold) {
         this.heap.emptyControllerLink = true
         if (storageLink.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
             return storageLink.id
@@ -288,7 +343,21 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
     }
 
     while (true) {
-        const freeRequests = requestsArray.filter(request => request.amount > 0 && request.applicants.getSize())
+        this.heap.storageUse = false
+        const freeRequests = requestsArray.filter(request => {
+            if (request.amount <= 0) {
+                return false
+            }
+
+            if (request.applicants.getSize() === 0) {
+                if (request.priority < ENERGY_PRIORITY['storage']) {
+                    this.heap.storageUse = true
+                }
+                return false
+            }
+
+            return true
+        })
         if (!freeRequests.length) {
             break
         }
@@ -304,7 +373,7 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
                 continue
             }
 
-            if (existingRequest.priority === request.priority && (bestApplicant.pos.getRangeTo(existingRequest.pos) <= bestApplicant.pos.getRangeTo(request.pos) + (bestApplicant.married ? 3 : 0))) {
+            if (existingRequest.priority === request.priority && (bestApplicant.pos.getRangeTo(existingRequest.pos) <= bestApplicant.pos.getRangeTo(request.pos) + (bestApplicant.married ? 2 : 0))) {
                 continue
             }
 
@@ -368,7 +437,8 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
 
     for (const client of this.structures.tower) {
         if (client.store.getFreeCapacity(RESOURCE_ENERGY) > 400) {
-            requests.set(client.id, new Request(client))
+            const request = new Request(client)
+            requests.set(client.id, request)
         }
     }
 
@@ -404,7 +474,7 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
     }
 
 
-    if (this.constructionSites.length === 0 && controllerContainer) {
+    if (controllerContainer) {
         const amount = controllerContainer.store[RESOURCE_ENERGY]
         if (this.heap.refillControllerContainer && amount > 1900) {
             this.heap.refillControllerContainer = false
@@ -412,8 +482,14 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
             this.heap.refillControllerContainer = true
         }
 
+        const request = new Request(controllerContainer)
+
+        if (this.constructionSites.length > 0) {
+            request.priority = 4
+        }
+
         if (this.heap.refillControllerContainer) {
-            requests.set(controllerContainer.id, new Request(controllerContainer))
+            requests.set(controllerContainer.id, request)
         }
     }
 
@@ -429,58 +505,7 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
         }
     }
 
-    this.heap.storageUse = requests.size - numApplicants - 1
-
     return requests
-}
-
-function Applicant(creep) {
-    this.id = creep.id
-    this.creep = creep
-    this.pos = creep.pos
-    this.amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
-    this.isManager = creep.memory.role === 'manager' ? true : false
-    this.engaged = null
-    this.married = false
-    this.giveEnergy = false
-}
-
-function Request(client) {
-    this.id = client.id
-    this.pos = client.pos
-    this.amount = client.store.getFreeCapacity(RESOURCE_ENERGY)
-
-    if (client.structureType) {
-        this.priority = ENERGY_PRIORITY[client.structureType]
-    } else if (!client.working) {
-        this.priority = 3
-        this.amount += client.store.getCapacity()
-    } else if ((client.store.getUsedCapacity() / client.store.getCapacity()) < 0.5) {
-        this.priority = 4
-        this.amount += client.store.getCapacity()
-    } else {
-        this.priority = 5
-        this.amount += client.store.getCapacity()
-    }
-
-    // new RoomVisual(this.pos.roomName).text(this.priority, this.pos) // for debug
-}
-
-
-
-function EnergyRequest(creep) {
-    this.id = creep.id
-    this.creep = creep
-    this.pos = creep.pos
-    this.amount = creep.store.getFreeCapacity()
-    this.reserved = undefined
-}
-
-function EnergyDepot(depot) {
-    this.id = depot.id
-    this.pos = depot.pos
-    this.priority = ENERGY_DEPOT_PRIORITY[depot.structureType] || (depot.destroyTime ? 2 : 1)
-    this.amount = depot.amount || depot.store[RESOURCE_ENERGY]
 }
 
 Room.prototype.getEnergyDepots = function () {
@@ -488,20 +513,23 @@ Room.prototype.getEnergyDepots = function () {
 
     const tombstones = this.find(FIND_TOMBSTONES).filter(tombstone => tombstone.store[RESOURCE_ENERGY] > 50)
     for (const tombstone of tombstones) {
-        energyDepots[tombstone.id] = new EnergyDepot(tombstone)
+        const request = new EnergyDepot(tombstone)
+        energyDepots[tombstone.id] = request
         energyDepots[tombstone.id].threshold = 50
     }
 
     const droppedResources = this.find(FIND_DROPPED_RESOURCES).filter(droppedResource => droppedResource.resourceType === RESOURCE_ENERGY && droppedResource.amount > 100)
     const filteredDroppedResources = droppedResources.filter(droppedResource => droppedResource.pos.getClosestRange(this.sources) > 1)
     for (const droppedResource of filteredDroppedResources) {
-        energyDepots[droppedResource.id] = new EnergyDepot(droppedResource)
+        const request = new EnergyDepot(droppedResource)
+        energyDepots[droppedResource.id] = request
         energyDepots[droppedResource.id].threshold = 100
     }
 
     const ruins = this.find(FIND_RUINS).filter(ruin => ruin.store[RESOURCE_ENERGY] > 50)
     for (const ruin of ruins) {
-        energyDepots[ruin.id] = new EnergyDepot(ruin)
+        const request = new new EnergyDepot(ruin)
+        energyDepots[ruin.id] = request
         energyDepots[ruin.id].threshold = 50
     }
 
@@ -525,7 +553,7 @@ Room.prototype.getEnergyDepots = function () {
         energyDepots[this.storage.id].forManager = true
     }
 
-    if (this.memory.militaryThreat) {
+    if (this.heap.isEnemy) {
         const defenseCostMatrix = this.defenseCostMatrix
         const result = {}
         for (const id in energyDepots) {
@@ -535,6 +563,9 @@ Room.prototype.getEnergyDepots = function () {
                     continue
                 }
                 if (defenseCostMatrix.get(adjacentPos.x, adjacentPos.y) < DANGER_TILE_COST) {
+                    if (depot.priority <= 2) {
+                        depot.priority = 5
+                    }
                     result[id] = depot
                     continue
                 }
@@ -656,7 +687,7 @@ Room.prototype.manageEnergyFetch = function (arrayOfCreeps) {
             continue
         }
 
-        if (creep.memory.role === 'hauler' && !this.memory.militaryThreat) {
+        if (creep.memory.role === 'hauler' && !this.heap.isEnemy) {
             const source = Game.getObjectById(creep.memory.sourceId)
             if (source) {
                 if (creep.heap.waitingPos) {

@@ -45,7 +45,7 @@ Room.prototype.getInvulnerables = function (targets) {
   for (const creep of targets) {
     const packed = packCoord(creep.pos.x, creep.pos.y)
 
-    const damage = packed
+    const damage = damageArray[packed]
 
     if (this.controller.safeMode || creep.owner.username === 'Invader') {
       continue

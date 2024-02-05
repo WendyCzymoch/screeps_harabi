@@ -5,7 +5,7 @@ const RAMPART_HITS_THRESHOLD = 50000000 //50M
 
 const RAMPART_HITS_ENOUGH = 5000000 // 5M
 
-const MANAGER_MAX_CARRY = 2423
+global.MANAGER_MAX_CARRY = 16
 
 global.EMERGENCY_WORK_MAX = 100
 global.RAMPART_HITS_PER_RCL = 16000
@@ -66,7 +66,7 @@ Room.prototype.manageSpawn = function () {
         const researchers = this.creeps.researcher.filter(creep => (creep.ticksToLive || 1500) > 3 * creep.body.length)
 
         if (managers.length + researchers.length < maxNumManager) {
-            this.requestManager(MANAGER_MAX_CARRY, { isUrgent: (managers.length <= 0) })
+            this.requestManager(MANAGER_MAX_CARRY, { isUrgent: (managers.length <= 0 || this.heap.isEnemy) })
         } else {
             this.enoughManager = true
         }
@@ -82,15 +82,35 @@ Room.prototype.manageSpawn = function () {
         }
     }
 
+    // builder 생산
+    const repairingForNuke = this.isReactingToNukes() && this.energyLevel > config.energyLevel.REACT_TO_NUKES
+
+    const builders = this.creeps.laborer.filter(creep => {
+        if (!creep.memory.isBuilder) {
+            return false
+        }
+        if ((creep.ticksToLive || 1500) < 3 * creep.body.length) {
+            return false
+        }
+        return true
+    })
+
+    const numWorkBuild = builders.map(creep => creep.body.filter(part => part.type === WORK).length).reduce((acc, curr) => acc + curr, 0)
+
+    if (repairingForNuke) {
+        if (numWorkBuild < EMERGENCY_WORK_MAX) {
+            const boost = this.hasEnoughCompounds('XLH2O') ? 'XLH2O' : undefined
+            this.requestLaborer({ maxWork: 16, boost, isBuilder: true })
+        }
+    } else if (this.constructionSites.length > 0) {
+        if (numWorkBuild < 6) {
+            this.requestLaborer({ maxWork: 6, isBuilder: true })
+        }
+    }
+
     // laborer 생산
 
-    let maxWork = 0
-    const repairingForNuke = this.isReactingToNukes() && this.energyLevel > config.energyLevel.REACT_TO_NUKES
-    if (repairingForNuke) {
-        maxWork = EMERGENCY_WORK_MAX
-    } else {
-        maxWork = this.maxWork
-    }
+    let maxWork = this.maxWork
 
     const maxNumLaborer = Math.min(this.controller.available, Math.ceil(maxWork / this.laborer.numWorkEach))
     const numLaborer = this.creeps.laborer.filter(creep => (creep.ticksToLive || 1500) > 3 * creep.body.length).length
@@ -101,16 +121,13 @@ Room.prototype.manageSpawn = function () {
         if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
             this.requestLaborer({ maxWork: 1 })
         }
-    } else {
-        if (this.laborer.numWork < maxWork) {
-            if (repairingForNuke) {
-                const boost = this.hasEnoughCompounds('XLH2O') ? 'XLH2O' : undefined
-                this.requestLaborer({ maxWork: numWorkEach, boost })
-            } else if (this.getIsNeedBoostedUpgrader()) {
-                this.requestLaborer({ maxWork: numWorkEach, boost: 'XGH2O' })
-            } else {
-                this.requestLaborer({ maxWork: numWorkEach })
-            }
+    } else if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
+        const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
+        const hasEnoughBoosts = resourceAmountsTotal && (resourceAmountsTotal['XGH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL
+        if (hasEnoughBoosts) {
+            this.requestLaborer({ maxWork: numWorkEach, boost: 'XGH2O' })
+        } else {
+            this.requestLaborer({ maxWork: numWorkEach })
         }
     }
 
@@ -215,15 +232,6 @@ Room.prototype.hasEnoughCompounds = function (resourceType, ratio = 0.5) {
 }
 
 Room.prototype.getIsNeedBoostedUpgrader = function () {
-    if (this.heap.constructing) {
-        return false
-    }
-    if (this.controller.level === 8) {
-        return false
-    }
-    if (!this.terminal || this.structures.lab.length < 3) {
-        return false
-    }
     return this.hasEnoughCompounds('XGH2O')
 }
 
@@ -236,17 +244,16 @@ Room.prototype.hasAvailableSpawn = function () {
 }
 
 Room.prototype.getMaxNumManager = function () {
-    if (this.controller.level < 4) {
-        return 0
-    }
     if (!this.storage) {
         return 0
     }
-    let result = Math.max(1, this.structures.link.length - 1)
-    if (this.memory.militaryThreat) {
-        result += 2
+    if (this.controller.level < 7) {
+        return 1
     }
-    return result
+    if (this.heap.isEnemy) {
+        return 3
+    }
+    return 2
 }
 
 Room.prototype.getNeedWallMaker = function () {
@@ -266,7 +273,7 @@ Room.prototype.getNeedWallMaker = function () {
         return this.energyLevel >= config.energyLevel.RAMPART_HIGH
     }
 
-    const rampartsHitsPerRcl = this.memory.rampartsHitsPerRcl || RAMPART_HITS_PER_RCL
+    const rampartsHitsPerRcl = this.memory.rampartsHitsPerRcl || config.rampartHitsPerRclSquare
 
     const threshold = this.controller.level >= 7 ? RAMPART_HITS_ENOUGH : (this.controller.level) ^ 2 * rampartsHitsPerRcl
 
@@ -478,14 +485,67 @@ Room.prototype.requestHauler = function (numCarry, option = { isUrgent: false, o
     this.spawnQueue.push(request)
 }
 
-function getLaborerModel(energyCapacity, maxWork) {
+function getBuilderModel(energyCapacity, maxWork) {
     const body = []
     let cost = 0
     let numWork = 0
 
     while (energyCapacity > cost) {
-        if (numWork >= maxWork) {
+        if (maxWork && numWork >= maxWork) {
             break
+        }
+
+        if (energyCapacity >= cost + 200) {
+            if (body.length + 3 > 50) {
+                break
+            }
+            body.push(WORK, CARRY, MOVE)
+            numWork += 1
+            cost += 200
+            continue
+        }
+        break
+    }
+    return { body, numWork, cost }
+}
+
+function getLaborerModel(energyCapacity, maxWork) {
+    const body = [CARRY]
+    let cost = 50
+    let numWork = 0
+
+    while (energyCapacity > cost) {
+        if (maxWork && numWork >= maxWork) {
+            break
+        }
+        if (energyCapacity >= cost + 450) {
+            if (body.length + 5 > 50) {
+                break
+            }
+            body.push(WORK, WORK, WORK, WORK, MOVE)
+            numWork += 4
+            cost += 450
+            continue
+        }
+
+        if (energyCapacity >= cost + 400) {
+            if (body.length + 5 > 50) {
+                break
+            }
+            body.push(WORK, WORK, WORK, CARRY, MOVE)
+            numWork += 3
+            cost += 400
+            continue
+        }
+
+        if (energyCapacity >= cost + 350) {
+            if (body.length + 4 > 50) {
+                break
+            }
+            body.push(WORK, WORK, WORK, MOVE)
+            numWork += 3
+            cost += 350
+            continue
         }
 
         if (energyCapacity >= cost + 300) {
@@ -497,6 +557,17 @@ function getLaborerModel(energyCapacity, maxWork) {
             cost += 300
             continue
         }
+
+        if (energyCapacity >= cost + 250) {
+            if (body.length + 3 > 50) {
+                break
+            }
+            body.push(WORK, WORK, MOVE)
+            numWork += 2
+            cost += 250
+            continue
+        }
+
         if (energyCapacity >= cost + 200) {
             if (body.length + 3 > 50) {
                 break
@@ -506,6 +577,17 @@ function getLaborerModel(energyCapacity, maxWork) {
             cost += 200
             continue
         }
+
+        if (energyCapacity >= cost + 150) {
+            if (body.length + 2 > 50) {
+                break
+            }
+            body.push(WORK, MOVE)
+            numWork += 1
+            cost += 150
+            continue
+        }
+
         if (energyCapacity >= cost + 100) {
             if (body.length + 1 > 50) {
                 break
@@ -527,16 +609,16 @@ function getLaborerModel(energyCapacity, maxWork) {
  * @returns 
  */
 Room.prototype.requestLaborer = function (options) {
-    const defaultOptions = { maxWork: undefined, boost: undefined }
+    const defaultOptions = { maxWork: undefined, boost: undefined, isBuilder: false }
     const mergedOptions = { ...defaultOptions, ...options }
 
-    const { maxWork, boost } = mergedOptions
+    const { maxWork, boost, isBuilder } = mergedOptions
 
     if (!this.hasAvailableSpawn()) {
         return
     }
 
-    const model = getLaborerModel(this.energyCapacityAvailable, maxWork)
+    const model = isBuilder ? getBuilderModel(this.energyCapacityAvailable, maxWork) : getLaborerModel(this.energyCapacityAvailable, maxWork)
 
     const body = model.body
 
@@ -545,12 +627,13 @@ Room.prototype.requestLaborer = function (options) {
     const memory = {
         role: 'laborer',
         controller: this.controller.id,
-        working: false
+        working: false,
+        isBuilder
     }
 
     let priority = SPAWN_PRIORITY['laborer']
 
-    if (!this.storage || this.laborer.numWork === 0) {
+    if (!this.storage || isBuilder) {
         priority -= 2
     }
 

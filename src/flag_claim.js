@@ -43,7 +43,7 @@ Room.prototype.claimRoom = function (roomName) {
     const blinkyTasks = Object.values(tasks['blinky'])
 
     if (!blinkyTasks.some(request => request.ticksToLive > 900)) {
-        const request = new BlinkyRequest(this, roomName, { number: 1, boost: 3 })
+        const request = new BlinkyRequest(this, roomName, { number: 1, boost: 0 })
         Overlord.registerTask(request)
     }
 
@@ -110,7 +110,7 @@ Room.prototype.claimRoom = function (roomName) {
         }
     }
 
-    if (targetRoom && spawn && towerActive.length >= 2 && status.isCleared) {
+    if (targetRoom && spawn && towerActive.length >= 1 && status.isCleared) {
         delete this.memory.claimRoom[roomName]
         return
     }
@@ -128,7 +128,7 @@ Room.prototype.claimRoom = function (roomName) {
         numWork += pioneer.getNumParts('work')
     }
     let number = pioneers.length ? Math.max(...pioneers.map(pioneer => pioneer.memory.number)) : 0
-    if (numWork < 40) {
+    if (numWork < 10) {
         number++
         return this.requestPioneer(roomName, number)
     }

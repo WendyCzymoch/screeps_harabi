@@ -10,17 +10,6 @@ Creep.prototype.delivery = function () {
         return
     }
 
-    if (this.isFree) {
-
-        for (const resourceType in this.store) {
-            if (resourceType !== RESOURCE_ENERGY) {
-                return this.returnAll()
-            }
-        }
-        this.beHauler = true
-        return
-    }
-
     const deliveryRequest = this.heap.deliveryRequest
     if (!deliveryRequest) {
         return
@@ -135,13 +124,7 @@ Creep.prototype.getDeliveryRequest = function (from, to, resourceType) {
 Object.defineProperties(Creep.prototype, {
     isFree: {
         get() {
-            if (this._isFree !== undefined) {
-                return this._isFree
-            }
-            if (this.heap.deliveryRequest) {
-                return this._isFree = false
-            }
-            return this._isFree = true
+            return !this.heap.deliveryRequest
         }
     }
 })

@@ -50,6 +50,7 @@ Room.prototype.constructByBasePlan = function (level) {
             console.log('fail')
             return false
         }
+        return
     }
     let numConstructionSites = Object.keys(Game.constructionSites).length
     let newConstructionSites = 0
@@ -92,7 +93,9 @@ Room.prototype.constructByBasePlan = function (level) {
             continue
         }
 
-
+        if (structure.structureType === 'lab' && config.labConstructLevel && this.controller.level < config.labConstructLevel) {
+            continue
+        }
 
         if (structure.pos.createConstructionSite(structure.structureType) === OK) {
             numConstructionSites++

@@ -62,7 +62,7 @@ Object.defineProperties(StructureController.prototype, {
             }
             try {
                 const linkPos = this.room.parsePos(this.room.memory.basePlan.linkPositions.controller)
-                const link = linkPos.lookFor(LOOK_STRUCTURES).filter(structure => structure.structureType === 'link')[0]
+                const link = linkPos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === 'link')
                 if (!link) {
                     return null
                 }
@@ -99,7 +99,7 @@ Object.defineProperties(StructureController.prototype, {
                 return this.room.heap.controllerLinkFlow = 0
             }
             const range = this.link.pos.getRangeTo(this.room.storage.link.pos)
-            return this.room.heap.controllerLinkFlow = Math.floor(800 / range)
+            return this.room.heap.controllerLinkFlow = Math.floor(800 / (range + 2))
         }
     },
     totalProgress: {

@@ -742,7 +742,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   // find closest position by Path
   const containerPositions = {}
   const option = { ignoreCreeps: true, range: 1 }
-  const sourcesSorted = this.sources.sort((a, b) => {
+  const sourcesSorted = [...this.sources].sort((a, b) => {
     const aPathLength = a.pos.findPathTo(firstSpawnPos, option).length
     const bPathLength = b.pos.findPathTo(firstSpawnPos, option).length
     return bPathLength - aPathLength
@@ -1029,7 +1029,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   }
 
   // roads to sources
-  const sources = this.sources.sort((a, b) => b.info.maxCarry - a.info.maxCarry)
+  const sources = [...this.sources].sort((a, b) => b.info.maxCarry - a.info.maxCarry)
   for (const source of sources) {
     const sourcePathSearch = PathFinder.search(firstSpawnPos, { pos: containerPositions[source.id], range: 1 }, {
       plainCost: 2,

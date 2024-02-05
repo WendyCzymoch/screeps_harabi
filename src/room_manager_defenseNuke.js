@@ -71,7 +71,6 @@ Room.prototype.defenseNuke = function () {
     const constructionSites = this.find(FIND_CONSTRUCTION_SITES)
     // 아직 constructionSite 있으면 멈춰
     if (constructionSites.length) {
-      this.heap.constructing = true
       return
     }
     // 없으면 이제 rampart 다 지은거임
@@ -80,7 +79,6 @@ Room.prototype.defenseNuke = function () {
   }
 
   if (status.state === 'repair') {
-    this.heap.constructing = true
     // status.nukes 확인
     for (let i = 0; i < status.nukes.length; i++) {
       const id = status.nukes[i]
@@ -163,7 +161,7 @@ Room.prototype.defenseNuke = function () {
 }
 
 Room.prototype.repairStructure = function (rampart) {
-  let laborers = this.creeps.laborer
+  let laborers = this.creeps.laborer.filter(creep => creep.memory.isBuilder)
   const rampartLowest = rampart
   for (const laborer of laborers) {
     // energy 없으면 energy 받아라

@@ -115,6 +115,16 @@ module.exports.loop = () => {
             console.log('respawn')
         }
 
+        if (config.shard === 'shardSeason') {
+            Memory.gcl = Memory.gcl || 1
+            if (Game.gcl.level > Memory.gcl) {
+                console.log('gcl up')
+                Memory.gcl = Game.gcl.level
+                claim('W8N37')
+            }
+        }
+
+
         // bucket check. 8000 5000 2000
         if (data.enoughCPU && Game.cpu.bucket < 5000) { // stop market, highwaymining
             data.enoughCPU = false

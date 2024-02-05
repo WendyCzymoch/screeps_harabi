@@ -111,10 +111,7 @@ Object.defineProperties(Source.prototype, {
             for (const hauler of haulers) {
                 this._info.numCarry += (hauler.body.filter(part => part.type === CARRY).length)
             }
-            this._info.maxCarry = this.linked ? 0 : (this.room.controller.linked || this.room.heap.constructing) ? Math.ceil(0.4 * this.range.spawn) + 2 : Math.ceil(0.4 * this.range.controller) + 2
-            if (this.energyAmountNear > 1500) {
-                this._info.maxCarry += 10
-            }
+            this._info.maxCarry = this.linked ? 0 : (this.room.controller.linked || this.room.storage || this.room.constructionSites.length > 0) ? Math.ceil(0.4 * this.range.spawn) + 2 : Math.ceil(0.4 * this.range.controller) + 2
 
             this._info.maxNumHauler = Math.ceil(this._info.maxCarry / (Math.floor(this.room.energyCapacityAvailable / 150) * 2))
 
@@ -129,6 +126,7 @@ Object.defineProperties(Source.prototype, {
                 return this.heap.range
             }
             const spawn = this.room.structures.spawn[0]
+
             const controller = this.room.controller
             const option = { ignoreCreeps: true, range: 1 }
             const pathLengthToSpawn = spawn ? this.pos.findPathTo(spawn, option).length : 0
