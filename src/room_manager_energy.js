@@ -528,7 +528,7 @@ Room.prototype.getEnergyDepots = function () {
 
     const ruins = this.find(FIND_RUINS).filter(ruin => ruin.store[RESOURCE_ENERGY] > 50)
     for (const ruin of ruins) {
-        const request = new new EnergyDepot(ruin)
+        const request = new EnergyDepot(ruin)
         energyDepots[ruin.id] = request
         energyDepots[ruin.id].threshold = 50
     }

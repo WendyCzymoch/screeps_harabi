@@ -104,11 +104,6 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
             return ERR_NO_PATH
         }
 
-        if (this.pos.roomName === 'W8N4') {
-            console.log(`start:${this.pos} goals:${JSON.stringify(goals)} ignoreCreeps:${ignoreCreeps}, staySafe:${staySafe}, ignoreMap:${ignoreMap}, moveCost:${moveCost}`)
-            console.log(result)
-        }
-
         // 찾아진 경우
         delete this.heap.noPath
         this.heap.path = result

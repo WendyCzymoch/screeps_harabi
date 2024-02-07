@@ -133,10 +133,10 @@ const nextRCL = new VisualItem('next RCL', 4, (room) => {
     return { content, option }
 })
 
-// Storage
-const storedEnergy = new VisualItem('Storage', 4.5, (room) => {
-    const energyStored = room.storage ? room.storage.store[RESOURCE_ENERGY] : 0
-    const content = energyStored ? `${Math.floor(energyStored / 1000)}K(${room.energyLevel})` : '-'
+// Energy
+const storedEnergy = new VisualItem('Energy', 4.5, (room) => {
+    const energyStored = room.getTotalEnergy()
+    const content = energyStored ? `${Math.floor(energyStored / 1000)}K(${room.getEnergyLevel()})` : '-'
 
     const hue = 120 * Math.max(0, room.energyLevel - 50) / 150
     const color = `hsl(${hue},100%,60%)`
@@ -167,8 +167,9 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
         }
         num += info.oneSource ? 1 : remoteInfo.blueprint.length
         const currentIncome = room.getRemoteNetIncomePerTick(targetRoomName)
+        const expectedIncome = getRemoteValue(room, targetRoomName, info.oneSource)
         income += currentIncome
-        Game.map.visual.text(currentIncome.toFixed(1), new RoomPosition(25, 15, targetRoomName), { fontSize: 7, color: COLOR_NEON_YELLOW, backgroundColor: '#000000', opacity: 1 })
+        Game.map.visual.text(`${currentIncome.toFixed(1)}/${expectedIncome.toFixed(1)}`, new RoomPosition(25, 12, targetRoomName), { fontSize: 5, color: COLOR_NEON_YELLOW, backgroundColor: '#000000', opacity: 1 })
         Game.map.visual.line(new RoomPosition(25, 25, room.name), new RoomPosition(25, 25, targetRoomName), { color: COLOR_NEON_YELLOW, width: 0.5, lineStyle: 'dashed' })
     }
 
@@ -270,7 +271,7 @@ Overlord.visualizeRoomInfo = function () {
             const text = item.text(room)
             const option = text.option
             option.opacity = OPACITY
-            new new RoomVisual().text(text.content, startPos.x + item.mid, startPos.y + i + 2, text.option)
+            new RoomVisual().text(text.content, startPos.x + item.mid, startPos.y + i + 2, text.option)
         }
     }
 

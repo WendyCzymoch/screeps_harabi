@@ -37,7 +37,6 @@ Room.prototype.runRoomManager = function () {
         this.manageExtractor()
         this.manageFactory()
 
-        this.manageRemotes()
         this.manageClaim()
         this.manageSourceKeeperMining()
 
@@ -49,6 +48,9 @@ Room.prototype.runRoomManager = function () {
         this.managePowerSpawn()
 
     }
+
+    this.manageRemotes()
+
     this.manageLab() // boosting이 우선이라 밑에 둠
 
     this.manageEnergy()

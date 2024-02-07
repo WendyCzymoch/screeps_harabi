@@ -50,7 +50,7 @@ Room.prototype.getInvulnerables = function (targets) {
     if (this.controller.safeMode || creep.owner.username === 'Invader') {
       continue
     }
-    if (getCanBeKilled(creep.body, damage, creep.totalHealPower)) {
+    if (getCanBeKilled(creep.body, damage, creep.totalHealPower, creep.pos.getRangeToEdge())) {
       continue
     }
     if (creep.getKillable(damageArray)) {
@@ -136,14 +136,16 @@ Room.prototype.getRequiredDamageFor = function (target, options = {}) {
 }
 
 Creep.prototype.getCanBeKilled = function (damage, heal) {
-  return getCanBeKilled(this.body, damage, heal)
+  return getCanBeKilled(this.body, damage, heal, this.pos.getRangeToEdge())
 }
 
-getCanBeKilled = function (creepBody, damage, heal) {
+function getCanBeKilled(creepBody, damage, heal, rangeToEdge) {
   let body = _.cloneDeep(creepBody)
 
+  const maxIteration = 20
+
   i = 0
-  while (i < 20) {
+  while (i < maxIteration) {
     i++
     const hitsBefore = getHits(body)
     body = applyDamageAndHeal(body, damage, heal)
@@ -162,7 +164,7 @@ Creep.prototype.getKillable = function (damageArray) {
   const damage = damageArray[packed]
 
   if (this.hits < this.hitsMax) {
-    return getCanBeKilled(this.body, damage, this.totalHealPower)
+    return getCanBeKilled(this.body, damage, this.totalHealPower, this.pos.getRangeToEdge())
   }
 
   const username = this.owner.username
@@ -197,7 +199,7 @@ Creep.prototype.getKillable = function (damageArray) {
 
   const totalHealPowerAfter = totalHealPowerBefore - reduced
 
-  return getCanBeKilled(body, damage, totalHealPowerAfter)
+  return getCanBeKilled(body, damage, totalHealPowerAfter, this.pos.getRangeToEdge())
 }
 
 PowerCreep.prototype.getCanBeHurt = function (damage) {

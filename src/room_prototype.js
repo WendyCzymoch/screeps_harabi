@@ -197,15 +197,17 @@ Object.defineProperties(Room.prototype, {
                     }
                 }
             }
+
             for (const rampart of this.structures.rampart) {
                 if (!rampart.my && !rampart.isPublic) {
                     costs.set(rampart.pos.x, rampart.pos.y, 255)
                 }
             }
+
             for (const sourceKeeper of this.find(FIND_HOSTILE_CREEPS).filter(creep => creep.owner.username === 'Source Keeper')) {
                 for (const pos of sourceKeeper.pos.getInRange(5)) {
-                    if (pos.terrain !== TERRAIN_MASK_WALL) {
-                        costs.set(pos.x, pos.y, 254)
+                    if (pos.terrain !== TERRAIN_MASK_WALL && costs.get(pos.x, pos.y) < 30) {
+                        costs.set(pos.x, pos.y, 30)
                     }
                 }
             }
@@ -388,23 +390,35 @@ Room.prototype.getUpgradeUpperLimit = function () {
     if (!funnelRequest) {
         return this.controller.linkFlow || MAX_WORK
     }
-    const funnelTargetRoomName = funnelRequest.roomName
-    if (funnelTargetRoomName !== this.name) {
-        return 15
-    }
     return this.controller.linkFlow || MAX_WORK
 }
 
-Room.prototype.getEnergyLevel = function () {
-    if (!this.storage) {
-        return 0
+Room.prototype.getTotalEnergy = function () {
+    if (this._totalEnergy !== undefined) {
+        return this._totalEnergy
     }
+    let totalEnergy = 0
+    if (this.storage) {
+        totalEnergy += this.storage.store[RESOURCE_ENERGY]
+    }
+    if (this.terminal) {
+        totalEnergy += this.terminal.store[RESOURCE_ENERGY]
+    }
+    return this._totalEnergy = totalEnergy
+}
+
+Room.prototype.getEnergyLevel = function () {
+    if (this._energyLevel) {
+        return this._energyLevel
+    }
+
+    const totalEnergy = this.getTotalEnergy()
 
     const standard = ECONOMY_STANDARD[this.controller.level]
 
-    const result = Math.floor(100 * this.energy / standard)
+    const result = Math.floor(100 * totalEnergy / standard)
 
-    return result
+    return this._energyLevel = result
 }
 
 Room.prototype.getBasicSpawnCapacity = function () {
@@ -488,7 +502,7 @@ Room.prototype.getEnemyCombatants = function () {
     if (this._enemyCombatants !== undefined) {
         return this._enemyCombatants
     }
-    const enemyCreeps = this.findHostileCreeps()
+    const enemyCreeps = [...this.findHostileCreeps()]
     const enemyCombatants = enemyCreeps.filter(creep => creep.checkBodyParts(['attack', 'ranged_attack', 'heal']))
     return this._enemyCombatants = enemyCombatants
 }

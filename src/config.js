@@ -65,6 +65,8 @@ if (shardName === 'swc') {
 
   config.rampartHitsPerRclSquare = 16000
 
+  config.distanceToRemote = 2
+
 } else if (shardName === 'shardSeason') {
   config.allies = [
 
@@ -134,6 +136,8 @@ if (shardName === 'swc') {
   config.rampartHitsPerRclSquare = 6000
 
   config.blockUpragade = true
+
+  config.distanceToRemote = 2
 
 } else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) { // world
   config.allies = [
@@ -205,6 +209,8 @@ if (shardName === 'swc') {
 
   config.rampartHitsPerRclSquare = 16000
 
+  config.distanceToRemote = 1
+
 } else { // local
   config.allies = [
 
@@ -274,6 +280,8 @@ if (shardName === 'swc') {
   config.showTicks = true
 
   config.rampartHitsPerRclSquare = 16000
+
+  config.distanceToRemote = 2
 }
 
 // quad and duo settings
@@ -292,9 +300,6 @@ config.quad = {
 }
 
 config.RCL_THRESHOLD_TO_SAFEMODE = 2
-
-// Remote
-config.DISTANCE_TO_REMOTE = 1
 
 // energy thresholds
 

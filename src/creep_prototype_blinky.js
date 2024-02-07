@@ -14,6 +14,8 @@ Creep.prototype.healWounded = function () {
 }
 
 Creep.prototype.handleCombatants = function (targets) {
+  this.say('here')
+
   this.harasserRangedAttack()
   this.activeHeal()
 
@@ -34,6 +36,11 @@ Creep.prototype.handleCombatants = function (targets) {
   const enemyCompanions = closestTarget.pos.findInRange(targets, 4)
 
   const combatInfoMy = getCombatInfo(companions)
+
+  if (this.room.isMy) {
+    const numTower = this.room.structures.tower.filter(tower => tower.RCLActionable && tower.store.getUsedCapacity(RESOURCE_ENERGY) >= 10).length
+  }
+
   const combatInfoEnemy = getCombatInfo(enemyCompanions)
 
   const canWinWithKiting = combatInfoMy.canWinWithKiting(combatInfoEnemy)

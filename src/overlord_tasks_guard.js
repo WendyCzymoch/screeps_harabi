@@ -75,7 +75,7 @@ Room.prototype.guardRoom = function (request) {
         request.enemyStrength = enemyInfo.strength
         request.isEnemy = hostileCreeps.length > 0
         request.moveFirst = (enemyInfo.attack === enemyInfo.rangedAttack)
-    } else if (request.enemyStrength > 0 && (Game.time > (request.lastUpdateTime || request.startTime) + 100)) {
+    } else if (Game.time > (request.lastUpdateTime || request.startTime) + 100 && request.strength > 0) {
         request.try = true
     }
 
@@ -101,7 +101,7 @@ Room.prototype.guardRoom = function (request) {
         return
     }
 
-    request.gathered = this.gatherGuards(roomName, request.enemyStrength, request.moveFirst)
+    request.gathered = this.gatherGuards(roomName, request, request.moveFirst)
 
     if (request.try || (request.gathered && request.rallied)) {
         request.status = 'combat'
@@ -211,10 +211,14 @@ Room.prototype.getEnemyInfo = function () {
     return this._enemyInfo = getCombatInfo(hostileCreeps)
 }
 
-Room.prototype.gatherGuards = function (roomName, enemyStrength, moveFirst) {
+Room.prototype.gatherGuards = function (roomName, request, moveFirst) {
+    const enemyStrength = request.enemyStrength
+
     const guardGroups = this.getGaurdGroups(roomName)
 
     const activeCombatInfo = getCombatInfo(guardGroups.active)
+
+    request.strength = activeCombatInfo.strength
 
     if (activeCombatInfo.strength > enemyStrength * 1.2) {
         return true

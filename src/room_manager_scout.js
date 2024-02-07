@@ -4,8 +4,6 @@ const { getRemoteValue } = require("./room_manager_remote")
 const SCOUT_INTERVAL_UNDER_RCL_8 = 6000 // scout 시작 후 얼마나 지나야 리셋할건지 1000보다 커야함.
 const SCOUT_INTERVAL_AT_RCL_8 = 1000
 
-const DISTANCE_TO_REMOTE = config.DISTANCE_TO_REMOTE
-
 global.scoutKeys = {
   numSource: 0,
   mineralType: 1,
@@ -121,7 +119,8 @@ Room.prototype.manageScout = function () {
     const node = status.node
     const depth = status.depth[node] + 1
 
-    if (Game.map.getRoomLinearDistance(this.name, roomName) <= DISTANCE_TO_REMOTE && depth <= 2) {
+    const distanceToRemote = config.distanceToRemote
+    if (Game.map.getRoomLinearDistance(this.name, roomName) <= distanceToRemote && depth <= 2 * distanceToRemote) {
       const room = Game.rooms[roomName]
       if (!room || !intel) {
         this.acquireVision(roomName)
@@ -138,6 +137,9 @@ Room.prototype.manageScout = function () {
       } else if (intel[scoutKeys.isRemoteCandidate]) {
         this.tryRemote(roomName)
       }
+    } else if (this.memory.remotes && this.memory.remotes[roomName]) {
+      delete this.memory.remotes[roomName]
+      delete this.memory.activeRemotes
     }
 
     // success
@@ -230,7 +232,7 @@ Room.prototype.tryRemote = function (roomName) {
 
   const value = getRemoteValue(this, roomName)
 
-  if (value === 0) {
+  if (value <= 0) {
     intel[scoutKeys.notForRemote] = intel[scoutKeys.notForRemote] || []
     intel[scoutKeys.notForRemote].push(this.name)
     return

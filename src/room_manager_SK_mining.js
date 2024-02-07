@@ -3,6 +3,8 @@ const { MAX_DISTANCE, unpackInfraPos, runRemoteMiner, runRemoteHauler, runAway }
 const { getRoomMemory } = require("./util")
 
 const SK_HAULER_RATIO = 0.6
+const SK_MINERAL_HAULER_RATIO = 0.3
+
 const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
 
 Room.prototype.manageSourceKeeperMining = function () {
@@ -17,7 +19,7 @@ Room.prototype.manageSourceKeeperMining = function () {
     const memory = Memory.rooms[targetRoomName]
 
     if (targetRoom) {
-      const invaders = targetRoom.findHostileCreeps().filter(creep => creep.owner.username !== 'Source Keeper')
+      const invaders = [...targetRoom.findHostileCreeps()].filter(creep => creep.owner.username !== 'Source Keeper')
       const enemyInfo = getCombatInfo(invaders)
       const isEnemy = invaders.some(creep => creep.checkBodyParts(INVADER_BODY_PARTS))
 
@@ -72,9 +74,9 @@ Room.prototype.getSourceKeeperMiningNetIncomePerTick = function (targetRoomName)
   // previous 1000 tick is wighted by 0.2 * 0.8
   const alpha = 0.2
 
-  if (interval >= 1000) {
+  if (interval >= CREEP_LIFE_TIME) {
     if (sourceKeeperMiningInfo.netIncomePerTick) {
-      const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / 1000)
+      const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / CREEP_LIFE_TIME)
       sourceKeeperMiningInfo.netIncomePerTick = modifiedAlpha * (netIncome / interval) + (1 - modifiedAlpha) * sourceKeeperMiningInfo.netIncomePerTick
     } else {
       sourceKeeperMiningInfo.netIncomePerTick = netIncome / interval
@@ -167,6 +169,10 @@ function constructSourceKeeperRoomInfra(room, targetRoomName) {
   let complete = true
 
   for (const info of infraPlan) {
+    if (info.isMineral && !info.ongoing) {
+      continue
+    }
+
     const packedStructures = info.infraPlan
     let numConstructionSites = 0
     for (const packedStructure of packedStructures) {
@@ -184,7 +190,7 @@ function constructSourceKeeperRoomInfra(room, targetRoomName) {
         numConstructionSites++
       }
 
-      if (numConstructionSites >= 3) {
+      if (numConstructionSites >= 6) {
         break
       }
     }
@@ -229,6 +235,7 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
     }
     return creep.ticksToLive > (creep.body.length * CREEP_SPAWN_TIME + 50)
   })
+
   const haulers = Overlord.getCreepsByRole(targetRoomName, 'remoteHauler').filter(creep => {
     if (creep.spawning) {
       return true
@@ -239,11 +246,15 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
   const sourceStat = {}
 
   for (const info of infraPlan) {
-    const sourceId = info.sourceId
+    const sourceId = info.sourceId || info.mineralId
     sourceStat[sourceId] = sourceStat[sourceId] || {}
-    sourceStat[sourceId].work = 0
-    sourceStat[sourceId].carry = 0
-    sourceStat[sourceId].repair = 0
+    const stat = sourceStat[sourceId]
+    stat.maxWork = info.mineralId ? 32 : 9
+    stat.work = 0
+    stat.carry = 0
+    stat.maxCarry = info.maxCarry
+    stat.repair = 0
+    stat.notMining = info.isMineral && !info.ongoing
   }
 
   for (const miner of miners) {
@@ -257,18 +268,62 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
     sourceStat[sourceId].repair += haluer.getActiveBodyparts(WORK)
   }
 
+  const positions = [{ x: 10, y: 15 }, { x: 40, y: 15 }, { x: 10, y: 30 }, { x: 40, y: 30 }]
+  let i = 0
+  for (const sourceId of Object.keys(sourceStat)) {
+    const x = positions[i].x
+    const y = positions[i].y
+    i++
+    const stat = sourceStat[sourceId]
+    if (stat.notMining) {
+      continue
+    }
+    const fontSize = 4
+    const opacity = 1
+    const black = '#000000'
+    Game.map.visual.text(`⛏️${stat.work}/${stat.maxWork}`, new RoomPosition(x, y, targetRoomName), { fontSize, backgroundColor: stat.work >= stat.maxWork ? black : COLOR_NEON_RED, opacity })
+    Game.map.visual.text(`🚚${stat.carry}/${stat.maxCarry} `, new RoomPosition(x, y + 5, targetRoomName), { fontSize, backgroundColor: stat.carry >= stat.maxCarry ? black : COLOR_NEON_RED, opacity })
+    const source = Game.getObjectById(sourceId)
+    if (source && source instanceof Source) {
+      const amountNear = source.energyAmountNear
+      Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, y + 10, targetRoomName), { fontSize, backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED, opacity })
+    }
+  }
+
   for (const info of infraPlan) {
-    const sourceId = info.sourceId
+    const sourceId = info.sourceId || info.mineralId
     const stat = sourceStat[sourceId]
     const keeperLairId = info.keeperLairId
 
-    if (stat.work < 9) {
-      room.requestRemoteMiner(targetRoomName, sourceId, { keeperLairId, sourceKeeper: true })
-      return
-    }
-
     Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
     const constructing = !Memory.rooms[targetRoomName].constructionComplete
+
+    if (info.isMineral) {
+      if (constructing) {
+        continue
+      }
+      const mineral = Game.getObjectById(info.mineralId)
+      if (!mineral) {
+        continue
+      }
+      if (info.ongoing && mineral.ticksToRegeneration > 0) {
+        info.ongoing = false
+      } else if (!info.ongoing && !mineral.ticksToRegeneration) {
+        info.ongoing = true
+        Memory.rooms[targetRoomName].constructionComplete = false
+        continue
+      }
+      if (!info.ongoing) {
+        continue
+      }
+    }
+
+    const maxWork = stat.maxWork
+
+    if (stat.work < maxWork) {
+      room.requestRemoteMiner(targetRoomName, sourceId, { maxWork, keeperLairId, sourceKeeper: true })
+      return
+    }
 
     if (constructing) {
       if (stat.repair < 12) {
@@ -281,25 +336,6 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
       const isRepairer = stat.repair < 2
       room.requestRemoteHauler(targetRoomName, sourceId, { constructing, keeperLairId, isRepairer, sourcePathLength, maxCarry })
       return
-    }
-  }
-
-  const targetRoom = Game.rooms[targetRoomName]
-  if (!targetRoom) {
-    return
-  }
-
-  const minerals = targetRoom.find(FIND_MINERALS)
-
-  for (const mineral of minerals) {
-    if (mineral.mineralAmount > 0) {
-      const id = mineral.id
-      const mineralMiners = Overlord.getCreepsByRole(id, 'mineralMiner')
-      const activeMiner = mineralMiners.find(creep => creep.spawning || creep.ticksToLive > creep.body.length * CREEP_SPAWN_TIME)
-      if (!activeMiner) {
-        room.requestMineralMiner(id)
-        return
-      }
     }
   }
 }
@@ -369,15 +405,17 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
   const result = []
 
   const sources = targetRoom.find(FIND_SOURCES)
+  const minerals = targetRoom.find(FIND_MINERALS)
   const roadPositions = []
   const basePlan = room.basePlan
 
   const keeperLairs = targetRoom.find(FIND_HOSTILE_STRUCTURES).filter(structure => structure.structureType === STRUCTURE_KEEPER_LAIR)
 
-  for (const source of sources) {
-    const search = PathFinder.search(source.pos, { pos: storage.pos, range: 1 }, {
+  for (const resource of [...sources, ...minerals]) {
+    const search = PathFinder.search(resource.pos, { pos: storage.pos, range: 1 }, {
       plainCost: 5,
       swampCost: 6, // swampCost higher since road is more expensive on swamp
+      heuristicWeight: 1,
       roomCallback: function (roomName) {
         const room = Game.rooms[roomName];
         if (!room) {
@@ -387,7 +425,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
         const costs = new PathFinder.CostMatrix;
         for (const pos of roadPositions) {
           if (pos.roomName === roomName) {
-            costs.set(pos.x, pos.y, 3)
+            costs.set(pos.x, pos.y, 4)
           }
         }
 
@@ -397,7 +435,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
             return
           }
 
-          if (structure.structureType === STRUCTURE_CONTAINER) {
+          if (room.isMy && structure.structureType === STRUCTURE_CONTAINER) {
             costs.set(structure.pos.x, structure.pos.y, 50)
             return
           }
@@ -410,7 +448,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
         })
 
         for (const sourceInner of room.sources) {
-          if (source.id === sourceInner.id) {
+          if (resource.id === sourceInner.id) {
             continue
           }
           for (const pos of sourceInner.pos.getInRange(1)) {
@@ -443,19 +481,29 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
 
     roadPositions.push(...path)
 
-    const keeperLair = source.pos.findInRange(keeperLairs, 5)[0]
+    const keeperLair = resource.pos.findInRange(keeperLairs, 5)[0]
 
     const info = {}
 
-    info.sourceId = source.id
+    if (resource.mineralType) {
+      info.isMineral = true
+      info.mineralId = resource.id
+      info.mineralType = resource.mineralType
+    } else {
+      info.sourceId = resource.id
+    }
 
     info.keeperLairId = keeperLair.id
 
     info.pathLength = path.length
 
-    info.maxCarry = Math.floor(path.length * SK_HAULER_RATIO) + 2
-
-    info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
+    if (info.isMineral) {
+      info.maxCarry = Math.floor(path.length * SK_MINERAL_HAULER_RATIO) + 2
+      info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
+    } else {
+      info.maxCarry = Math.floor(path.length * SK_HAULER_RATIO) + 2
+      info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
+    }
 
     const infraPlan = []
     const containerPos = path.shift()
@@ -495,37 +543,6 @@ Room.prototype.requestSourceKeeperHandler = function (targetRoomName) {
   }
 
   const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['sourceKeeperHandler'], cost: cost })
-  this.spawnQueue.push(request)
-}
-
-Room.prototype.requestMineralMiner = function (id) {
-  return
-  if (!this.hasAvailableSpawn()) {
-    return
-  }
-
-  let body = []
-
-  for (let i = 0; i < 28; i++) {
-    body.push(WORK)
-  }
-
-  for (let i = 0; i < 8; i++) {
-    body.push(CARRY)
-  }
-
-  for (let i = 0; i < 14; i++) {
-    body.push(MOVE)
-  }
-
-  const name = `${id} mineralMiner ${Game.time}_${this.spawnQueue.length}`
-  const memory = {
-    role: 'mineralMiner',
-    base: this.name,
-    targetRoom: depositRequest.roomName,
-    task: { category: depositRequest.category, id: depositRequest.id }
-  }
-  const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['depositWorker'] })
   this.spawnQueue.push(request)
 }
 

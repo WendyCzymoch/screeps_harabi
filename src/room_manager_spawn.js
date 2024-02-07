@@ -127,7 +127,13 @@ Room.prototype.manageSpawn = function () {
         if (hasEnoughBoosts) {
             this.requestLaborer({ maxWork: numWorkEach, boost: 'XGH2O' })
         } else {
-            this.requestLaborer({ maxWork: numWorkEach })
+            let numWork = maxWork - this.laborer.numWork
+
+            if (numLaborer >= maxNumLaborer) {
+                numWork = numWorkEach
+            }
+
+            this.requestLaborer({ maxWork: numWork })
         }
     }
 
@@ -510,96 +516,47 @@ function getBuilderModel(energyCapacity, maxWork) {
 }
 
 function getLaborerModel(energyCapacity, maxWork) {
-    const body = [CARRY]
     let cost = 50
-    let numWork = 0
-
+    let work = 0
+    let move = 0
+    let carry = 1
     while (energyCapacity > cost) {
-        if (maxWork && numWork >= maxWork) {
+        if ((CARRY_CAPACITY * carry) / work < 2 && energyCapacity >= cost + BODYPART_COST[CARRY]) {
+            if (work + move + carry + 1 > MAX_CREEP_SIZE) {
+                break
+            }
+            carry++
+            cost += BODYPART_COST[CARRY]
+            continue
+        }
+
+        if ((move === 0 || work / move >= 4) && energyCapacity >= cost + BODYPART_COST[MOVE]) {
+            if (work + move + carry + 1 > MAX_CREEP_SIZE) {
+                break
+            }
+            move++
+            cost += BODYPART_COST[MOVE]
+            continue
+        }
+
+        if (maxWork && work >= maxWork) {
             break
         }
-        if (energyCapacity >= cost + 450) {
-            if (body.length + 5 > 50) {
-                break
-            }
-            body.push(WORK, WORK, WORK, WORK, MOVE)
-            numWork += 4
-            cost += 450
-            continue
-        }
 
-        if (energyCapacity >= cost + 400) {
-            if (body.length + 5 > 50) {
+        if (energyCapacity >= cost + BODYPART_COST[WORK]) {
+            if (work + move + carry + 1 > MAX_CREEP_SIZE) {
                 break
             }
-            body.push(WORK, WORK, WORK, CARRY, MOVE)
-            numWork += 3
-            cost += 400
-            continue
-        }
-
-        if (energyCapacity >= cost + 350) {
-            if (body.length + 4 > 50) {
-                break
-            }
-            body.push(WORK, WORK, WORK, MOVE)
-            numWork += 3
-            cost += 350
-            continue
-        }
-
-        if (energyCapacity >= cost + 300) {
-            if (body.length + 4 > 50) {
-                break
-            }
-            body.push(WORK, WORK, CARRY, MOVE)
-            numWork += 2
-            cost += 300
-            continue
-        }
-
-        if (energyCapacity >= cost + 250) {
-            if (body.length + 3 > 50) {
-                break
-            }
-            body.push(WORK, WORK, MOVE)
-            numWork += 2
-            cost += 250
-            continue
-        }
-
-        if (energyCapacity >= cost + 200) {
-            if (body.length + 3 > 50) {
-                break
-            }
-            body.push(WORK, CARRY, MOVE)
-            numWork += 1
-            cost += 200
-            continue
-        }
-
-        if (energyCapacity >= cost + 150) {
-            if (body.length + 2 > 50) {
-                break
-            }
-            body.push(WORK, MOVE)
-            numWork += 1
-            cost += 150
-            continue
-        }
-
-        if (energyCapacity >= cost + 100) {
-            if (body.length + 1 > 50) {
-                break
-            }
-            body.push(WORK)
-            numWork += 1
-            cost += 100
+            work++
+            cost += BODYPART_COST[WORK]
             continue
         }
         break
     }
-    return { body, numWork, cost }
+
+    const body = parseBody(`${work - 1}w${carry}c${move}m1w`)
+
+    return { body, numWork: work, cost }
 }
 
 /**

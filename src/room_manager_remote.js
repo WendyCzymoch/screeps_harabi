@@ -1,7 +1,8 @@
 const { GuardRequest, getCombatInfo, CombatInfo } = require("./overlord_tasks_guard")
+const { getLaborerModel } = require("./room_manager_spawn")
 const { getRoomMemory } = require("./util")
 
-const MAX_DISTANCE = 120
+const MAX_DISTANCE = 140
 
 const HAULER_RATIO = 0.4
 
@@ -104,6 +105,10 @@ Room.prototype.manageRemotes = function () {
         constructRemote(this, remoteNameToConstruct)
     }
 
+    if (this.memory.militaryThreat) {
+        return
+    }
+
     spawnRemoteWorkers(this, remoteNamesToSpawn)
 }
 
@@ -128,7 +133,6 @@ Room.prototype.addRemote = function (targetRoomName) {
     const memory = getRoomMemory(targetRoomName)
     memory.roomNameInCharge = this.name
 
-    delete this.memory.activeRemoteNames
     delete this.memory.activeRemotes
 }
 
@@ -139,7 +143,6 @@ Room.prototype.deleteRemote = function (targetRoomName) {
     const memory = getRoomMemory(targetRoomName)
     delete memory.roomNameInCharge
 
-    delete this.memory.activeRemoteNames
     delete this.memory.activeRemotes
 }
 
@@ -276,16 +279,14 @@ Room.prototype.getRemoteNetIncomePerTick = function (targetRoomName) {
 
     const interval = Game.time - remoteInfo.lastTick
 
-    const unit = 1000
-
     // 1 unit with alpha = 0.2
     // recent unit is weighted by 0.2
     // previous unit is wighted by 0.2 * 0.8
     const alpha = 0.2
 
-    if (interval >= unit) {
+    if (interval >= CREEP_LIFE_TIME) {
         if (remoteInfo.netIncomePerTick) {
-            const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / unit)
+            const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / CREEP_LIFE_TIME)
             remoteInfo.netIncomePerTick = modifiedAlpha * (netIncome / interval) + (1 - modifiedAlpha) * remoteInfo.netIncomePerTick
         } else {
             remoteInfo.netIncomePerTick = netIncome / interval
@@ -398,12 +399,12 @@ function runRemoteMiner(creep, targetRoomName) {
     }
 
     const source = Game.getObjectById(creep.memory.sourceId)
-    const container = Game.getObjectById(creep.memory.containerId) || (source ? source.container : undefined)
+    const container = Game.getObjectById(creep.memory.containerId) || targetRoom.structures.container.find(structure => structure.pos.isNearTo(source))
     const isOtherCreep = container && container.pos.creep && container.pos.creep.memory && container.pos.creep.memory.role === creep.memory.role
 
-    const target = container && !isOtherCreep ? container : source
+    const target = (container && !isOtherCreep) ? container : source
 
-    const range = container && !isOtherCreep ? 0 : 1
+    const range = (container && !isOtherCreep) ? 0 : 1
 
     if (creep.pos.getRangeTo(target) > range) {
         creep.moveMy({ pos: target.pos, range })
@@ -414,13 +415,17 @@ function runRemoteMiner(creep, targetRoomName) {
 
     const harvestPower = creep.getActiveBodyparts(WORK) * HARVEST_POWER
 
-    const postponeHarvest = container && container.store[RESOURCE_ENERGY] >= (CONTAINER_CAPACITY - harvestPower) && Math.ceil(source.energy / harvestPower) < (source.ticksToRegeneration || 0)
+    if (source instanceof Source) {
+        const postponeHarvest = container && (container.store.getUsedCapacity() >= (CONTAINER_CAPACITY - harvestPower)) && Math.ceil(source.energy / harvestPower) < (source.ticksToRegeneration || 0)
 
-    if (!postponeHarvest) {
+        if (!postponeHarvest) {
+            creep.harvest(source)
+        }
+    } else if (source instanceof Mineral) {
         creep.harvest(source)
     }
 
-    if (container && container.hits < 150000) {
+    if (creep.store[RESOURCE_ENERGY] > 0 && container && container.hits < 150000) {
         creep.repair(container)
     }
 }
@@ -460,13 +465,13 @@ function runRemoteHauler(creep, base, targetRoomName) {
     }
 
     // 논리회로
-    if (creep.memory.supplying && creep.store[RESOURCE_ENERGY] === 0) {
+    if (creep.memory.supplying && creep.store.getUsedCapacity() === 0) {
         if (creep.room.name === base.name && creep.ticksToLive < 2.2 * (creep.memory.sourcePathLength || 0)) {
             creep.memory.getRecycled = true
             return
         }
         creep.memory.supplying = false
-    } else if (!creep.memory.supplying && creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+    } else if (!creep.memory.supplying && creep.store.getFreeCapacity() === 0) {
         const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
         if (base) {
             base.addRemoteProfit(targetRoomName, amount)
@@ -486,7 +491,7 @@ function runRemoteHauler(creep, base, targetRoomName) {
 
         const constructionSites = creep.room.constructionSites
 
-        if (constructionSites.length > 0 && creep.getActiveBodyparts(WORK) > 1) {
+        if (constructionSites.length > 0 && creep.getActiveBodyparts(WORK) > 1 && creep.store.getUsedCapacity(RESOURCE_ENERGY)) {
             if (!creep.heap.targetId || !Game.getObjectById(creep.heap.targetId)) {
                 creep.heap.targetId = creep.pos.findClosestByRange(constructionSites).id
             }
@@ -550,7 +555,7 @@ function runRemoteHauler(creep, base, targetRoomName) {
             delete creep.memory.targetId
         }
 
-        const tombstone = creep.pos.findInRange(FIND_TOMBSTONES, 5).find(tombstone => tombstone.store[RESOURCE_ENERGY] >= 50)
+        const tombstone = creep.pos.findInRange(FIND_TOMBSTONES, 6).find(tombstone => tombstone.store[RESOURCE_ENERGY] >= 50)
 
         if (tombstone) {
             creep.memory.targetId = tombstone.id
@@ -558,25 +563,33 @@ function runRemoteHauler(creep, base, targetRoomName) {
             return
         }
 
-        const droppedEnergy = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 5).find(resource =>
-            resource.resourceType === RESOURCE_ENERGY && resource.amount >= 50)
+        const droppedResource = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 6).find(resource => resource.amount >= 50)
 
-        if (droppedEnergy) {
-            creep.memory.targetId = droppedEnergy.id
-            creep.getEnergyFrom(droppedEnergy.id)
+        if (droppedResource) {
+            if (creep.pos.getRangeTo(droppedResource) > 1) {
+                creep.moveMy({ pos: droppedResource.pos, range: 1 })
+                return
+            }
+            creep.pickup(droppedResource)
             return
         }
     }
 
     const energyThreshold = Math.min(creep.store.getFreeCapacity(), 500)
 
-    const container = source.pos.findInRange(FIND_STRUCTURES, 1).find(structure => structure.store && structure.store[RESOURCE_ENERGY] >= energyThreshold)
+    const container = source.pos.findInRange(FIND_STRUCTURES, 1).find(structure => structure.store && structure.store.getUsedCapacity() >= energyThreshold)
 
     if (container) {
-        if (creep.getEnergyFrom(container.id) === OK) {
-            const spawn = base.structures.spawn[0]
-            if (spawn) {
-                creep.moveMy({ pos: spawn.pos, range: 3 })
+        if (creep.pos.getRangeTo(container) > 1) {
+            creep.moveMy({ pos: container.pos, range: 1 })
+            return
+        }
+        for (const resourceType in container.store) {
+            if (creep.withdraw(container, resourceType) === OK) {
+                const spawn = base.structures.spawn[0]
+                if (spawn) {
+                    creep.moveMy({ pos: spawn.pos, range: 3 })
+                }
             }
         }
         return
@@ -700,8 +713,12 @@ function runCoreAttacker(creep, targetRoomName) {
 function runAway(creep, roomName) {
     const hostileCreeps = creep.room.getEnemyCombatants()
 
+    if (creep.memory.role === 'sourceKeeperHandler') {
+        creep.heal(creep)
+    }
+
     if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
-        creep.fleeFrom(hostileCreeps, 15, 2)
+        creep.fleeFrom(hostileCreeps, 100, 2)
         return
     }
 
@@ -824,9 +841,6 @@ function spawnRemoteWorkers(room, targetRoomNames) {
             if (source) {
                 const amountNear = source.energyAmountNear
                 Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, 30, targetRoomName), { fontSize, backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED, opacity })
-                if (amountNear > 2000) {
-                    stat.overload = true
-                }
             }
             x += 30
 
@@ -892,28 +906,21 @@ function spawnRemoteWorkers(room, targetRoomNames) {
 
             let maxCarry = stat.maxCarry
 
-            if (!constructing && stat.overload && stat.carry < maxCarry + 6) {
-                const sourcePathLength = info.pathLength
-                room.requestRemoteHauler(targetRoomName, sourceId, { constructing, sourcePathLength, maxCarry: (maxCarry + 6 - stat.carry), noRoad: !constructionComplete, isRepairer: false })
-                requested = true
-                continue outer
-            }
+            const energyCapacity = Math.max(room.energyCapacityAvailable * 0.8, 300)
+
+            const maxHaulerCarry = constructionComplete
+                ? 2 * Math.min(Math.floor((energyCapacity - 150) / 150), 16) // with road
+                : Math.min(Math.floor(energyCapacity / 100), 25) // without road
 
             if (!constructing && stat.carry < maxCarry) {
                 const sourcePathLength = info.pathLength
-
-                const energyCapacity = Math.max(room.energyCapacityAvailable * 0.8, 300)
-
-                const maxHaulerCarry = constructionComplete
-                    ? 2 * Math.min(Math.floor((energyCapacity - 150) / 150), 16) // with road
-                    : Math.min(Math.floor(energyCapacity / 100), 25) // without road
 
                 const maxNumHauler = Math.ceil(maxCarry / maxHaulerCarry)
 
                 if (stat.numHauler < maxNumHauler) {
                     const eachCarry = Math.min(maxHaulerCarry, Math.ceil(maxCarry / maxNumHauler))
 
-                    const numCarry = stat.numHauler < maxNumHauler - 1 ? eachCarry : Math.min(eachCarry, maxCarry - stat.carry)
+                    const numCarry = stat.numHauler < maxNumHauler - 1 ? eachCarry : Math.min(eachCarry, maxCarry - stat.carry, maxHaulerCarry)
 
                     const isRepairer = stat.repair < 2
 
@@ -959,7 +966,7 @@ Room.prototype.requestRemoteHauler = function (targetRoomName, sourceId, options
 
         const maxCarry = options.maxCarry || 25
 
-        for (let i = 0; i < maxCarry; i++) {
+        for (let i = 0; i < Math.min(maxCarry, 25); i++) {
             if (energyCapacity < cost + 100) {
                 break
             }
@@ -978,7 +985,7 @@ Room.prototype.requestRemoteHauler = function (targetRoomName, sourceId, options
 
         const maxCarry = options.maxCarry || 32
 
-        for (let i = 0; i < Math.ceil(maxCarry / 2); i++) {
+        for (let i = 0; i < Math.min(32, Math.ceil(maxCarry / 2)); i++) {
             if (energyCapacity < cost + 150) {
                 break
             }
@@ -1012,25 +1019,13 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
         return
     }
 
-    let cost = 0
-    let body = undefined
-
     const maxWork = options.maxWork || 6
 
-    if (options.sourceKeeper) {
-        body = parseBody('8w5m1w1c')
-        cost = 1200
-    } else {
-        const numWork = Math.min(Math.floor((this.energyCapacityAvailable) / 150), maxWork)
+    const model = getRemoteMinerModel(this.energyCapacityAvailable, maxWork)
 
-        body = parseBody(`${numWork}w${numWork}m`)
-        cost += numWork * 150
+    const body = model.body
 
-        if ((this.energyCapacityAvailable - cost) >= 50 && options.needCarry) {
-            body.push(CARRY)
-            cost += 50
-        }
-    }
+    const cost = model.cost
 
     const name = `${targetRoomName} remoteMiner ${Game.time}_${this.spawnQueue.length}`
     const memory = {
@@ -1054,6 +1049,42 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
 
     const request = new RequestSpawn(body, name, memory, spawnOptions)
     this.spawnQueue.push(request)
+}
+
+function getRemoteMinerModel(energyCapacity, maxWork) {
+    let cost = 0
+    let work = 0
+    let move = 0
+    let carry = 0
+    while (cost < energyCapacity && work + move + carry < MAX_CREEP_SIZE) {
+        if ((move === 0 || (work / move >= 2)) && energyCapacity >= cost + BODYPART_COST[MOVE]) {
+            move++
+            cost += BODYPART_COST[MOVE]
+            continue
+        }
+
+        if (work > 5 && carry < 1 && energyCapacity >= cost + BODYPART_COST[CARRY]) {
+            carry++
+            cost += BODYPART_COST[CARRY]
+            continue
+        }
+
+
+        if (maxWork && work >= maxWork) {
+            break
+        }
+
+        if (energyCapacity >= cost + BODYPART_COST[WORK]) {
+            work++
+            cost += BODYPART_COST[WORK]
+            continue
+        }
+        break
+    }
+
+    const body = parseBody(`${work - 1}w${carry}c${move}m1w`)
+
+    return { body, numWork: work, cost }
 }
 
 Room.prototype.requestCoreAttacker = function (targetRoomName) {
@@ -1292,6 +1323,7 @@ function getRemoteBlueprint(room, targetRoomName) {
             plainCost: 5,
             swampCost: 6, // swampCost higher since road is more expensive on swamp
             maxOps: 20000,
+            heuristicWeight: 1,
             roomCallback: function (roomName) {
                 if (![roomNameInCharge, targetRoomName, ...remoteNames].includes(roomName)) {
                     return false
@@ -1301,7 +1333,7 @@ function getRemoteBlueprint(room, targetRoomName) {
 
                 for (const pos of roadPositions) {
                     if (pos.roomName === roomName) {
-                        costs.set(pos.x, pos.y, 2)
+                        costs.set(pos.x, pos.y, 4)
                     }
                 }
 
@@ -1383,7 +1415,7 @@ function getRemoteBlueprint(room, targetRoomName) {
 
         info.pathLength = pathLength
 
-        info.maxCarry = Math.ceil(path.length * HAULER_RATIO * 0.95)
+        info.maxCarry = Math.ceil(path.length * HAULER_RATIO * 0.95 + 0.5)
 
         const structures = []
 

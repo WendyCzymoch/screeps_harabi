@@ -116,6 +116,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
     const search = PathFinder.search(posNow, goalsNow, {
       plainCost: Math.max(1, Math.ceil(2 * Number(moveCost))),
       swampCost: Math.max(1, Math.ceil(10 * Number(moveCost))),
+      heuristicWeight: 1.01,
       roomCallback: function (roomName) {
         // route에 있는 방만 써라
         if (routeNow !== undefined && !routeNow.includes(roomName)) {
