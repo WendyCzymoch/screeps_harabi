@@ -1,5 +1,4 @@
-const { GuardRequest, getCombatInfo, CombatInfo } = require("./overlord_tasks_guard")
-const { getLaborerModel } = require("./room_manager_spawn")
+const { GuardRequest, getCombatInfo } = require("./overlord_tasks_guard")
 const { getRoomMemory } = require("./util")
 
 const MAX_DISTANCE = 140
@@ -7,6 +6,14 @@ const MAX_DISTANCE = 140
 const HAULER_RATIO = 0.4
 
 const RESERVATION_TICK_THRESHOLD = 1000
+
+const SOURCE_KEEPER_RANGE_TO_START_FLEE = 7
+
+const SOURCE_KEEPER_RANGE_TO_FLEE = 6
+
+const KEEPER_LAIR_RANGE_TO_START_FLEE = 9
+
+const KEEPER_LAIR_RANGE_TO_FLEE = 8
 
 Room.prototype.manageRemotes = function () {
     const remoteNames = this.getRemoteNames().sort((a, b) => getRemoteValue(this, b) - getRemoteValue(this, a))
@@ -95,7 +102,7 @@ Room.prototype.manageRemotes = function () {
         remoteNamesToSpawn.push(targetRoomName)
     }
 
-    const idlingPercentage = Math.floor((this.heap.numIdlingRemoteHaulerCarryParts / this.heap.numRemoteHaulerCarryParts) * 10000) / 100
+    const idlingPercentage = this.heap.numRemoteHaulerCarryParts ? Math.floor((this.heap.numIdlingRemoteHaulerCarryParts / this.heap.numRemoteHaulerCarryParts) * 10000) / 100 : 0
 
     Game.map.visual.text(`😴${idlingPercentage}%`, new RoomPosition(25, 45, this.name), { fontSize: 5, backgroundColor: `#000000`, opacity: 1 })
     Game.map.visual.text(`${this.heap.numRemoteHaulerCarryParts}`, new RoomPosition(25, 35, this.name), { fontSize: 5, backgroundColor: `#000000`, opacity: 1 })
@@ -362,11 +369,6 @@ function runRemoteMiner(creep, targetRoomName) {
 
     const hostileCreeps = creep.room.getEnemyCombatants()
 
-    if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
-        creep.fleeFrom(hostileCreeps, 15)
-        return
-    }
-
     if (creep.memory.getRecycled === true) {
         if (creep.room.name === creep.memory.base) {
             creep.getRecycled()
@@ -389,12 +391,22 @@ function runRemoteMiner(creep, targetRoomName) {
     }
 
     if (creep.memory.keeperLairId) {
+        if (creep.pos.findInRange(hostileCreeps, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(hostileCreeps, SOURCE_KEEPER_RANGE_TO_FLEE)
+            return
+        }
+
         const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
         if (keeperLair && keeperLair.ticksToSpawn < 15) {
-            if (creep.pos.getRangeTo(keeperLair) <= 8) {
-                creep.fleeFrom(keeperLair, 8)
+            if (creep.pos.getRangeTo(keeperLair) <= KEEPER_LAIR_RANGE_TO_START_FLEE) {
+                creep.fleeFrom(keeperLair, KEEPER_LAIR_RANGE_TO_FLEE)
                 return
             }
+        }
+    } else {
+        if (creep.pos.findInRange(hostileCreeps, 6).length > 0) {
+            creep.fleeFrom(hostileCreeps, 30)
+            return
         }
     }
 
@@ -438,15 +450,20 @@ function runRemoteHauler(creep, base, targetRoomName) {
 
     const hostileCreeps = creep.room.getEnemyCombatants()
 
-    if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
-        creep.fleeFrom(hostileCreeps, 15)
-        return
-    }
-
     if (creep.memory.keeperLairId) {
+        if (creep.pos.findInRange(hostileCreeps, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(hostileCreeps, SOURCE_KEEPER_RANGE_TO_FLEE)
+            return
+        }
+
         const keeperLair = Game.getObjectById(creep.memory.keeperLairId)
-        if (keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) <= 8) {
-            creep.fleeFrom(keeperLair, 8)
+        if (keeperLair.ticksToSpawn < 15 && creep.pos.getRangeTo(keeperLair.pos) <= KEEPER_LAIR_RANGE_TO_START_FLEE) {
+            creep.fleeFrom(keeperLair, KEEPER_LAIR_RANGE_TO_FLEE)
+            return
+        }
+    } else {
+        if (hostileCreeps.length > 0) {
+            runAway(creep, base.name)
             return
         }
     }
@@ -718,7 +735,7 @@ function runAway(creep, roomName) {
     }
 
     if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
-        creep.fleeFrom(hostileCreeps, 100, 2)
+        creep.fleeFrom(hostileCreeps, 30, 2)
         return
     }
 
@@ -898,13 +915,13 @@ function spawnRemoteWorkers(room, targetRoomNames) {
                 continue outer
             }
 
-            if (constructing && stat.repair < 6) {
+            let maxCarry = stat.maxCarry
+
+            if (constructing && stat.carry < maxCarry && stat.repair < 6) {
                 room.requestRemoteHauler(targetRoomName, sourceId, { constructing })
                 requested = true
                 continue outer
             }
-
-            let maxCarry = stat.maxCarry
 
             const energyCapacity = Math.max(room.energyCapacityAvailable * 0.8, 300)
 
@@ -1244,11 +1261,11 @@ function constructRemote(room, targetRoomName) {
 function getRemoteValue(room, targetRoomName, oneSource = false) {
     const remoteInfo = room.getRemoteInfo(targetRoomName)
 
-    if (remoteInfo && remoteInfo.remoteValue && remoteInfo.remoteValueTime && (!!remoteInfo.oneSource === oneSource) && Game.time < (remoteInfo.remoteValueTime + 100)) {
+    const canReserve = room.energyCapacityAvailable >= 650
+
+    if (remoteInfo && remoteInfo.remoteValue && remoteInfo.remoteValueTime && (!!remoteInfo.oneSource === oneSource) && (!!remoteInfo.canReserve === canReserve)) {
         return remoteInfo.remoteValue
     }
-
-    const canReserve = room.energyCapacityAvailable >= 650
 
     let result = 0
 
@@ -1282,6 +1299,7 @@ function getRemoteValue(room, targetRoomName, oneSource = false) {
     }
 
     if (remoteInfo) {
+        remoteInfo.canReserve = canReserve
         remoteInfo.oneSource = oneSource
         remoteInfo.remoteValueTime = Game.time
         remoteInfo.remoteValue = result

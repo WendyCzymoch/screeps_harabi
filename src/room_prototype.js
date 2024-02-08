@@ -1,7 +1,7 @@
 const { config } = require("./config")
 const { getLaborerModel } = require("./room_manager_spawn")
 
-const MAX_WORK = 80
+const MAX_WORK = 150
 const COST_FOR_HUB_CENTER = 30
 
 Object.defineProperties(Room.prototype, {
@@ -206,8 +206,12 @@ Object.defineProperties(Room.prototype, {
 
             for (const sourceKeeper of this.find(FIND_HOSTILE_CREEPS).filter(creep => creep.owner.username === 'Source Keeper')) {
                 for (const pos of sourceKeeper.pos.getInRange(5)) {
-                    if (pos.terrain !== TERRAIN_MASK_WALL && costs.get(pos.x, pos.y) < 30) {
-                        costs.set(pos.x, pos.y, 30)
+                    if (pos.terrain === TERRAIN_MASK_WALL) {
+                        continue
+                    }
+                    const weight = pos.terrain === TERRAIN_MASK_SWAMP ? 5 : 1
+                    if (pos.terrain !== TERRAIN_MASK_WALL && costs.get(pos.x, pos.y) < 10 * weight) {
+                        costs.set(pos.x, pos.y, 10 * weight)
                     }
                 }
             }
@@ -346,9 +350,11 @@ Room.prototype.getMaxWork = function () {
 
     const level = this.controller.level
 
+    const upgradeNeeded = this.controller.ticksToDowngrade < (CONTROLLER_DOWNGRADE[level] / 2)
+
     if (level === 8) {
         // if downgrade is close, upgrade
-        if (this.controller.ticksToDowngrade < 120000) {
+        if (upgradeNeeded) {
             this.heap.upgrading = true
             if (config.blockUpragade) {
                 return 1
@@ -377,9 +383,11 @@ Room.prototype.getMaxWork = function () {
 
     const upperLimit = this.getUpgradeUpperLimit()
 
+    const lowerLimit = upgradeNeeded ? 5 : 0
+
     const extra = Math.max(0, Math.floor((this.energyLevel - config.energyLevel.UPGRADE) / 10))
 
-    return Math.clamp(10 * (1 + extra), 5, upperLimit)
+    return Math.floor(Math.clamp(10 * Math.pow((1 + extra), 1.2), lowerLimit, upperLimit))
 }
 
 Room.prototype.getUpgradeUpperLimit = function () {

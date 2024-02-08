@@ -3,12 +3,11 @@ const { blinkyBodyMaker } = require("./creep_prototype_blinky")
 
 const RAMPART_HITS_THRESHOLD = 50000000 //50M
 
-const RAMPART_HITS_ENOUGH = 5000000 // 5M
+const RAMPART_HITS_ENOUGH = config.rampartHitsPerRclSquare * 120
 
 global.MANAGER_MAX_CARRY = 16
 
 global.EMERGENCY_WORK_MAX = 100
-global.RAMPART_HITS_PER_RCL = 16000
 
 global.SPAWN_PRIORITY = {
     'hauler': 2,
@@ -279,15 +278,17 @@ Room.prototype.getNeedWallMaker = function () {
         return this.energyLevel >= config.energyLevel.RAMPART_HIGH
     }
 
-    const rampartsHitsPerRcl = this.memory.rampartsHitsPerRcl || config.rampartHitsPerRclSquare
+    const hits = weakestRampart.hits
 
-    const threshold = this.controller.level >= 7 ? RAMPART_HITS_ENOUGH : (this.controller.level) ^ 2 * rampartsHitsPerRcl
-
-    if (weakestRampart.hits < threshold) {
-        return this.energyLevel >= config.energyLevel.RAMPART_LOW
+    if (this.energyLevel >= config.energyLevel.RAMPART_HIGH) {
+        return hits < RAMPART_HITS_THRESHOLD
+    } else if (this.energyLevel >= config.energyLevel.RAMPART_MIDDLE) {
+        return hits < RAMPART_HITS_ENOUGH
+    } else if (this.energyLevel >= config.energyLevel.RAMPART_LOW) {
+        const threshold = (this.controller.level) ^ 2 * config.rampartHitsPerRclSquare
+        return hits < threshold
     }
-
-    return this.energyLevel >= config.energyLevel.RAMPART_MIDDLE
+    return false
 }
 
 Room.prototype.getManagerCarryTotal = function () {

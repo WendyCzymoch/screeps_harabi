@@ -222,7 +222,7 @@ Room.prototype.tryRemote = function (roomName) {
   }
 
   if (intel[scoutKeys.notForRemote] !== undefined && intel[scoutKeys.notForRemote].includes(this.name)) {
-    // return
+    return
   }
 
   // already my remote

@@ -154,19 +154,29 @@ Room.prototype.manageHub = function () {
 }
 
 Room.prototype.getHubCenterPos = function () {
-    if (Game.time % 131 === 0) {
+    if (this._hubCenterPos !== undefined) {
+        return this._hubCenterPos
+    }
+
+    if (Math.random() < 0.01) {
         delete this.heap.hubCenterPos
     }
 
     if (this.heap.hubCenterPos !== undefined) {
-        return this.heap.hubCenterPos
+        return this._hubCenterPos = this.heap.hubCenterPos
+    } else {
     }
 
     const storage = this.storage
     const storageLink = storage ? storage.link : undefined
+
+    if (!storage || !storageLink) {
+        return this._hubCenterPos = this.heap.hubCenterPos = null
+    }
+
     const spawns = this.structures.spawn
     if (!storage || !storageLink) {
-        return this.heap.hubCenterPos = null
+        return this._hubCenterPos = this.heap.hubCenterPos = null
     }
 
     const positions = storage.pos.getAtRange(1)
@@ -182,7 +192,7 @@ Room.prototype.getHubCenterPos = function () {
         return true
     })
 
-    return this.heap.hubCenterPos = hubCenterPos
+    return this._hubCenterPos = this.heap.hubCenterPos = hubCenterPos
 }
 
 Creep.prototype.getTargetId = function () {

@@ -56,68 +56,67 @@ function getAllyFunnelRequest() {
 }
 
 function getMyFunnelRequest() {
+  const myFunnelList = Overlord.getMyFunnelList()
+
+  for (const request of myFunnelList) {
+    const roomName = request.roomName
+    const room = Game.rooms[roomName]
+    if (!room || !room.isMy) {
+      continue
+    }
+
+    if (room.energyLevel >= config.energyLevel.STOP_FUNNEL) {
+      continue
+    }
+
+    return request
+  }
+
+  return undefined
+}
+
+Overlord.getMyFunnelList = function () {
+  if (Game._myFunnelList !== undefined) {
+    return Game._myFunnelList
+  }
+  return Game._myFunnelList = getMyFunnelList()
+}
+
+function getMyFunnelList() {
   const myRooms = Overlord.myRooms
-  const myRoomsRCL6 = []
-  const myRoomsRCL7 = []
+
+  const result = []
 
   for (const room of myRooms) {
     if (!room.terminal || !room.terminal.RCLActionable || !room.storage || room.abandon) {
       continue
     }
+
     const level = room.controller.level
-    if (level === 6) {
-      myRoomsRCL6.push(room)
+    const goalType = level === 6 ? EFunnelGoalType.RCL7 : level === 7 ? EFunnelGoalType.RCL8 : undefined
+
+    if (!goalType) {
+      continue
     }
-    if (level === 7) {
-      myRoomsRCL7.push(room)
+
+    const amount = getFunnelAmount(room)
+
+    const request = {
+      maxAmount: amount,
+      goalType,
+      roomName: room.name
     }
+    result.push(request)
   }
 
-  if (myRoomsRCL6.length > 0) {
-    let minAmount = Infinity
-    let minRoom = undefined
+  result.sort((a, b) => a.maxAmount - b.maxAmount)
 
-    for (const room of myRoomsRCL6) {
-      const amount = getFunnelAmount(room)
-      if (amount < minAmount) {
-        minAmount = amount
-        minRoom = room
-      }
-    }
-
-    if (minRoom.energyLevel < config.energyLevel.STOP_FUNNEL) {
-      const result = {
-        maxAmount: minAmount,
-        goalType: EFunnelGoalType.RCL7,
-        roomName: minRoom.name
-      }
-      return result
-    }
+  for (let i = 0; i < result.length; i++) {
+    const request = result[i]
+    request.priority = i
   }
 
-  if (myRoomsRCL7.length > 0) {
-    let minAmount = Infinity
-    let minRoom = undefined
-
-    for (const room of myRoomsRCL7) {
-      const amount = getFunnelAmount(room)
-      if (amount < minAmount) {
-        minAmount = amount
-        minRoom = room
-      }
-    }
-
-    if (minRoom.energyLevel < config.energyLevel.STOP_FUNNEL) {
-      const result = {
-        maxAmount: minAmount,
-        goalType: EFunnelGoalType.RCL8,
-        roomName: minRoom.name
-      }
-      return result
-    }
-  }
-
-  return undefined
+  return result
 }
 
 function getFunnelAmount(room) {

@@ -81,7 +81,7 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
     }
 
     //fatigue 있으면 return
-    if (this.fatigue) {
+    if (this.fatigue || this.getActiveBodyparts(MOVE) === 0) {
         return ERR_TIRED
     }
 

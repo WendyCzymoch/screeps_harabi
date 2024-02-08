@@ -4,6 +4,47 @@ const { getRemoteValue } = require('./room_manager_remote');
 
 const OPACITY = 0.5
 
+Overlord.visualizeRoomInfo = function () {
+    const startPos = { x: -0.5, y: 0.5 }
+    const numMyRoom = this.myRooms.length
+
+    new RoomVisual().rect(startPos.x + X_ENTIRE.start, startPos.y - 1, X_ENTIRE.end + 0.5, numMyRoom + 3, { fill: 'black', opacity: 0.3 }); // 틀 만들기
+
+    const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY }
+    new RoomVisual().text("Time " + Game.time, 0.5, startPos.y, option)
+    new RoomVisual().text("CPU " + Math.floor(10 * Game.cpu.getUsed()) / 10, 6, startPos.y, option)
+    new RoomVisual().text("Bucket " + Game.cpu.bucket, 10, startPos.y, option);
+    new RoomVisual().text(`Room: ${numMyRoom}`, 15, startPos.y, option)
+    new RoomVisual().text(`Remote: ${Overlord.remotes.length}(rooms)`, 18.5, startPos.y, option)
+    new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 26, startPos.y, option)
+
+    // 각 방마다 표시
+    for (let i = -1; i < numMyRoom; i++) {
+        const room = i >= 0 ? this.myRooms[i] : undefined
+        // 각 item마다 표시
+        for (const item of items) {
+            // 구분선 삽입
+            new RoomVisual().text('|', startPos.x + item.end, startPos.y + i + 2, { color: 'cyan', opacity: OPACITY })
+            // 처음에는 item 이름
+            if (i === -1) {
+                new RoomVisual().text(item.name, startPos.x + item.mid, startPos.y + i + 2, { color: 'cyan', opacity: OPACITY })
+                continue
+            }
+            // 그다음부터는 내용
+            const text = item.text(room)
+            const option = text.option
+            option.opacity = OPACITY
+            new RoomVisual().text(text.content, startPos.x + item.mid, startPos.y + i + 2, text.option)
+        }
+    }
+
+    if (Game.gcl.level >= 3) {
+        visualizeResources(numMyRoom)
+        visualizePossibleSquad(numMyRoom)
+    }
+    visualizeTasks()
+}
+
 Object.defineProperties(Room.prototype, {
     progressHour: {
         get() {
@@ -220,7 +261,7 @@ const rampart = new VisualItem('Rampart', 4, (room) => {
     const value = Math.round(room.structures.minProtectionHits / 10000) / 100
     const content = `${value}M`
 
-    const hue = 120 * value / 50
+    const hue = 120 * value / 10
     const color = `hsl(${hue},100%,60%)`
 
     const option = { color }
@@ -240,45 +281,6 @@ const items = [
     powerProcess,
     rampart
 ]
-
-Overlord.visualizeRoomInfo = function () {
-    const startPos = { x: -0.5, y: 0.5 }
-    const numMyRoom = this.myRooms.length
-
-    new RoomVisual().rect(startPos.x + X_ENTIRE.start, startPos.y - 1, X_ENTIRE.end + 0.5, numMyRoom + 3, { fill: 'black', opacity: 0.3 }); // 틀 만들기
-
-    const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY }
-    new RoomVisual().text("Time " + Game.time, 0.5, startPos.y, option)
-    new RoomVisual().text("CPU " + Math.floor(10 * Game.cpu.getUsed()) / 10, 6, startPos.y, option)
-    new RoomVisual().text("Bucket " + Game.cpu.bucket, 10, startPos.y, option);
-    new RoomVisual().text(`Room: ${numMyRoom}`, 15, startPos.y, option)
-    new RoomVisual().text(`Remote: ${Overlord.remotes.length}(rooms)`, 18.5, startPos.y, option)
-    new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 26, startPos.y, option)
-
-    // 각 방마다 표시
-    for (let i = -1; i < numMyRoom; i++) {
-        const room = i >= 0 ? this.myRooms[i] : undefined
-        // 각 item마다 표시
-        for (const item of items) {
-            // 구분선 삽입
-            new RoomVisual().text('|', startPos.x + item.end, startPos.y + i + 2, { color: 'cyan', opacity: OPACITY })
-            // 처음에는 item 이름
-            if (i === -1) {
-                new RoomVisual().text(item.name, startPos.x + item.mid, startPos.y + i + 2, { color: 'cyan', opacity: OPACITY })
-                continue
-            }
-            // 그다음부터는 내용
-            const text = item.text(room)
-            const option = text.option
-            option.opacity = OPACITY
-            new RoomVisual().text(text.content, startPos.x + item.mid, startPos.y + i + 2, text.option)
-        }
-    }
-
-    visualizeResources(numMyRoom)
-    visualizePossibleSquad(numMyRoom)
-    visualizeTasks()
-}
 
 function visualizeResources(numMyRoom) {
     const stats = Memory.stats

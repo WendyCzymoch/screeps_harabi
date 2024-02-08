@@ -414,6 +414,7 @@ Room.prototype.managePowerSpawn = function () {
     if (!powerSpawn || !this.terminal) {
         return
     }
+
     if (!this.memory.operatePowerSpawn && this.energyLevel >= config.energyLevel.OPERATE_POWER_SPAWN) {
         this.memory.operatePowerSpawn = true
     } else if (this.memory.operatePowerSpawn && this.energyLevel < config.energyLevel.OPERATE_POWER_SPAWN - 10) {
@@ -443,7 +444,7 @@ Room.prototype.manageVisual = function () {
     if (config.showTicks && GRCLhistory) {
         let i = 2
         while (GRCLhistory[i] && GRCLhistory[1]) {
-            this.visual.text(`got RCL${i} at tick ${GRCLhistory[i] - GRCLhistory[1] - 2}`, 25, 25 - i)
+            this.visual.text(`got RCL${i} at tick ${GRCLhistory[i] - GRCLhistory[1] + 2}`, 25, 25 - i)
             i++
         }
     }

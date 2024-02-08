@@ -6,7 +6,10 @@ Overlord.manageGuardTasks = function () {
 
         if (request.completed === true) {
             this.deleteTask(request)
-            data.recordLog(`GUARD: gaurd room ${request.roomName} ended. result ${request.result}`, request.roomName)
+            if (request.usernames && request.usernames.length > 0) {
+                const usernames = request.usernames.join(', ')
+                data.recordLog(`GUARD: gaurd room ${request.roomName} from ${usernames} ended. result ${request.result}`, request.roomName)
+            }
             continue
         }
 
@@ -65,10 +68,28 @@ Room.prototype.guardRoom = function (request) {
     request.numGuards = guardGroups.total.length
 
     if (targetRoom) {
-        let hostileCreeps = targetRoom.findHostileCreeps()
-        if (request.ignoreSourceKeepers) {
-            hostileCreeps = hostileCreeps.filter(creep => creep.owner.username !== 'Source Keeper')
+        const hostileCreeps = []
+
+        for (const hostileCreep of targetRoom.findHostileCreeps()) {
+            const username = hostileCreep.owner.username
+
+            if (request.ignoreSourceKeepers && username === 'Source Keeper') {
+                continue
+            }
+
+            hostileCreeps.push(hostileCreep)
+
+            if (username === 'Invader') {
+                continue
+            }
+
+            request.usernames = request.usernames || []
+
+            if (!request.usernames.includes(username)) {
+                request.usernames.push(username)
+            }
         }
+
         const enemyInfo = getCombatInfo(hostileCreeps)
         request.try = false
         request.lastUpdateTime = Game.time
@@ -113,7 +134,7 @@ Room.prototype.guardRoom = function (request) {
 
     request.status = 'gather'
 
-    request.rallied = this.rallyGuards(guardGroups.active)
+    request.rallied = this.rallyGuards(guardGroups.active, roomName)
 }
 
 function doCleanUp(guards, roomName) {
@@ -145,7 +166,7 @@ function doCombat(guards, roomName) {
     }
 }
 
-Room.prototype.rallyGuards = function (guards) {
+Room.prototype.rallyGuards = function (guards, roomName) {
     let result = true
     const captain = guards[0]
     for (const guard of guards) {
@@ -159,7 +180,6 @@ Room.prototype.rallyGuards = function (guards) {
 
         if (closeTargets.length > 0) {
             guard.handleCombatants(targets)
-            result = false
             continue
         }
 
@@ -262,7 +282,6 @@ Room.prototype.requestGuard = function (targetRoomName, options) {
     const costMax = this.energyCapacityAvailable
 
     let body = undefined
-    let cost = 0
 
     const costs = Object.keys(harasserBody).map(cost => Number(cost))
 

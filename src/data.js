@@ -43,7 +43,7 @@ data.recordLog = function (text, roomName, groupInterval = 180) {
   const tickWithColor = `<span style = "color: lime">[tick: ${Game.time}]</span>`
 
   const contentWithColor = `<span style = "color: cyan">${text}</span>`
-  const URL = roomName ? `https://screeps.com/a/#!/history/${SHARD}/${roomName}?t=${Game.time - 5}` : undefined
+  const URL = roomName ? `https://screeps.com/${SHARD === 'shardSeason' ? 'season' : 'a'}/#!/history/${SHARD}/${roomName}?t=${Game.time - 5}` : undefined
   const hyperLink = URL ? `<a href="${URL}" target="_blank">[Link]</a>` : undefined
 
   const logContents = `${koreaDateTextWithColor} ${tickWithColor} ${roomNameWithColor} ${contentWithColor} ${hyperLink || ``}`

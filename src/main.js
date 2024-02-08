@@ -120,7 +120,7 @@ module.exports.loop = () => {
             if (Game.gcl.level > Memory.gcl) {
                 console.log('gcl up')
                 Memory.gcl = Game.gcl.level
-                claim('W6N43')
+                claim('W3N45')
             }
         }
 

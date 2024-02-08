@@ -133,7 +133,7 @@ if (shardName === 'swc') {
 
   config.showTimeToClose = true
 
-  config.rampartHitsPerRclSquare = 6000
+  config.rampartHitsPerRclSquare = 5000
 
   config.blockUpragade = true
 
@@ -330,11 +330,11 @@ config.energyLevel = {
 
   POWERBANK: 160,
 
-  RAMPART_HIGH: 170,
+  STOP_FUNNEL: 200,
 
-  STOP_FUNNEL: 180,
+  RAMPART_HIGH: 210,
 
-  BALANCE: 200
+  BALANCE: 220
 }
 
 module.exports = {

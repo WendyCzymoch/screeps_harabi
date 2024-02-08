@@ -99,7 +99,7 @@ Object.defineProperties(StructureController.prototype, {
                 return this.room.heap.controllerLinkFlow = 0
             }
             const range = this.link.pos.getRangeTo(this.room.storage.link.pos)
-            return this.room.heap.controllerLinkFlow = Math.floor(800 / (range + 2))
+            return this.room.heap.controllerLinkFlow = Math.floor(800 / (range + 1))
         }
     },
     totalProgress: {

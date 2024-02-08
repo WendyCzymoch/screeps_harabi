@@ -120,6 +120,7 @@ function isStronghold(targetRoomName) {
       }
 
       if (invaderCoreInfo.ticksToCollapse && Game.time < invaderCoreInfo.ticksToCollapse) {
+        Game.map.visual.text(invaderCoreInfo.ticksToCollapse - Game.time, new RoomPosition(40, 5, targetRoomName), { fontSize: 6 })
         return true
       }
     }
@@ -169,7 +170,7 @@ function constructSourceKeeperRoomInfra(room, targetRoomName) {
   let complete = true
 
   for (const info of infraPlan) {
-    if (info.isMineral && !info.ongoing) {
+    if (info.isMineral) {
       continue
     }
 
@@ -298,10 +299,9 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
     Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
     const constructing = !Memory.rooms[targetRoomName].constructionComplete
 
-    if (info.isMineral) {
-      if (constructing) {
-        continue
-      }
+    const isMineral = info.isMineral
+
+    if (isMineral) {
       const mineral = Game.getObjectById(info.mineralId)
       if (!mineral) {
         continue
@@ -333,8 +333,9 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
     } else if (stat.carry < info.maxCarry) {
       const maxCarry = info.eachCarry
       const sourcePathLength = info.pathLength
-      const isRepairer = stat.repair < 2
-      room.requestRemoteHauler(targetRoomName, sourceId, { constructing, keeperLairId, isRepairer, sourcePathLength, maxCarry })
+      const isRepairer = isMineral ? false : stat.repair < 2
+      const noRoad = isMineral
+      room.requestRemoteHauler(targetRoomName, sourceId, { constructing, noRoad, keeperLairId, isRepairer, sourcePathLength, maxCarry })
       return
     }
   }
@@ -349,15 +350,15 @@ Room.prototype.checkSourceKeeperRoom = function (targetRoomName) {
     return false
   }
 
-  const adjacentRoomNames = Overlord.getAdjacentRoomNames(this.name)
-
-  if (!adjacentRoomNames.includes(targetRoomName)) { // not adjacent
-    return false
-  }
-
   const intel = Overlord.getIntel(targetRoomName)
 
   if (intel[scoutKeys.notForRemote] !== undefined && intel[scoutKeys.notForRemote].includes(this.name)) { // already failed
+    return false
+  }
+
+  const adjacentRoomNames = Overlord.getAdjacentRoomNames(this.name)
+
+  if (!adjacentRoomNames.includes(targetRoomName)) { // not adjacent
     return false
   }
 
@@ -499,19 +500,22 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
 
     if (info.isMineral) {
       info.maxCarry = Math.floor(path.length * SK_MINERAL_HAULER_RATIO) + 2
-      info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
+      info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 25))
     } else {
       info.maxCarry = Math.floor(path.length * SK_HAULER_RATIO) + 2
       info.eachCarry = Math.ceil(info.maxCarry / Math.ceil(info.maxCarry / 32))
     }
 
     const infraPlan = []
-    const containerPos = path.shift()
 
-    infraPlan.push(containerPos.packInfraPos('container'))
+    if (!info.isMineral) {
+      const containerPos = path.shift()
 
-    for (const pos of path) {
-      infraPlan.push(pos.packInfraPos('road'))
+      infraPlan.push(containerPos.packInfraPos('container'))
+
+      for (const pos of path) {
+        infraPlan.push(pos.packInfraPos('road'))
+      }
     }
 
     info.infraPlan = infraPlan
