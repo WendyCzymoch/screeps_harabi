@@ -83,6 +83,10 @@ Room.prototype.guardRoom = function (request) {
                 continue
             }
 
+            if (hostileCreep.attackPower + hostileCreep.healPower === 0) {
+                continue
+            }
+
             request.usernames = request.usernames || []
 
             if (!request.usernames.includes(username)) {

@@ -158,6 +158,10 @@ Room.prototype.getActiveRemoteNames = function () {
     return activeRemotes.map(info => info.remoteName)
 }
 
+/**
+ * get active remote infos
+ * @returns array of objects which contains informations: remoteName, intermediate, value, weight, oneSource
+ */
 Room.prototype.getActiveRemotes = function () {
     if (this.memory.activeRemotes && this.memory.activeRemotesTime && (Game.time < this.memory.activeRemotesTime + 20)) {
         return this.memory.activeRemotes
@@ -171,6 +175,9 @@ Room.prototype.getActiveRemotes = function () {
             continue
         }
         if (memory.forbiddn) {
+            continue
+        }
+        if (memory.block) {
             continue
         }
 
@@ -572,7 +579,7 @@ function runRemoteHauler(creep, base, targetRoomName) {
             delete creep.memory.targetId
         }
 
-        const tombstone = creep.pos.findInRange(FIND_TOMBSTONES, 6).find(tombstone => tombstone.store[RESOURCE_ENERGY] >= 50)
+        const tombstone = creep.pos.findInRange(FIND_TOMBSTONES, 4).find(tombstone => tombstone.store[RESOURCE_ENERGY] >= 50)
 
         if (tombstone) {
             creep.memory.targetId = tombstone.id
@@ -580,7 +587,7 @@ function runRemoteHauler(creep, base, targetRoomName) {
             return
         }
 
-        const droppedResource = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 6).find(resource => resource.amount >= 50)
+        const droppedResource = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 4).find(resource => resource.resourceType !== RESOURCE_ENERGY || resource.amount >= 50)
 
         if (droppedResource) {
             if (creep.pos.getRangeTo(droppedResource) > 1) {
@@ -610,6 +617,20 @@ function runRemoteHauler(creep, base, targetRoomName) {
             }
         }
         return
+    } else {
+        const remoteMiner = source.pos.findInRange(creep.room.creeps.remoteMiner, 1).find(creep => creep.store && creep.store.getUsedCapacity() > 0)
+        if (remoteMiner) {
+            if (creep.pos.getRangeTo(remoteMiner) > 1) {
+                creep.moveMy({ pos: remoteMiner.pos, range: 1 })
+                return
+            }
+            for (const resourceType in remoteMiner.store) {
+                if (remoteMiner.transfer(creep, resourceType) === OK) {
+                    break
+                }
+            }
+            return
+        }
     }
 
     if (creep.pos.getRangeTo(source.pos) > 2) {

@@ -3,10 +3,6 @@ data.creeps = {}
 data.time = new Date().getTime()
 data.tick = Game.time
 data.terminalOrder = 0
-data.enoughCPU = true
-data.okCPU = true
-data.cpuEmergency = false
-data.isEnoughCredit = false
 data.info = true
 
 /**

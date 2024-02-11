@@ -34,6 +34,7 @@ require('grafana_stats')
 
 require('market_business')
 
+require('overlord_manage_bucket')
 require('overlord_harass')
 require('overlord_manage_resources')
 require('overlord_metric')
@@ -120,34 +121,8 @@ module.exports.loop = () => {
             if (Game.gcl.level > Memory.gcl) {
                 console.log('gcl up')
                 Memory.gcl = Game.gcl.level
-                claim('W3N45')
+                claim('W18N42')
             }
-        }
-
-
-        // bucket check. 8000 5000 2000
-        if (data.enoughCPU && Game.cpu.bucket < 5000) { // stop market, highwaymining
-            data.enoughCPU = false
-        } else if (!data.enoughCPU && Game.cpu.bucket > 8000) {
-            data.enoughCPU = true
-        }
-
-        if (data.okCPU && Game.cpu.bucket < 2000) { // stop lab
-            data.okCPU = false
-        } else if (!data.okCPU && Game.cpu.bucket > 5000) {
-            data.okCPU = true
-        }
-
-        if (!data.cpuEmergency && Game.cpu.bucket < 1000) {
-            data.cpuEmergency = true
-        } else if (data.cpuEmergency && Game.cpu.bucket > 2000) {
-            data.cpuEmergency = false
-        }
-
-        if (data.isEnoughCredit && Game.market.credits < 10000000) {
-            data.isEnoughCredit = false
-        } else if (!data.isEnoughCredit && Game.market.credits > 20000000) {
-            data.isEnoughCredit = true
         }
 
         if (Memory.globalReset === undefined) {
@@ -159,7 +134,6 @@ module.exports.loop = () => {
         Overlord.classifyCreeps()
 
         // flag 실행
-
         for (const flag of Object.values(Game.flags)) {
             const name = flag.name.toLowerCase()
             const roomName = flag.pos.roomName
@@ -311,6 +285,8 @@ module.exports.loop = () => {
             Business.buy('pixel', 500)
         }
 
+        Overlord.manageBucket()
+
         if (data.info) {
             try {
                 Overlord.visualizeRoomInfo()
@@ -321,7 +297,6 @@ module.exports.loop = () => {
         } else {
             new RoomVisual().text('time: ' + Game.time, 0, 46, { align: 'left' })
             new RoomVisual().text('CPU: ' + Game.cpu.getUsed(), 0, 47, { align: 'left' })
-            new RoomVisual().text(`bucket: ${Game.cpu.bucket}(${data.enoughCPU ? 'market, ' : ''}${data.okCPU ? 'lab' : ''})`, 0, 49, { align: 'left' })
         }
 
         Overlord.exportStats()

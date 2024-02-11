@@ -30,6 +30,10 @@ global.scoutKeys = {
 }
 
 Room.prototype.manageScout = function () {
+  if (this.structures.spawn.length === 0) {
+    return
+  }
+
   const MAX_DISTANCE = (SHARD === 'swc') ? 20 : 10 // 최대 거리
 
   this.memory.scout = this.memory.scout || {}
@@ -170,10 +174,10 @@ Room.prototype.manageScout = function () {
   }
 }
 
-Room.prototype.updateIntel = function () {
+Room.prototype.updateIntel = function (options = {}) {
   const intelBefore = this.memory.intel || {}
 
-  if (intelBefore[scoutKeys.lastScout] && (Game.time < intelBefore[scoutKeys.lastScout] + 1000)) {
+  if (!options.ignoreTime && intelBefore[scoutKeys.lastScout] && (Game.time < intelBefore[scoutKeys.lastScout] + 1000)) {
     return
   }
 
@@ -205,6 +209,7 @@ Room.prototype.updateIntel = function () {
   intel[scoutKeys.roomStatusTime] = intelBefore[scoutKeys.roomStatusTime]
   intel[scoutKeys.threat] = intelBefore[scoutKeys.threat]
   intel[scoutKeys.notForRemote] = intelBefore[scoutKeys.notForRemote]
+  intel[scoutKeys.lastScout] = Game.time
 
   this.memory.intel = intel
 }
@@ -298,8 +303,6 @@ Room.prototype.analyzeIntel = function () {
     }
 
   }
-
-  result[scoutKeys.lastScout] = Game.time
   return result
 }
 

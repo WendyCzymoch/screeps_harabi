@@ -3,7 +3,8 @@ const { MAX_DISTANCE, unpackInfraPos, runRemoteMiner, runRemoteHauler, runAway }
 const { getRoomMemory } = require("./util")
 
 const SK_HAULER_RATIO = 0.6
-const SK_MINERAL_HAULER_RATIO = 0.3
+const SK_MINERAL_HAULER_RATIO = 0.2 + 0.1 + 0.2
+// 0.2 for mineral, 0.1 for tombstone, 0.2 for mineral buffer
 
 const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
 

@@ -66,7 +66,7 @@ function getMyFunnelRequest() {
     }
 
     if (room.energyLevel >= config.energyLevel.STOP_FUNNEL) {
-      continue
+      request.enough = true
     }
 
     return request
@@ -109,7 +109,7 @@ function getMyFunnelList() {
     result.push(request)
   }
 
-  result.sort((a, b) => a.maxAmount - b.maxAmount)
+  result.sort((a, b) => (a.goalType - b.goalType) || (a.maxAmount - b.maxAmount))
 
   for (let i = 0; i < result.length; i++) {
     const request = result[i]

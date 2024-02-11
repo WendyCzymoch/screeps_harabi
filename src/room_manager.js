@@ -92,6 +92,8 @@ Room.prototype.checkTombstone = function () {
         return
     }
 
+    this.updateIntel({ ignoreTime: true })
+
     const intel = Overlord.getIntel(this.name)
 
     const deadDefendersId = myDefenderTombstones.map(tombstone => tombstone.creep.id)
@@ -259,7 +261,10 @@ Room.prototype.manageExtractor = function () {
             this.heap.needResearcher = true
             return
         }
-        researcher.getDeliveryRequest(mineralContainer, terminal, this.mineral.mineralType)
+        for (const resourceType in mineralContainer.store) {
+            researcher.getDeliveryRequest(mineralContainer, terminal, resourceType)
+            return
+        }
     }
 }
 

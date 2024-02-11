@@ -12,7 +12,9 @@ Overlord.visualizeRoomInfo = function () {
 
     const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY }
     new RoomVisual().text("Time " + Game.time, 0.5, startPos.y, option)
-    new RoomVisual().text("CPU " + Math.floor(10 * Game.cpu.getUsed()) / 10, 6, startPos.y, option)
+    if (Overlord.getAverageCpu()) {
+        new RoomVisual().text("CPU " + Math.floor(10 * Overlord.getAverageCpu()) / 10, 6, startPos.y, option)
+    }
     new RoomVisual().text("Bucket " + Game.cpu.bucket, 10, startPos.y, option);
     new RoomVisual().text(`Room: ${numMyRoom}`, 15, startPos.y, option)
     new RoomVisual().text(`Remote: ${Overlord.remotes.length}(rooms)`, 18.5, startPos.y, option)
