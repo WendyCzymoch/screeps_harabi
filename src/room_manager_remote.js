@@ -48,6 +48,12 @@ Room.prototype.manageRemotes = function () {
             continue
         }
 
+        if (info.block) {
+            Game.map.visual.text(`⛔`, new RoomPosition(49, 5, targetRoomName), { fontSize: 5, align: 'right' })
+            runRemoteWorkers(this, targetRoomName)
+            continue
+        }
+
         const targetRoom = Game.rooms[targetRoomName]
         if (targetRoom) {
             const invaders = targetRoom.findHostileCreeps()
@@ -175,9 +181,6 @@ Room.prototype.getActiveRemotes = function () {
             continue
         }
         if (memory.forbiddn) {
-            continue
-        }
-        if (memory.block) {
             continue
         }
 

@@ -3,9 +3,10 @@ const { getRemoteValue } = require("./room_manager_remote")
 Overlord.manageBucket = function () {
   const averageCpu = this.getAverageCpu()
 
-  if (Math.random() >= 0.001) {
+  if (Memory._manageBucketTime && Game.time < Memory._manageBucketTime + 1000) {
     return
   }
+  Memory._manageBucketTime = Game.time
 
   if (!averageCpu) {
     return
@@ -13,10 +14,10 @@ Overlord.manageBucket = function () {
 
   const limitCpu = Game.cpu.limit
 
-  if (averageCpu / limitCpu > 0.95) {
-    this.addRemote()
-  } else if (averageCpu / limitCpu < 0.8 || Game.cpu.bucket < 9000) {
+  if ((averageCpu / limitCpu) > 0.95 || Game.cpu.bucket < 9000) {
     this.removeRemote()
+  } else if ((averageCpu / limitCpu) < 0.8) {
+    this.addRemote()
   }
 }
 
@@ -58,7 +59,7 @@ Overlord.removeRemote = function () {
   if (!remoteInfo) {
     return
   }
-  data.recordLog(`block ${remoteName} from ${roomNameInCharge}`, remoteName)
+  data.recordLog(`BUCKET: block ${remoteName} from ${roomNameInCharge}`, remoteName)
   remoteInfo.block = true
 }
 
@@ -69,6 +70,11 @@ Overlord.getWorstRemote = function () {
   for (const room of myRooms) {
     const activeRemotes = room.getActiveRemotes()
     for (const info of activeRemotes) {
+      const remoteName = info.remoteName
+      const remoteInfo = room.getRemoteInfo(remoteName)
+      if (remoteInfo.block) {
+        continue
+      }
       if (result === undefined || (info.value / info.weight) < (result.value / result.weight)) {
         result = info
         roomNameInCharge = room.name
@@ -102,7 +108,7 @@ Overlord.addRemote = function () {
     return
   }
 
-  data.recordLog(`add ${remoteName} from ${roomNameInCharge}`, remoteName)
+  data.recordLog(`BUCKET: add ${remoteName} from ${roomNameInCharge}`, remoteName)
   delete remoteInfo.block
 }
 

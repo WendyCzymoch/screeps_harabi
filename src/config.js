@@ -209,7 +209,7 @@ if (shardName === 'swc') {
 
   config.rampartHitsPerRclSquare = 16000
 
-  config.distanceToRemote = 1
+  config.distanceToRemote = 2
 
 } else { // local
   config.allies = [
