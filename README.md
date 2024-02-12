@@ -21,5 +21,5 @@ This repository contains an autonomous bot developed for the game Screeps.
 
 * **No Code for Powercreeps**: Currently, there is no implementation for powercreeps within the bot.
 
-##Usage
+## Usage
 * **Claim Other Room**: Make a flag in a room you want to claim with name "claim".
