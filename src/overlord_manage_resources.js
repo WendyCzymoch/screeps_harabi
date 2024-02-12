@@ -93,6 +93,11 @@ function getMyFunnelList() {
     }
 
     const level = room.controller.level
+
+    if (level !== 6) {
+      continue
+    }
+
     const goalType = level === 6 ? EFunnelGoalType.RCL7 : level === 7 ? EFunnelGoalType.RCL8 : undefined
 
     if (!goalType) {

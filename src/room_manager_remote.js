@@ -30,6 +30,8 @@ Room.prototype.manageRemotes = function () {
 
     this.heap.numIdlingRemoteHaulerCarryParts = 0
     this.heap.numRemoteHaulerCarryParts = 0
+
+    outer:
     for (const targetRoomName of remoteNames) {
 
         if (!activeRemoteNames.includes(targetRoomName)) {
@@ -52,6 +54,18 @@ Room.prototype.manageRemotes = function () {
             Game.map.visual.text(`⛔`, new RoomPosition(49, 5, targetRoomName), { fontSize: 5, align: 'right' })
             runRemoteWorkers(this, targetRoomName)
             continue
+        }
+
+        const intermediates = info.intermediates
+        if (intermediates) {
+            for (const intermediate of intermediates) {
+                const intermediateInfo = this.getRemoteInfo(intermediate)
+                if (intermediateInfo.block) {
+                    Game.map.visual.text(`⛔`, new RoomPosition(49, 5, targetRoomName), { fontSize: 5, align: 'right' })
+                    runRemoteWorkers(this, targetRoomName)
+                    continue outer
+                }
+            }
         }
 
         const targetRoom = Game.rooms[targetRoomName]

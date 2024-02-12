@@ -127,7 +127,7 @@ if (shardName === 'swc') {
 
   config.labConstructLevel = 7
 
-  config.alwaysShowMapInfo = true
+  config.alwaysShowMapInfo = false
 
   config.publicRamparts = false
 

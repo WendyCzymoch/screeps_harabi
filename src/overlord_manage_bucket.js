@@ -16,7 +16,7 @@ Overlord.manageBucket = function () {
 
   if ((averageCpu / limitCpu) > 0.95 || Game.cpu.bucket < 9000) {
     this.removeRemote()
-  } else if ((averageCpu / limitCpu) < 0.8) {
+  } else if ((averageCpu / limitCpu) < 0.85) {
     this.addRemote()
   }
 }
@@ -30,7 +30,7 @@ Overlord.getAverageCpu = function () {
     return
   }
 
-  if (Memory.globalReset && Game.time < Memory.globalReset + 5) {
+  if (Memory.globalReset && Game.time < Memory.globalReset + 10) {
     return
   }
 
