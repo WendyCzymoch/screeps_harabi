@@ -3,7 +3,6 @@ data.creeps = {}
 data.time = new Date().getTime()
 data.tick = Game.time
 data.terminalOrder = 0
-data.info = true
 
 /**
  * record log to the memory.
@@ -16,8 +15,6 @@ data.recordLog = function (text, roomName, groupInterval = 180) {
   if (!Memory._log) {
     Memory._log = []
   }
-
-
 
   const roomURL = `https://screeps.com/${SHARD === 'shardSeason' ? 'season' : 'a'}/#!/room/${SHARD}/${roomName}`
   const roomHyperLink = `<a href="${roomURL}" target="_blank">${roomName}</a>`

@@ -1,12 +1,37 @@
-const profiler = require('screeps-profiler');
 const { ResourceColors } = require('./roomVisual_prototype');
 const { getRemoteValue } = require('./room_manager_remote');
+const { config } = require('./config');
 
 const OPACITY = 0.5
 
 Overlord.visualizeRoomInfo = function () {
+
     const startPos = { x: -0.5, y: 0.5 }
     const numMyRoom = this.myRooms.length
+
+    if (!config.alwaysShowDashboard) {
+        // turn off the showMapInfo after 50 ticks
+        if (Memory.showDashboard === 1 && Memory.dashboardTime && Game.time > Memory.dashboardTime + 50) {
+            Memory.showDashboard = 0
+        }
+
+        // even if Memory.shoaMapInfo === 0, do mapInfo for every 1000 ticks
+        // this is for deleting outdated memories
+        if (Memory.showDashboard === 0) {
+            const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY }
+            new RoomVisual().text("Time " + Game.time, 0.5, startPos.y, option)
+            if (Overlord.getAverageCpu()) {
+                new RoomVisual().text("CPU " + Math.floor(10 * Overlord.getAverageCpu()) / 10, 6, startPos.y, option)
+            }
+            new RoomVisual().text("Bucket " + Game.cpu.bucket, 10, startPos.y, option);
+            new RoomVisual().text(`Room: ${numMyRoom}`, 15, startPos.y, option)
+            new RoomVisual().text(`Remote: ${Overlord.remotes.length}(rooms)`, 18.5, startPos.y, option)
+            new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 26, startPos.y, option)
+            return
+        }
+    }
+
+    const before = Game.cpu.getUsed()
 
     new RoomVisual().rect(startPos.x + X_ENTIRE.start, startPos.y - 1, X_ENTIRE.end + 0.5, numMyRoom + 3, { fill: 'black', opacity: 0.3 }); // 틀 만들기
 
@@ -45,6 +70,8 @@ Overlord.visualizeRoomInfo = function () {
         visualizePossibleSquad(numMyRoom)
     }
     visualizeTasks()
+
+    console.log(Game.cpu.getUsed() - before)
 }
 
 Object.defineProperties(Room.prototype, {
@@ -416,5 +443,3 @@ function visualizeTasks() {
 
     new RoomVisual().rect(topRightCorner.x, topRightCorner.y, 50 - topRightCorner.x, i, { fill: 'black', opacity: 0.3 }); // 틀 만들기
 }
-
-profiler.registerObject(Overlord, 'Overlord')

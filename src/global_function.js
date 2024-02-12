@@ -130,12 +130,12 @@ global.parseCoord = function (packed) {
 }
 
 global.info = function () {
-    if (data.info) {
-        data.info = false
-        return 'hide info'
+    Memory.showDashboard = (Memory.showDashboard || 0) ^ 1
+    if (Memory.showDashboard === 1) {
+        Memory.dashboardTime = Game.time
+        return `Turn on the dashboard`
     } else {
-        data.info = true
-        return 'show info'
+        return `Turn off the dashboard`
     }
 }
 

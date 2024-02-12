@@ -287,16 +287,11 @@ module.exports.loop = () => {
 
         Overlord.manageBucket()
 
-        if (data.info) {
-            try {
-                Overlord.visualizeRoomInfo()
-                Overlord.mapInfo()
-            } catch (err) {
-                console.log(err)
-            }
-        } else {
-            new RoomVisual().text('time: ' + Game.time, 0, 46, { align: 'left' })
-            new RoomVisual().text('CPU: ' + Game.cpu.getUsed(), 0, 47, { align: 'left' })
+        try {
+            Overlord.visualizeRoomInfo()
+            Overlord.mapInfo()
+        } catch (err) {
+            console.log(err)
         }
 
         Overlord.exportStats()

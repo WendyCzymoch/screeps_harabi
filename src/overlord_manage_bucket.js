@@ -3,7 +3,7 @@ const { getRemoteValue } = require("./room_manager_remote")
 Overlord.manageBucket = function () {
   const averageCpu = this.getAverageCpu()
 
-  if (Memory._manageBucketTime && Game.time < Memory._manageBucketTime + 1000) {
+  if (Memory._manageBucketTime && Game.time < Memory._manageBucketTime + CREEP_LIFE_TIME) {
     return
   }
   Memory._manageBucketTime = Game.time
@@ -39,7 +39,9 @@ Overlord.getAverageCpu = function () {
     return
   }
 
-  Memory.averageCpu = Memory.averageCpu === undefined ? lastCpu : Memory.averageCpu * 0.999 + lastCpu * 0.001
+  const alpha = 2 / (CREEP_LIFE_TIME + 1)
+
+  Memory.averageCpu = Memory.averageCpu === undefined ? lastCpu : Memory.averageCpu * (1 - alpha) + lastCpu * alpha
 
   return Game._avgCPU = Memory.averageCpu
 }

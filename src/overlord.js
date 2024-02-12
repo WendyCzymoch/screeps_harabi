@@ -1,6 +1,8 @@
 const { config } = require("./config")
 const { toTwoDigits } = require("./data")
 
+const profiler = require('screeps-profiler');
+
 INTEL_EXPIRATION_TICK = 60000
 
 global.Overlord = {
@@ -64,8 +66,8 @@ global.Overlord = {
 
 Overlord.mapInfo = function () {
   if (!config.alwaysShowMapInfo) {
-    // turn off the showMapInfo after 1000 ticks
-    if (Memory.showMapInfo === 1 && Memory.mapInfoTime && Game.time > Memory.mapInfoTime + 1000) {
+    // turn off the showMapInfo after 50 ticks
+    if (Memory.showMapInfo === 1 && Memory.mapInfoTime && Game.time > Memory.mapInfoTime + 50) {
       Memory.showMapInfo = 0
     }
 
@@ -277,3 +279,5 @@ Overlord.memHack = {
 }
 
 Overlord.memHack.register()
+
+profiler.registerObject(Overlord, 'Overlord')

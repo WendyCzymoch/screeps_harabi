@@ -67,6 +67,8 @@ if (shardName === 'swc') {
 
   config.distanceToRemote = 2
 
+  config.alwaysShowDashboard = true
+
 } else if (shardName === 'shardSeason') {
   config.allies = [
 
