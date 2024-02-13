@@ -251,7 +251,7 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
     const sourceId = info.sourceId || info.mineralId
     sourceStat[sourceId] = sourceStat[sourceId] || {}
     const stat = sourceStat[sourceId]
-    stat.maxWork = info.mineralId ? 32 : 9
+    stat.maxWork = info.mineralId ? 32 : 12
     stat.work = 0
     stat.carry = 0
     stat.maxCarry = info.maxCarry
@@ -305,8 +305,16 @@ function manageSpawnSourceKeeperRoomWorkers(room, targetRoomName) {
     if (isMineral) {
       const mineral = Game.getObjectById(info.mineralId)
       if (!mineral) {
+        info.ongoing = false
         continue
       }
+
+      const terminal = room.terminal
+      if (!terminal || terminal.store.getFreeCapacity() < 50000) {
+        info.ongoing = false
+        continue
+      }
+
       if (info.ongoing && mineral.ticksToRegeneration > 0) {
         info.ongoing = false
       } else if (!info.ongoing && !mineral.ticksToRegeneration) {

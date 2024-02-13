@@ -486,6 +486,9 @@ Room.prototype.getSpawnCapacity = function () {
     const activeRemotes = this.getActiveRemotes()
     if (activeRemotes) {
         for (const info of activeRemotes) {
+            if (info.block) {
+                continue
+            }
             result += info.weight
         }
     }

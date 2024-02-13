@@ -1,22 +1,28 @@
 const { getRemoteValue } = require("./room_manager_remote")
 
+const CPU_THRESHOLD_UP = 0.9
+const CPU_THRESHOLD_DOWN = 0.8
+const BUCKET_THRESHOLD = 9000
+const CPU_INTERVAL = CREEP_LIFE_TIME / 3
+
 Overlord.manageBucket = function () {
   const averageCpu = this.getAverageCpu()
 
-  if (Memory._manageBucketTime && Game.time < Memory._manageBucketTime + CREEP_LIFE_TIME) {
+  if (Memory._manageBucketTime && Game.time < Memory._manageBucketTime + CPU_INTERVAL) {
     return
   }
-  Memory._manageBucketTime = Game.time
 
   if (!averageCpu) {
     return
   }
 
+  Memory._manageBucketTime = Game.time
+
   const limitCpu = Game.cpu.limit
 
-  if ((averageCpu / limitCpu) > 0.95 || Game.cpu.bucket < 9000) {
+  if ((averageCpu / limitCpu) > CPU_THRESHOLD_UP || Game.cpu.bucket < BUCKET_THRESHOLD) {
     this.removeRemote()
-  } else if ((averageCpu / limitCpu) < 0.85) {
+  } else if ((averageCpu / limitCpu) < CPU_THRESHOLD_DOWN) {
     this.addRemote()
   }
 }
@@ -39,7 +45,7 @@ Overlord.getAverageCpu = function () {
     return
   }
 
-  const alpha = 2 / (CREEP_LIFE_TIME + 1)
+  const alpha = 2 / (CPU_INTERVAL + 1)
 
   Memory.averageCpu = Memory.averageCpu === undefined ? lastCpu : Memory.averageCpu * (1 - alpha) + lastCpu * alpha
 

@@ -120,8 +120,12 @@ module.exports.loop = () => {
             Memory.gcl = Memory.gcl || 1
             if (Game.gcl.level > Memory.gcl) {
                 console.log('gcl up')
-                Memory.gcl = Game.gcl.level
-                claim('W18N42')
+                const roomName = Memory.next
+                const room = Game.rooms[roomName]
+                if (Memory.next && (!room || !room.isMy)) {
+                    Memory.gcl = Game.gcl.level
+                    claim(roomName)
+                }
             }
         }
 

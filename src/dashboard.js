@@ -31,8 +31,6 @@ Overlord.visualizeRoomInfo = function () {
         }
     }
 
-    const before = Game.cpu.getUsed()
-
     new RoomVisual().rect(startPos.x + X_ENTIRE.start, startPos.y - 1, X_ENTIRE.end + 0.5, numMyRoom + 3, { fill: 'black', opacity: 0.3 }); // 틀 만들기
 
     const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY }
@@ -70,8 +68,6 @@ Overlord.visualizeRoomInfo = function () {
         visualizePossibleSquad(numMyRoom)
     }
     visualizeTasks()
-
-    console.log(Game.cpu.getUsed() - before)
 }
 
 Object.defineProperties(Room.prototype, {
@@ -233,6 +229,9 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
         const targetRoomName = info.remoteName
         const remoteInfo = room.getRemoteInfo(targetRoomName)
         if (!remoteInfo) {
+            continue
+        }
+        if (remoteInfo.block) {
             continue
         }
         num += info.oneSource ? 1 : remoteInfo.blueprint.length

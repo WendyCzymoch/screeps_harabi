@@ -24,21 +24,6 @@ Room.prototype.claimRoom = function (roomName) {
     const targetRoom = Game.rooms[roomName]
 
     // defense part
-
-    // defender가 죽은거면 방어 어려우니까 포기
-    if (targetRoom) {
-        targetRoom.checkTombstone()
-    }
-
-    // const map = Overlord.map
-    // if (map[roomName] && map[roomName].threat) {
-    //     delete this.memory.claimRoom[roomName]
-    //     const centerPos = new RoomPosition(25, 25, roomName)
-    //     centerPos.createFlag(`clear ${roomName}`)
-    //     data.recordLog(`claim ${roomName} faild. clear ${roomName}.`, roomName)
-    //     return
-    // }
-
     const tasks = Overlord.getTasksByRoomInCharge(this.name)
     const blinkyTasks = Object.values(tasks['blinky'])
 
