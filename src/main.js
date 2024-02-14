@@ -3,6 +3,8 @@ require('constants')
 
 require('overlord')
 
+require('global_function')
+
 require('creep_prototype_attacker')
 require('creep_prototype_blinky')
 require('creep_prototype_combat')
@@ -27,8 +29,6 @@ require('flag_lootRoom')
 require('flag_prototype')
 require('flag_reconstruction')
 require('flag_war')
-
-require('global_function')
 
 require('grafana_stats')
 

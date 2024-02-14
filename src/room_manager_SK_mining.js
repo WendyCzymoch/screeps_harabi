@@ -671,3 +671,7 @@ Room.prototype.getSourceKeeperRoomSpawnUsage = function (targetRoomName) {
 
   return memory.spawnUsage = result
 }
+
+module.exports = {
+  isStronghold,
+}

@@ -5,8 +5,12 @@ const { getRoomMemory } = require("./util")
 const MAX_DISTANCE = 140
 
 const HAULER_RATIO = 0.4
+const SK_HAULER_RATIO = 0.6
+const SK_MINERAL_HAULER_RATIO = 0.2 + 0.1 + 0.2
 
 const RESERVATION_TICK_THRESHOLD = 1000
+
+const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
 
 Room.prototype.manageRemotes = function () {
     const activeRemotes = this.getActiveRemotes()
@@ -110,10 +114,6 @@ Room.prototype.manageRemotes = function () {
     this.manageRemoteHaulers()
 }
 
-Room.prototype.checkInvader = function (targetRoomName) {
-
-}
-
 Room.prototype.manageRemoteHaulers = function () {
     this.heap.numIdlingRemoteHaulerCarryParts = 0
 
@@ -125,7 +125,6 @@ Room.prototype.manageRemoteHaulers = function () {
 
     const sourceStats = {}
 
-    outer:
     for (const remoteName in remoteInfos) {
         const info = remoteInfos[remoteName]
         const sourceStat = info.sourceStat
@@ -135,8 +134,8 @@ Room.prototype.manageRemoteHaulers = function () {
         }
         for (const sourceId in sourceStat) {
             const source = Game.getObjectById(sourceId)
-            if (!source) {
-                continue outer
+            if (!source || !(source instanceof Source)) {
+                continue
             }
             const stat = sourceStat[sourceId]
             sourceStats[sourceId] = {
@@ -206,7 +205,6 @@ Room.prototype.manageRemoteHaulers = function () {
             }
 
             const expectedEnergyDelta = getSourceExpectedEnergyDelta(stat)
-            console.log(expectedEnergyDelta)
             const expectedEnergy = stat.energyAmountNear + expectedEnergyDelta
 
             if (expectedEnergy < capacity) {
@@ -236,8 +234,6 @@ Room.prototype.manageRemoteHaulers = function () {
 }
 
 function getSourceExpectedEnergyDelta(stat) {
-    console.log(JSON.stringify(stat))
-
     if (stat.pathLength < stat.regeneration) {
         return Math.min(stat.energy, HARVEST_POWER * stat.work * stat.pathLength)
     }
@@ -439,6 +435,57 @@ function runRemoteHauler(creep, base, targetRoomName) {
     return
 }
 
+Room.prototype.requestRemoteHauler = function (options = {}) {
+    if (!this.hasAvailableSpawn()) {
+        return
+    }
+
+    const body = []
+    let cost = 0
+
+
+    const name = `${this.name} remoteHauler ${Game.time}_${this.spawnQueue.length}`
+    const memory = {
+        role: 'remoteHauler',
+        base: this.name,
+    }
+
+    if (options.noRoad) {
+        const energyCapacity = this.energyCapacityAvailable
+
+        const maxCarry = options.maxCarry || 25
+
+        for (let i = 0; i < Math.min(maxCarry, 25); i++) {
+            if (energyCapacity < cost + 100) {
+                break
+            }
+            body.push(CARRY, MOVE)
+            cost += 100
+        }
+    } else {
+        memory.useRoad = true
+
+        const energyCapacity = this.energyCapacityAvailable
+
+        const maxCarry = options.maxCarry || 32
+
+        for (let i = 0; i < Math.min(32, Math.ceil(maxCarry / 2)); i++) {
+            if (energyCapacity < cost + 150) {
+                break
+            }
+            body.push(CARRY, CARRY, MOVE)
+            cost += 150
+        }
+    }
+
+    const spawnOptions = {}
+    spawnOptions.priority = SPAWN_PRIORITY['remoteHauler']
+    spawnOptions.cost = cost
+
+    const request = new RequestSpawn(body, name, memory, spawnOptions)
+    this.spawnQueue.push(request)
+}
+
 Room.prototype.constructRemote = function (targetRoomName, constructionComplete) {
     const activeRemotes = this.getActiveRemotes()
 
@@ -495,10 +542,11 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
     const remoteInfo = activeRemotes.find(info => info.remoteName === targetRoomName)
     // value, spawntime, sourceIds
 
-    const sourceIds = remoteInfo.sourceIds
+    const resourceIds = remoteInfo.resourceIds
 
     if (remoteInfoToConstruct) {
-        const sourceIdsToConstruct = remoteInfoToConstruct.sourceIds
+        const constructBlueprints = this.getRemoteBlueprints(roomNameToConstruct)
+        const resourceIdsToConstruct = [...remoteInfoToConstruct.resourceIds].filter(id => !constructBlueprints[id].isMineral)
 
         const remoteBuilders = Overlord.getCreepsByRole(this.name, 'remoteBuilder').filter(creep => {
             if (creep.spawning) {
@@ -511,14 +559,14 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
         let i = 0
         for (const remoteBuilder of remoteBuilders) {
             remoteBuilder.memory.targetRoomName = roomNameToConstruct
-            const index = i % (sourceIdsToConstruct.length)
-            const sourceIdToConstruct = sourceIdsToConstruct[index]
+            const index = i % (resourceIdsToConstruct.length)
+            const resourceIdToConstruct = resourceIdsToConstruct[index]
             i++
-            runRemoteBuilder(remoteBuilder, roomNameToConstruct, sourceIdToConstruct)
+            runRemoteBuilder(remoteBuilder, roomNameToConstruct, resourceIdToConstruct)
             remoteBuilderNumWork += remoteBuilder.getActiveBodyparts(WORK)
         }
 
-        if ((remoteBuilderNumWork < 6 * sourceIds.length) || (remoteBuilders.length % sourceIds.length !== 0)) {
+        if ((remoteBuilderNumWork < 6 * resourceIdsToConstruct.length) || (remoteBuilders.length % resourceIdsToConstruct.length !== 0)) {
             this.requestRemoteBuilder()
         }
     }
@@ -529,13 +577,16 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
 
     remoteStatus.constructionComplete = remoteStatus.constructionComplete || false
 
-    const blueprint = this.getRemoteBlueprint(targetRoomName)
+    const blueprints = this.getRemoteBlueprints(targetRoomName)
 
     let complete = true
 
     remoteStatus.roomNameToConstruct = undefined
-    for (const sourceId of sourceIds) {
-        const info = blueprint[sourceId]
+    for (const resourceId of resourceIds) {
+        const info = blueprints[resourceId]
+        if (info.isMineral) {
+            continue
+        }
         const packedStructures = info.structures
         let numConstructionSites = 0
         let currentRoomName = undefined
@@ -602,13 +653,17 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
             continue
         }
 
-        const sourceIds = info.sourceIds
+        const resourceIds = info.resourceIds
 
-        const blueprint = this.getRemoteBlueprint(remoteName)
+        const blueprint = this.getRemoteBlueprints(remoteName)
 
-        for (const sourceId of sourceIds) {
+        for (const resourceId of resourceIds) {
             let routeLostHitsTotal = 0
-            const sourceBlueprint = blueprint[sourceId]
+            const sourceBlueprint = blueprint[resourceId]
+
+            if (sourceBlueprint.isMineral) {
+                continue
+            }
 
             const structures = sourceBlueprint.structures
 
@@ -639,7 +694,7 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
             if (routeLostHitsTotal > repairTargetLostHitsTotal) {
                 repairTargetLostHitsTotal = routeLostHitsTotal
                 repairTargetRoomName = remoteName
-                repairTargetSourceId = sourceId
+                repairTargetSourceId = resourceId
             }
         }
 
@@ -906,7 +961,6 @@ Room.prototype.requestRemoteBuilder = function () {
     this.spawnQueue.push(request)
 }
 
-
 Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComplete) {
     const fontSize = 4
     const opacity = 1
@@ -915,8 +969,6 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
     this.memory.currentRemoteIncome = 0
 
     let requested = false
-
-    const canReserve = this.energyCapacityAvailable >= 650
 
     const avgCpu = Overlord.getAverageCpu()
 
@@ -948,162 +1000,21 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
         numHauler++
     }
 
-    outer:
     for (const info of remotesToSpawn) {
         const targetRoomName = info.remoteName
 
         const status = this.getRemoteStatus(targetRoomName)
 
-        const sourceIds = info.sourceIds
+        const roomType = status.roomType
 
-        const blueprint = this.getRemoteBlueprint(targetRoomName)
-
-        if (!blueprint) {
-            continue
-        }
-
-        const reservationTick = getReservationTick(targetRoomName)
-        Game.map.visual.text(`⏰${reservationTick}`, new RoomPosition(49, 45, targetRoomName), { fontSize: 5, align: 'right' })
-
-        const remoteStatus = this.getRemoteStatus(targetRoomName)
-
-        if (reservationTick < 0) {
-            if (canReserve) {
-                const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
-                const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
-
-                if (numClaimParts < 2 && reservers.length < (remoteStatus.controllerAvailable || 2)) {
-                    this.requestReserver(targetRoomName)
-                    requested = true
-                    continue outer
-                }
-            }
-            continue
-        }
-
-        const maxWork = canReserve ? 5 : 3
-
-        const sourceStat = {}
-
-        for (const sourceId of sourceIds) {
-            const sourceBlueprint = blueprint[sourceId]
-            const sourceMaxCarry = sourceBlueprint.maxCarry * (canReserve ? 1 : 0.3)
-            sourceStat[sourceId] = { numMiner: 0, work: 0, pathLength: sourceBlueprint.pathLength, maxWork, maxCarry: sourceMaxCarry }
-
-            if (this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === targetRoomName) {
-                const source = Game.getObjectById(sourceId)
-                if (source && source.energyAmountNear < 500) {
-                    continue
-                }
-            }
-            maxCarry += sourceMaxCarry
-            // If you cannot reserve, 2.5 e/tick + no container, so it decays 1e/tick. So it becomes 1.5e / tick. which is 0.3 of 5e/tick
-        }
-
-        const targetRoom = Game.rooms[targetRoomName]
-
-        const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner').filter(creep => {
-            if (creep.spawning) {
-                return true
-            }
-            const stat = sourceStat[creep.memory.sourceId]
-            if (!stat) {
-                return false
-            }
-            const pathLength = sourceStat[creep.memory.sourceId].pathLength
-            return creep.ticksToLive > (creep.body.length * CREEP_SPAWN_TIME + pathLength)
-        })
-
-        for (const miner of miners) {
-            const sourceId = miner.memory.sourceId
-            sourceStat[sourceId].work += miner.getActiveBodyparts(WORK)
-            sourceStat[sourceId].numMiner++
-        }
-
-        status.sourceStat = sourceStat
-
-        const constructionSites = targetRoom ? targetRoom.constructionSites : []
-        const constructing = constructionSites.length > 0
-
-        if (!constructing) {
-            let income = 0
-            const value = this.getRemoteValue(targetRoomName)
-            for (const sourceId of sourceIds) {
-                const deficiency = maxCarry - numCarry
-                const minerRatio = sourceStat[sourceId].work / maxWork
-                const haulerRatio = (sourceStat[sourceId].maxCarry - deficiency) / sourceStat[sourceId].maxCarry
-                income += value[sourceId] * Math.min(1, minerRatio, haulerRatio)
-            }
-            this.memory.currentRemoteIncome += income
-        }
-
-        let x = 10
-        for (const sourceId of sourceIds) {
-            const stat = sourceStat[sourceId]
-            Game.map.visual.text(`⛏️${stat.work}/${maxWork}`, new RoomPosition(x, 20, targetRoomName), { fontSize, backgroundColor: stat.work >= maxWork ? black : COLOR_NEON_RED, opacity })
-            const source = Game.getObjectById(sourceId)
-            if (source) {
-                const amountNear = source.energyAmountNear
-                Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, 25, targetRoomName), { fontSize, backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED, opacity })
-            }
-            x += 30
-        }
-
-        if (requested) {
-            continue
-        }
-
-        const memory = getRoomMemory(targetRoomName)
-        if (memory.invaderCore) {
-            const coreAttackers = Overlord.getCreepsByRole(targetRoomName, 'coreAttacker')
-            if (coreAttackers.length === 0) {
-                room.requestCoreAttacker(targetRoomName)
-                requested = true
-                continue outer
-            }
-        }
-
-        if (canReserve && reservationTick < RESERVATION_TICK_THRESHOLD) {
-            const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
-            const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
-
-            if (numClaimParts < 2 && reservers.length < (remoteStatus.controllerAvailable || 2)) {
-                this.requestReserver(targetRoomName)
-                requested = true
-                continue outer
-            }
-        }
-
-        for (const sourceId of sourceIds) {
-            const sourceBlueprint = blueprint[sourceId]
-            const stat = sourceStat[sourceId]
-
-            if (stat.work < maxWork && stat.numMiner < sourceBlueprint.available) {
-                let containerId = undefined
-                if (Game.getObjectById(sourceBlueprint.containerId)) {
-                    containerId = sourceBlueprint.containerId
-                } else if (targetRoom) {
-                    const containerPacked = sourceBlueprint.structures.find(packed => {
-                        const parsed = unpackInfraPos(packed)
-                        return parsed.structureType === 'container'
-                    })
-                    const containerUnpacked = unpackInfraPos(containerPacked)
-                    const container = containerUnpacked.pos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === 'container')
-                    if (container) {
-                        containerId = sourceBlueprint.containerId = container.id
-                    }
-                }
-                const numWork = maxWork === 5 ? (needBigMiner ? 12 : 6) : maxWork
-                this.requestRemoteMiner(targetRoomName, sourceId, { containerId, maxWork: numWork, needCarry: canReserve })
-                requested = true
-                continue outer
-            }
-
-            if (numCarry < maxCarry) {
-                this.requestRemoteHauler({ maxCarry: maxHaulerCarry, noRoad: !constructionComplete })
-                requested = true
-                continue outer
-            }
+        if (roomType === 'normal') {
+            const result = this.spawnNormalRemoteWorkers(info, { requested, numCarry, maxCarry, needBigMiner, maxHaulerCarry, constructionComplete })
+            requested = result.requested
+            maxCarry = result.maxCarry
+        } else if (roomType === 'sourceKeeper') {
+            const result = this.spawnSourceKeeperRemoteWorkers(info, { requested, numCarry, maxCarry, needBigMiner, maxHaulerCarry, constructionComplete })
+            requested = result.requested
+            maxCarry = result.maxCarry
         }
     }
 
@@ -1117,6 +1028,328 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
         Game.map.visual.text(`😴${idlingPercentage}%`, new RoomPosition(25, 40, this.name), { fontSize, backgroundColor: COLOR_NEON_RED, opacity: 1 })
     }
     Game.map.visual.text(`🚚${numCarry}/${maxCarry} `, new RoomPosition(25, 35, this.name), { fontSize, backgroundColor: numCarry >= maxCarry ? black : COLOR_NEON_RED, opacity })
+}
+
+Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) { // options = { requested, numCarry, maxCarry, needBigMiner, maxHaulerCarry,constructionComplete }
+    const targetRoomName = info.remoteName
+
+    const blueprints = this.getRemoteBlueprints(targetRoomName)
+
+    const { requested, numCarry, maxCarry, maxHaulerCarry, constructionComplete } = options
+
+    const result = { requested, maxCarry }
+
+    if (!blueprints) {
+        return result
+    }
+
+    const status = this.getRemoteStatus(targetRoomName)
+
+    const resourceIds = info.resourceIds
+
+    const sourceStat = {}
+
+    for (const resourceId of resourceIds) {
+        const blueprint = blueprints[resourceId]
+
+        const isMineral = blueprint.isMineral
+
+        if (isMineral) {
+            continue
+        }
+
+        const maxWork = 12
+
+        const sourceMaxCarry = blueprint.maxCarry
+
+        sourceStat[resourceId] = { numMiner: 0, work: 0, pathLength: blueprint.pathLength, maxWork, maxCarry: sourceMaxCarry }
+
+        if (this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === targetRoomName) {
+            const resource = Game.getObjectById(resourceId)
+            if (resource && resource.energyAmountNear < 500) {
+                continue
+            }
+        }
+        result.maxCarry += sourceMaxCarry
+        // If you cannot reserve, 2.5 e/tick + no container, so it decays 1e/tick. So it becomes 1.5e / tick. which is 0.3 of 5e/tick
+    }
+
+    const targetRoom = Game.rooms[targetRoomName]
+
+    const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner').filter(creep => {
+        if (creep.spawning) {
+            return true
+        }
+        const stat = sourceStat[creep.memory.sourceId]
+        if (!stat) {
+            return false
+        }
+        const pathLength = sourceStat[creep.memory.sourceId].pathLength
+        return creep.ticksToLive > (creep.body.length * CREEP_SPAWN_TIME + pathLength)
+    })
+
+    for (const miner of miners) {
+        const sourceId = miner.memory.sourceId
+        sourceStat[sourceId].work += miner.getActiveBodyparts(WORK)
+        sourceStat[sourceId].numMiner++
+    }
+
+    status.sourceStat = sourceStat
+
+    const positions = [{ x: 10, y: 15 }, { x: 40, y: 15 }, { x: 10, y: 30 }, { x: 40, y: 30 }]
+    let i = 0
+    for (const sourceId of Object.keys(sourceStat)) {
+        const x = positions[i].x
+        const y = positions[i].y
+        i++
+        const stat = sourceStat[sourceId]
+        if (stat.notMining) {
+            continue
+        }
+        const fontSize = 4
+        const opacity = 1
+        const black = '#000000'
+        Game.map.visual.text(`⛏️${stat.work}/${stat.maxWork}`, new RoomPosition(x, y, targetRoomName), { fontSize, backgroundColor: stat.work >= stat.maxWork ? black : COLOR_NEON_RED, opacity })
+        const source = Game.getObjectById(sourceId)
+        if (source && source instanceof Source) {
+            const amountNear = source.energyAmountNear
+            Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, y + 5, targetRoomName), { fontSize, backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED, opacity })
+        }
+    }
+
+    if (result.requested) {
+        return result
+    }
+
+    const sourceKeeperHandlers = Overlord.getCreepsByRole(targetRoomName, 'sourceKeeperHandler')
+    if (!sourceKeeperHandlers.find(creep => creep.ticksToLive > 200 || creep.spawning)) {
+        this.requestSourceKeeperHandler(targetRoomName)
+        result.requested = true
+        return result
+    }
+
+    for (const resourceId of resourceIds) {
+        const sourceBlueprint = blueprints[resourceId]
+
+        const isMineral = sourceBlueprint.isMineral
+
+        if (isMineral) {
+            const mineral = Game.getObjectById(sourceBlueprint.resourceId)
+            if (!mineral) {
+                status.harvestMineral = false
+                continue
+            }
+            const terminal = this.terminal
+            if (!terminal || terminal.store.getFreeCapacity() < 50000) {
+                status.harvestMineral = false
+                continue
+            }
+
+            if (status.harvestMineral && mineral.ticksToRegeneration > 0) {
+                status.harvestMineral = false
+            } else if (!status.harvestMineral && !mineral.ticksToRegeneration) {
+                status.harvestMineral = true
+                status.constructionComplete = false
+                continue
+            }
+            if (!status.harvestMineral) {
+                continue
+            }
+            continue
+        }
+
+        const stat = sourceStat[resourceId]
+        const maxWork = stat.maxWork
+        if (stat.work < maxWork && stat.numMiner < sourceBlueprint.available) {
+            let containerId = undefined
+            if (Game.getObjectById(sourceBlueprint.containerId)) {
+                containerId = sourceBlueprint.containerId
+            } else if (targetRoom) {
+                const containerPacked = sourceBlueprint.structures.find(packed => {
+                    const parsed = unpackInfraPos(packed)
+                    return parsed.structureType === 'container'
+                })
+                const containerUnpacked = unpackInfraPos(containerPacked)
+                const container = containerUnpacked.pos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === 'container')
+                if (container) {
+                    containerId = sourceBlueprint.containerId = container.id
+                }
+            }
+            this.requestRemoteMiner(targetRoomName, resourceId, { containerId, maxWork, needCarry: canReserve })
+            result.requested = true
+            return result
+        }
+
+        if (numCarry < result.maxCarry) {
+            this.requestRemoteHauler({ maxCarry: maxHaulerCarry, noRoad: !(constructionComplete) })
+            result.requested = true
+            return result
+        }
+    }
+}
+
+Room.prototype.spawnNormalRemoteWorkers = function (info, options) { // options = { requested, numCarry, maxCarry, needBigMiner, maxHaulerCarry,constructionComplete }
+    const targetRoomName = info.remoteName
+
+    const blueprints = this.getRemoteBlueprints(targetRoomName)
+
+    const { requested, numCarry, maxCarry, needBigMiner, maxHaulerCarry, constructionComplete } = options
+
+    const result = { requested, maxCarry }
+
+    if (!blueprints) {
+        return result
+    }
+
+    const canReserve = this.energyCapacityAvailable >= 650
+
+    const reservationTick = getReservationTick(targetRoomName)
+    Game.map.visual.text(`⏰${reservationTick}`, new RoomPosition(49, 45, targetRoomName), { fontSize: 5, align: 'right' })
+
+    if (reservationTick < 0) {
+        if (canReserve) {
+            const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
+            const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
+
+            if (numClaimParts < 2 && reservers.length < (remoteStatus.controllerAvailable || 2)) {
+                this.requestReserver(targetRoomName)
+                result.requested = true
+                return result
+            }
+        }
+        return result
+    }
+
+    const status = this.getRemoteStatus(targetRoomName)
+
+    const resourceIds = info.resourceIds
+
+    const maxWork = canReserve ? 5 : 3
+
+    const sourceStat = {}
+
+    for (const resourceId of resourceIds) {
+        const blueprint = blueprints[resourceId]
+        const sourceMaxCarry = blueprint.maxCarry * (canReserve ? 1 : 0.3)
+        sourceStat[resourceId] = { numMiner: 0, work: 0, pathLength: blueprint.pathLength, maxWork, maxCarry: sourceMaxCarry }
+
+        if (this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === targetRoomName) {
+            const source = Game.getObjectById(resourceId)
+            if (source && source.energyAmountNear < 500) {
+                continue
+            }
+        }
+        result.maxCarry += sourceMaxCarry
+        // If you cannot reserve, 2.5 e/tick + no container, so it decays 1e/tick. So it becomes 1.5e / tick. which is 0.3 of 5e/tick
+    }
+
+    const targetRoom = Game.rooms[targetRoomName]
+
+    const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner').filter(creep => {
+        if (creep.spawning) {
+            return true
+        }
+        const stat = sourceStat[creep.memory.sourceId]
+        if (!stat) {
+            return false
+        }
+        const pathLength = sourceStat[creep.memory.sourceId].pathLength
+        return creep.ticksToLive > (creep.body.length * CREEP_SPAWN_TIME + pathLength)
+    })
+
+    for (const miner of miners) {
+        const sourceId = miner.memory.sourceId
+        sourceStat[sourceId].work += miner.getActiveBodyparts(WORK)
+        sourceStat[sourceId].numMiner++
+    }
+
+    status.sourceStat = sourceStat
+
+    if (!this.heap.remoteNameToConstruct || this.heap.remoteNameToConstruct !== targetRoomName) {
+        let income = 0
+        const value = this.getRemoteValue(targetRoomName)
+        for (const resourceId of resourceIds) {
+            const deficiency = result.maxCarry - numCarry
+            const minerRatio = sourceStat[resourceId].work / maxWork
+            const haulerRatio = Math.clamp((sourceStat[resourceId].maxCarry - deficiency) / sourceStat[resourceId].maxCarry, 0, 1)
+            income += value.resources[resourceId] * Math.min(minerRatio, haulerRatio)
+        }
+        income -= (value.reserve || 0)
+        this.memory.currentRemoteIncome += income
+    }
+
+    let x = 10
+    const fontSize = 4
+    const opacity = 1
+    const black = '#000000'
+    for (const resourceId of resourceIds) {
+        const stat = sourceStat[resourceId]
+        Game.map.visual.text(`⛏️${stat.work}/${maxWork}`, new RoomPosition(x, 20, targetRoomName), { fontSize, backgroundColor: stat.work >= maxWork ? black : COLOR_NEON_RED, opacity })
+        const source = Game.getObjectById(resourceId)
+        if (source) {
+            const amountNear = source.energyAmountNear
+            Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, 25, targetRoomName), { fontSize, backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED, opacity })
+        }
+        x += 30
+    }
+
+    if (result.requested) {
+        return result
+    }
+
+    const memory = getRoomMemory(targetRoomName)
+    if (memory.invaderCore) {
+        const coreAttackers = Overlord.getCreepsByRole(targetRoomName, 'coreAttacker')
+        if (coreAttackers.length === 0) {
+            this.requestCoreAttacker(targetRoomName)
+            result.requested = true
+            return result
+        }
+    }
+
+    if (canReserve && reservationTick < RESERVATION_TICK_THRESHOLD) {
+        const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
+        const numClaimParts = reservers.map(creep => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
+
+        if (numClaimParts < 2 && reservers.length < (status.controllerAvailable || 2)) {
+            this.requestReserver(targetRoomName)
+            result.requested = true
+            return result
+        }
+    }
+
+    for (const resourceId of resourceIds) {
+        const sourceBlueprint = blueprints[resourceId]
+        const stat = sourceStat[resourceId]
+
+        if (stat.work < maxWork && stat.numMiner < sourceBlueprint.available) {
+            let containerId = undefined
+            if (Game.getObjectById(sourceBlueprint.containerId)) {
+                containerId = sourceBlueprint.containerId
+            } else if (targetRoom) {
+                const containerPacked = sourceBlueprint.structures.find(packed => {
+                    const parsed = unpackInfraPos(packed)
+                    return parsed.structureType === 'container'
+                })
+                const containerUnpacked = unpackInfraPos(containerPacked)
+                const container = containerUnpacked.pos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === 'container')
+                if (container) {
+                    containerId = sourceBlueprint.containerId = container.id
+                }
+            }
+            const numWork = maxWork === 5 ? (needBigMiner ? 12 : 6) : maxWork
+            this.requestRemoteMiner(targetRoomName, resourceId, { containerId, maxWork: numWork, needCarry: canReserve })
+            result.requested = true
+            return result
+        }
+
+        if (numCarry < result.maxCarry) {
+            this.requestRemoteHauler({ maxCarry: maxHaulerCarry, noRoad: !(constructionComplete) })
+            result.requested = true
+            return result
+        }
+    }
+    return result
 }
 
 Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options = {}) {
@@ -1143,10 +1376,6 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
     const spawnOptions = {}
     spawnOptions.priority = SPAWN_PRIORITY['remoteMiner']
     spawnOptions.cost = cost
-
-    if (options.keeperLairId) {
-        memory.keeperLairId = options.keeperLairId
-    }
 
     if (options.containerId) {
         memory.containerId = options.containerId
@@ -1190,57 +1419,6 @@ function getRemoteMinerModel(energyCapacity, maxWork) {
     const body = parseBody(`${work - 1}w${carry}c${move}m1w`)
 
     return { body, numWork: work, cost }
-}
-
-Room.prototype.requestRemoteHauler = function (options = {}) {
-    if (!this.hasAvailableSpawn()) {
-        return
-    }
-
-    const body = []
-    let cost = 0
-
-
-    const name = `${this.name} remoteHauler ${Game.time}_${this.spawnQueue.length}`
-    const memory = {
-        role: 'remoteHauler',
-        base: this.name,
-    }
-
-    if (options.noRoad) {
-        const energyCapacity = this.energyCapacityAvailable
-
-        const maxCarry = options.maxCarry || 25
-
-        for (let i = 0; i < Math.min(maxCarry, 25); i++) {
-            if (energyCapacity < cost + 100) {
-                break
-            }
-            body.push(CARRY, MOVE)
-            cost += 100
-        }
-    } else {
-        memory.useRoad = true
-
-        const energyCapacity = this.energyCapacityAvailable
-
-        const maxCarry = options.maxCarry || 32
-
-        for (let i = 0; i < Math.min(32, Math.ceil(maxCarry / 2)); i++) {
-            if (energyCapacity < cost + 150) {
-                break
-            }
-            body.push(CARRY, CARRY, MOVE)
-            cost += 150
-        }
-    }
-
-    const spawnOptions = {}
-    spawnOptions.priority = SPAWN_PRIORITY['remoteHauler']
-    spawnOptions.cost = cost
-
-    const request = new RequestSpawn(body, name, memory, spawnOptions)
-    this.spawnQueue.push(request)
 }
 
 function getReservationTick(targetRoomName) {
@@ -1312,12 +1490,6 @@ Room.prototype.addRemoteCost = function (targetRoomName, amount) {
         remoteStatus.netIncome -= amount
         return
     }
-    const sourceKeeperMiningInfo = this.getSourceKeeperMiningInfo(targetRoomName)
-    if (sourceKeeperMiningInfo) {
-        sourceKeeperMiningInfo.netIncome = sourceKeeperMiningInfo.netIncome || 0
-        sourceKeeperMiningInfo.netIncome -= amount
-        return
-    }
 }
 
 Room.prototype.addRemoteProfit = function (targetRoomName, amount) {
@@ -1325,12 +1497,6 @@ Room.prototype.addRemoteProfit = function (targetRoomName, amount) {
     if (remoteStatus) {
         remoteStatus.netIncome = remoteStatus.netIncome || 0
         remoteStatus.netIncome += amount
-        return
-    }
-    const sourceKeeperMiningInfo = this.getSourceKeeperMiningInfo(targetRoomName)
-    if (sourceKeeperMiningInfo) {
-        sourceKeeperMiningInfo.netIncome = sourceKeeperMiningInfo.netIncome || 0
-        sourceKeeperMiningInfo.netIncome += amount
         return
     }
 }
@@ -1347,7 +1513,7 @@ Room.prototype.resetActiveRemotes = function () {
 
 /**
  * get active remote infos
- * @returns array of objects which contains informations: remoteName, intermediate, value, weight, oneSource
+ * @returns array of objects which contains informations: remoteName, intermediate, value, weight, resourceIds, block
  */
 Room.prototype.getActiveRemotes = function () {
     if (this.memory.activeRemotes && this.memory.activeRemotesTime && (Game.time < this.memory.activeRemotesTime + 20)) {
@@ -1357,15 +1523,26 @@ Room.prototype.getActiveRemotes = function () {
     const remoteInfos = []
 
     for (const remoteName of this.getRemoteNames()) {
+        if (isStronghold(remoteName)) {
+            continue
+        }
+
         const remoteStatus = this.getRemoteStatus(remoteName)
         if (!remoteStatus) {
             continue
         }
+
         if (remoteStatus.forbidden) {
             continue
         }
 
         const block = remoteStatus.block
+
+        if (remoteStatus.roomType === 'sourceKeeper') {
+            if (this.energyCapacityAvailable < 4270) { //energy to spawn SK handler
+                continue
+            }
+        }
 
         // basic
 
@@ -1378,17 +1555,19 @@ Room.prototype.getActiveRemotes = function () {
 
         const intermediates = remoteStatus.intermediates
 
-        const info = { remoteName, intermediates, value: value.total, weight: spawnUsage.total, sourceIds: Object.keys(remoteStatus.blueprint), block }
+        const info = { remoteName, intermediates, value: value.total, weight: spawnUsage.total, resourceIds: Object.keys(remoteStatus.blueprints), block }
 
         remoteInfos.push(info)
 
-        if (remoteStatus.numSource <= 1) {
+        if (remoteStatus.numSource <= 1 || remoteStatus.roomType !== 'normal') {
             continue
         }
 
         // oneSource
         const betterSourceId = remoteStatus.betterSourceId
-        const info2 = { remoteName, intermediates, value: value[betterSourceId], weight: spawnUsage[betterSourceId] + (spawnUsage.reserve || 0), sourceIds: [betterSourceId], block }
+        const betterSourceValue = value.resources[betterSourceId] + (value.reserve || 0)
+        const betterSourceWeight = spawnUsage.resources[betterSourceId] + (spawnUsage.reserve || 0)
+        const info2 = { remoteName, intermediates, value: betterSourceValue, weight: betterSourceWeight, resourceIds: [betterSourceId], block }
 
         remoteInfos.push(info2)
     }
@@ -1398,12 +1577,6 @@ Room.prototype.getActiveRemotes = function () {
     if (spawnCapacityForRemotes <= 0) {
         this.memory.activeRemotesTime = Game.time
         return this.memory.activeRemotes = []
-    }
-
-    if (this.memory.activeSK) {
-        for (const targetRoomName of this.memory.activeSK) {
-            spawnCapacityForRemotes -= Math.floor(this.getSourceKeeperRoomSpawnUsage(targetRoomName))
-        }
     }
 
     // vaules
@@ -1482,6 +1655,64 @@ Room.prototype.deleteRemote = function (targetRoomName) {
 }
 
 Room.prototype.getRemoteValue = function (targetRoomName) {
+    const roomType = getRoomType(targetRoomName)
+    if (roomType === 'normal') {
+        return this.getNormalRemoteValue(targetRoomName)
+    } else if (roomType === 'sourceKeeper') {
+        return this.getSourceKeeperRemoteValue(targetRoomName)
+    }
+}
+
+Room.prototype.getSourceKeeperRemoteValue = function (targetRoomName) {
+    const remoteStatus = this.getRemoteStatus(targetRoomName)
+
+    if (remoteStatus && remoteStatus.remoteValue) {
+        return remoteStatus.remoteValue
+    }
+
+    const blueprints = this.getRemoteBlueprints(targetRoomName)
+
+    const result = { total: 0, numSource: 0, resources: {} }
+
+    if (!blueprints) {
+        console.log(`${this.name} cannot get blueprint of ${targetRoomName}`)
+        return result
+    }
+
+    for (const blueprint of Object.values(blueprints)) {
+        result.numSource++
+
+        if (blueprint.isMineral) {
+            continue
+        }
+
+        const income = canReserve ? 10 : 5
+        const distance = blueprint.pathLength
+
+        const minerCost = (1600 / (CREEP_LIFE_TIME - distance)) // 12w7m1c
+        const haluerCost = blueprint.maxCarry * 75 / CREEP_LIFE_TIME
+        const creepCost = (minerCost + haluerCost)
+
+        const containerCost = 0.5
+        const totalCost = creepCost + containerCost
+
+        const netIncome = income - totalCost
+
+        result.resources[blueprint.resourceId] = netIncome
+        result.total += netIncome
+    }
+
+    result.total -= 4270 / CREEP_LIFE_TIME // SK handler
+
+    if (remoteStatus) {
+        remoteStatus.remoteValue = result
+    }
+
+    return result
+}
+
+
+Room.prototype.getNormalRemoteValue = function (targetRoomName) {
     const remoteStatus = this.getRemoteStatus(targetRoomName)
     const canReserve = this.energyCapacityAvailable >= 650
 
@@ -1489,34 +1720,37 @@ Room.prototype.getRemoteValue = function (targetRoomName) {
         return remoteStatus.remoteValue
     }
 
-    const blueprint = this.getRemoteBlueprint(targetRoomName)
+    const blueprints = this.getRemoteBlueprints(targetRoomName)
 
-    const result = { canReserve, total: 0, numSource: 0 }
+    const result = { canReserve, total: 0, numSource: 0, resources: {} }
 
-    if (!blueprint) {
+    if (!blueprints) {
         console.log(`${this.name} cannot get blueprint of ${targetRoomName}`)
         return result
     }
 
-    for (const info of Object.values(blueprint)) {
+    for (const blueprint of Object.values(blueprints)) {
         result.numSource++
 
         const income = canReserve ? 10 : 5
-        const distance = info.pathLength
+        const distance = blueprint.pathLength
 
-        const minerCost = (950 / (1500 - distance))
-        const haluerCost = (distance * HAULER_RATIO * (canReserve ? 75 : 100) + 100) / 1500
+        const minerCost = (950 / (CREEP_LIFE_TIME - distance))
+        const haluerCost = blueprint.maxCarry * (canReserve ? 75 : 100) / CREEP_LIFE_TIME
         const creepCost = (minerCost + haluerCost) * (canReserve ? 1 : 0.5)
 
         const containerCost = canReserve ? 0.5 : 0
-        const roadCost = canReserve ? (1.6 * distance + 10 * distance / (1500 - distance) + 1.5 * distance / (600 - distance)) * 0.001 : 0
-
-        const totalCost = creepCost + containerCost + roadCost
+        const totalCost = creepCost + containerCost
 
         const netIncome = income - totalCost
 
-        result[info.sourceId] = netIncome
+        result.resources[blueprint.resourceId] = netIncome
         result.total += netIncome
+    }
+
+    if (canReserve) {
+        result.reserve = -1 * (BODYPART_COST[CLAIM] + BODYPART_COST[MOVE]) / CREEP_CLAIM_LIFE_TIME
+        result.total += remoteStatus.reserve
     }
 
     if (remoteStatus) {
@@ -1527,33 +1761,128 @@ Room.prototype.getRemoteValue = function (targetRoomName) {
 }
 
 Room.prototype.getRemoteSpawnUsage = function (targetRoomName) {
-    const remoteStatus = this.getRemoteStatus(targetRoomName)
-    const canReserve = this.energyCapacityAvailable >= 650
+    const roomType = getRoomType(targetRoomName)
+    if (roomType === 'normal') {
+        return this.getNormalRemoteSpawnUsage(targetRoomName)
+    } else if (roomType === 'sourceKeeper') {
+        return this.getSourceKeeperRemoteSpawnUsage(targetRoomName)
+    }
+}
 
-    if (remoteStatus && remoteStatus.spawnUsage && (!!remoteStatus.spawnUsage.canReserve === canReserve)) {
+Room.prototype.getSourceKeeperRemoteSpawnUsage = function (targetRoomName) {
+    if (isStronghold(targetRoomName)) {
+        return 0
+    }
+
+    const remoteStatus = this.getRemoteStatus(targetRoomName)
+
+    if (remoteStatus && remoteStatus.spawnUsage) {
         return remoteStatus.spawnUsage
     }
 
-    const blueprint = this.getRemoteBlueprint(targetRoomName)
+    const blueprints = this.getRemoteBlueprints(targetRoomName)
 
-    if (!blueprint) {
+    if (!blueprints) {
         return
     }
 
-    const result = { canReserve, total: 0 }
+    const result = { total: 0 }
 
-    for (const info of Object.values(blueprint)) {
-        result[info.sourceId] = 0
+    result.total += sourceKeeperHandlerBody.length
+
+    for (const blueprint of Object.values(blueprints)) {
+        if (blueprint.isMineral) {
+            continue
+        }
+        result.total += 20 // miner
+        result.total += blueprint.maxCarry * 1.5
         if (this.controller.level < 8) {
-            result[info.sourceId] += 3 * 5 // upgrader. assume that income is 5e/tick
+            result.total += 3 * 9 // upgrader. assume income is 9e/tick
         }
-        result[info.sourceId] += 13 // miner
-        result[info.sourceId] += info.maxCarry * (canReserve ? 1.5 : 2) // hauler
+    }
+
+    if (remoteStatus) {
+        remoteStatus.spawnUsage = result
+    }
+}
+
+function isStronghold(targetRoomName) {
+    Memory.rooms[targetRoomName] = Memory.rooms[targetRoomName] || {}
+    const memory = Memory.rooms[targetRoomName]
+    const invaderCoreInfo = memory.invaderCore
+
+    const targetRoom = Game.rooms[targetRoomName]
+
+    if (!targetRoom) {
+        if (invaderCoreInfo) {
+            if (invaderCoreInfo.deployTime && Game.time < invaderCoreInfo.deployTime) {
+                return false
+            }
+
+            if (invaderCoreInfo.ticksToCollapse && Game.time < invaderCoreInfo.ticksToCollapse) {
+                Game.map.visual.text(invaderCoreInfo.ticksToCollapse - Game.time, new RoomPosition(40, 5, targetRoomName), { fontSize: 6 })
+                return true
+            }
+        }
+        return false
+    }
+
+    const invaderCore = targetRoom.find(FIND_HOSTILE_STRUCTURES).find(structure => structure.structureType === STRUCTURE_INVADER_CORE)
+    if (!invaderCore) {
+        delete memory.invaderCore
+        return false
+    }
+
+    const info = {}
+
+    info.level = invaderCore.level
+
+    if (invaderCore.ticksToDeploy) {
+        info.deployTime = Game.time + invaderCore.ticksToDeploy
+        memory.invaderCore = info
+        return false
+    } else {
+        const effects = invaderCore.effects
+        for (const effectInfo of effects) {
+            if (effectInfo.effect === EFFECT_COLLAPSE_TIMER) {
+                info.ticksToCollapse = Game.time + effectInfo.ticksRemaining
+                memory.invaderCore = info
+                return true
+            }
+        }
+    }
+}
+
+
+Room.prototype.getNormalRemoteSpawnUsage = function (targetRoomName) {
+    const remoteStatus = this.getRemoteStatus(targetRoomName)
+    const canReserve = this.energyCapacityAvailable >= 650
+
+    if (remoteStatus && remoteStatus.spawnUsage && (remoteStatus.spawnUsage.canReserve === canReserve)) {
+        return remoteStatus.spawnUsage
+    }
+
+    const blueprints = this.getRemoteBlueprints(targetRoomName)
+
+    if (!blueprints) {
+        return
+    }
+
+    const result = { canReserve, total: 0, resources: {} }
+
+    for (const blueprint of Object.values(blueprints)) {
+        const resourceId = blueprint.resourceId
+        result.resources[resourceId] = 0
+        if (this.controller.level < 8) {
+            result.resources[resourceId] += 3 * 5 // upgrader. assume that income is 5e/tick
+        }
+        result.resources[resourceId] += 13 // miner
+        result.resources[resourceId] += blueprint.maxCarry * (canReserve ? 1.5 : 2) // hauler
         if (!canReserve) {
-            result[info.sourceId] = result[info.sourceId] * 0.5
+            result.resources[resourceId] = result.resources[resourceId] * 0.5
         }
 
-        result.total += result[info.sourceId]
+        result.total += result.resources[resourceId]
     }
 
     if (canReserve) {
@@ -1568,13 +1897,20 @@ Room.prototype.getRemoteSpawnUsage = function (targetRoomName) {
     return result
 }
 
-Room.prototype.getRemoteBlueprint = function (targetRoomName) {
+/**
+ * get remote bluePrints
+ * @param {String} targetRoomName 
+ * @returns Object with key sourceId value {resourceId, available, pathLength, maxCarry, structures, isMineral}
+ */
+Room.prototype.getRemoteBlueprints = function (targetRoomName) {
     const thisName = this.name
 
     const remoteStatus = this.getRemoteStatus(targetRoomName)
-    if (remoteStatus && remoteStatus.blueprint) {
-        return remoteStatus.blueprint
+    if (remoteStatus && remoteStatus.blueprints) {
+        return remoteStatus.blueprints
     }
+
+    const roomType = getRoomType(targetRoomName)
 
     const startingPoint = this.getStoragePos()
     if (!startingPoint) {
@@ -1588,7 +1924,12 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
 
     const array = []
 
-    const sources = targetRoom.find(FIND_SOURCES)
+    const resources = targetRoom.find(FIND_SOURCES)
+
+    if (roomType !== 'normal') {
+        resources.push(...targetRoom.find(FIND_MINERALS))
+    }
+
     const roadPositions = [...this.getAllRemoteRoadPositions()]
     const basePlan = this.basePlan
 
@@ -1596,8 +1937,8 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
 
     const intermediates = new Set()
 
-    for (const source of sources) {
-        const search = PathFinder.search(source.pos, { pos: startingPoint, range: 1 }, {
+    for (const resource of resources) {
+        const search = PathFinder.search(resource.pos, { pos: startingPoint, range: 1 }, {
             plainCost: 5,
             swampCost: 6, // swampCost higher since road is more expensive on swamp
             maxOps: 20000,
@@ -1633,11 +1974,13 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
 
                 })
 
-                for (const sourceInner of currentRoom.sources) {
-                    if (source.id === sourceInner.id) {
+                const currentRoomResources = [...currentRoom.find(FIND_SOURCES), ...currentRoom.find(FIND_MINERALS)]
+
+                for (const currentRoomResource of currentRoomResources) {
+                    if (resource.id === currentRoomResource.id) {
                         continue
                     }
-                    for (const pos of sourceInner.pos.getInRange(1)) {
+                    for (const pos of currentRoomResource.pos.getInRange(1)) {
                         if (!pos.isWall && costs.get(pos.x, pos.y) < 50) {
                             costs.set(pos.x, pos.y, 50)
                         }
@@ -1664,7 +2007,7 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
         })
 
         if (search.incomplete) {
-            console.log(`${this.name} cannot find path to source ${source.id}`)
+            console.log(`${this.name} cannot find path to resource ${resource.id}`)
             continue
         }
 
@@ -1672,7 +2015,7 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
         const pathLength = path.length
 
         if (pathLength > MAX_DISTANCE) {
-            console.log(`${this.name} is too far to source ${source.id}`)
+            console.log(`${this.name} is too far to resource ${resource.id}`)
             continue
         }
 
@@ -1682,23 +2025,11 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
 
         const info = {}
 
-        info.sourceId = source.id
+        info.resourceId = resource.id
 
-        info.available = source.available
+        info.available = resource.pos.available
 
         info.pathLength = pathLength
-
-        info.maxCarry = (path.length * HAULER_RATIO * 0.95) + 0.5 // 0.05 for reparing container, 0.5 for buffer
-
-        info.repair = 0
-
-        for (const pos of path) {
-            if (pos.isSwamp) {
-                info.repair += 0.005
-            } else {
-                info.repair += 0.001
-            }
-        }
 
         const structures = []
 
@@ -1716,6 +2047,17 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
 
         info.structures = structures
 
+        if (resource.mineralType) {
+            info.isMineral = true
+            info.mineralType = resource.mineralType
+            info.maxCarry = Math.floor(pathLength * SK_MINERAL_HAULER_RATIO) + 2
+        } else {
+            const ratio = roomType === 'normal' ? HAULER_RATIO : SK_HAULER_RATIO
+            const buffer = roomType === 'normal' ? 0.5 : 2
+            info.maxCarry = (path.length * ratio * 0.95) + buffer // 0.05 for reparing container, 0.5 for buffer
+
+        }
+
         array.push(info)
     }
 
@@ -1728,18 +2070,21 @@ Room.prototype.getRemoteBlueprint = function (targetRoomName) {
     const result = {}
 
     for (const info of array) {
-        result[info.sourceId] = info
+        result[info.resourceId] = info
     }
 
     if (remoteStatus) {
         if (intermediates.size > 0) {
             remoteStatus.intermediates = Array.from(intermediates)
         }
-
+        remoteStatus.roomType = roomType
         remoteStatus.numSource = array.length
-        remoteStatus.betterSourceId = array[0].sourceId
-        remoteStatus.blueprint = result
-        remoteStatus.controllerAvailable = targetRoom.controller.pos.available
+        remoteStatus.blueprints = result
+
+        if (roomType === 'normal') {
+            remoteStatus.betterSourceId = array[0].resourceId
+            remoteStatus.controllerAvailable = targetRoom.controller.pos.available
+        }
     }
 
     return result
@@ -1768,7 +2113,7 @@ Room.prototype.getAllRemoteRoadPositions = function () {
             continue
         }
 
-        const blueprint = remoteStatus.blueprint
+        const blueprint = remoteStatus.blueprints
         if (!blueprint) {
             continue
         }

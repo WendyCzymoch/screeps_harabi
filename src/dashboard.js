@@ -233,7 +233,7 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
         if (remoteStatus.block) {
             continue
         }
-        num += info.sourceIds.length
+        num += info.resourceIds.length
         const currentIncome = room.getRemoteNetIncomePerTick(targetRoomName)
         const expectedIncome = info.value
         income += currentIncome
