@@ -186,23 +186,6 @@ Room.prototype.checkTombstone = function () {
 Room.prototype.manageSource = function () {
     let sourceUtilizationRate = 0
     for (const source of this.sources) {
-        // RoomVisual
-        this.visual.text(`⛏️${source.info.numWork}/6`,
-            source.pos.x + 0.5, source.pos.y - 0.25,
-            { font: 0.5, align: 'left' }
-        )
-
-        this.visual.text(`🚚${source.info.numCarry}/${source.info.maxCarry}`,
-            source.pos.x + 0.5, source.pos.y + 0.5,
-            { font: 0.5, align: 'left' }
-        )
-
-        // source 근처 energy 저장량 (container + dropped energy)
-        this.visual.text(` 🔋${source.energyAmountNear}/2000`,
-            source.pos.x + 0.5, source.pos.y + 1.25,
-            { font: 0.5, align: 'left' }
-        )
-
         // miner 비율 : 5 넘으면 1로 고정
         const minerRatio = Math.min(1, source.info.numWork / 5)
 
@@ -221,28 +204,28 @@ Room.prototype.manageSource = function () {
 
         if (minerRatio === 0) {
             this.requestMiner(source, 1)
-            continue
+            return
         }
 
         if (haulerRatio === 0) {
             this.requestHauler(source.info.maxCarry, { isUrgent: true, office: source })
-            continue
+            return
         }
 
         if (minerRatio < 1 && source.info.numMiner < source.available) {
             this.requestMiner(source, 2)
-            continue
+            return
         }
 
         if (haulerRatio < 1 && source.info.numHauler < source.info.maxNumHauler) {
             const numCarry = source.info.numHauler < source.info.maxNumHauler - 1 ? source.info.eachCarry : Math.min(source.info.eachCarry, source.info.maxCarry - source.info.numCarry)
             this.requestHauler(numCarry, { isUrgent: false, office: source })
-            continue
+            return
         }
 
         if (source.energyAmountNear > 2000 && source.info.numCarry < source.info.maxCarry + 6) {
             this.requestHauler((source.info.maxCarry + 6 - source.info.numCarry), { isUrgent: false, office: source })
-            continue
+            return
         }
 
     }

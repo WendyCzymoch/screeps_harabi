@@ -235,9 +235,9 @@ Room.prototype.tryRemote = function (roomName) {
     return
   }
 
-  const value = getRemoteValue(this, roomName)
+  const value = this.getRemoteValue(roomName)
 
-  if (value <= 0) {
+  if (value.total <= 0) {
     intel[scoutKeys.notForRemote] = intel[scoutKeys.notForRemote] || []
     intel[scoutKeys.notForRemote].push(this.name)
     return
@@ -253,9 +253,9 @@ Room.prototype.tryRemote = function (roomName) {
 
   // competition
 
-  const valueBefore = getRemoteValue(roomBefore, roomName)
+  const valueBefore = roomBefore.getRemoteValue(roomName)
 
-  if (value > valueBefore) {
+  if (value.total > valueBefore.total) {
     roomBefore.deleteRemote(roomName)
     this.addRemote(roomName)
     return

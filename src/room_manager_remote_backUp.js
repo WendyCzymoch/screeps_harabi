@@ -792,7 +792,6 @@ function runAway(creep, roomName) {
     }
 }
 
-// invaderCore 추가하기
 function spawnRemoteWorkers(room, targetRoomNames) {
     room.memory.currentRemoteIncome = 0
 

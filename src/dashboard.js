@@ -1,5 +1,4 @@
 const { ResourceColors } = require('./roomVisual_prototype');
-const { getRemoteValue } = require('./room_manager_remote');
 const { config } = require('./config');
 
 const OPACITY = 0.5
@@ -227,16 +226,16 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
 
     for (const info of activeRemotes) {
         const targetRoomName = info.remoteName
-        const remoteInfo = room.getRemoteInfo(targetRoomName)
-        if (!remoteInfo) {
+        const remoteStatus = room.getRemoteStatus(targetRoomName)
+        if (!remoteStatus) {
             continue
         }
-        if (remoteInfo.block) {
+        if (remoteStatus.block) {
             continue
         }
-        num += info.oneSource ? 1 : remoteInfo.blueprint.length
+        num += info.sourceIds.length
         const currentIncome = room.getRemoteNetIncomePerTick(targetRoomName)
-        const expectedIncome = getRemoteValue(room, targetRoomName, info.oneSource)
+        const expectedIncome = info.value
         income += currentIncome
         Game.map.visual.text(`${currentIncome.toFixed(1)}/${expectedIncome.toFixed(1)}`, new RoomPosition(25, 12, targetRoomName), { fontSize: 5, color: COLOR_NEON_YELLOW, backgroundColor: '#000000', opacity: 1 })
         Game.map.visual.line(new RoomPosition(25, 25, room.name), new RoomPosition(25, 25, targetRoomName), { color: COLOR_NEON_YELLOW, width: 0.5, lineStyle: 'dashed' })

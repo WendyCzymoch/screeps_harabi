@@ -102,7 +102,8 @@ global.CREEP_ROELS = [
     'guard',
     'sourceKeeperHandler',
     'remoteMiner',
-    'remoteMiner',
+    'remoteHauler',
+    'remoteBuilder',
     'coreAttacker',
     'blinky',
     'singleton',
@@ -117,7 +118,10 @@ global.SELF_DIRECTED_CREEP_ROELS = [
     'colonyDefender',
     'wallMaker',
     'researcher',
-    'guard'
+    'guard',
+    'reserver',
+    'remoteMiner',
+    'sourceKeeperHandler',
 ]
 
 global.CROSS = [

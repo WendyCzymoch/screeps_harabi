@@ -1,5 +1,3 @@
-const { getRemoteValue } = require("./room_manager_remote")
-
 const CPU_THRESHOLD_UP = 0.9
 const CPU_THRESHOLD_DOWN = 0.8
 const BUCKET_THRESHOLD = 9000
@@ -63,12 +61,12 @@ Overlord.removeRemote = function () {
   if (!roomInCharge) {
     return
   }
-  const remoteInfo = roomInCharge.getRemoteInfo(remoteName)
-  if (!remoteInfo) {
+  const remoteStatus = roomInCharge.getRemoteStatus(remoteName)
+  if (!remoteStatus) {
     return
   }
   data.recordLog(`BUCKET: block ${remoteName} from ${roomNameInCharge}`, remoteName)
-  remoteInfo.block = true
+  remoteStatus.block = true
 }
 
 Overlord.getWorstRemote = function () {
@@ -79,8 +77,8 @@ Overlord.getWorstRemote = function () {
     const activeRemotes = room.getActiveRemotes()
     for (const info of activeRemotes) {
       const remoteName = info.remoteName
-      const remoteInfo = room.getRemoteInfo(remoteName)
-      if (remoteInfo.block) {
+      const remoteStatus = room.getRemoteStatus(remoteName)
+      if (remoteStatus.block) {
         continue
       }
       if (result === undefined || (info.value / info.weight) < (result.value / result.weight)) {
@@ -110,14 +108,14 @@ Overlord.addRemote = function () {
 
   const remoteName = bestRemote.remoteName
 
-  const remoteInfo = roomInCharge.getRemoteInfo(remoteName)
+  const remoteStatus = roomInCharge.getRemoteStatus(remoteName)
 
-  if (!remoteInfo) {
+  if (!remoteStatus) {
     return
   }
 
   data.recordLog(`BUCKET: add ${remoteName} from ${roomNameInCharge}`, remoteName)
-  delete remoteInfo.block
+  delete remoteStatus.block
 }
 
 Overlord.getBestRemote = function () {
@@ -128,12 +126,12 @@ Overlord.getBestRemote = function () {
   for (const room of myRooms) {
     const remoteNames = room.getRemoteNames()
     for (const remoteName of remoteNames) {
-      const info = room.getRemoteInfo(remoteName)
-      if (!info.block) {
+      const remoteStatus = room.getRemoteStatus(remoteName)
+      if (!remoteStatus.block) {
         continue
       }
-      const value = getRemoteValue(room, remoteName)
-      const weight = Math.ceil(room.getRemoteSpawnUsage(remoteName))
+      const value = room.getRemoteValue(room, remoteName).total
+      const weight = room.getRemoteSpawnUsage(remoteName).total
       if (!score || score < value / weight) {
         score = value / weight
         result = remoteName

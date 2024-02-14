@@ -1,4 +1,14 @@
 const { config } = require("./config")
+const { runAway } = require("./room_manager_remote")
+const { getRoomMemory } = require("./util")
+
+const SOURCE_KEEPER_RANGE_TO_START_FLEE = 7
+
+const SOURCE_KEEPER_RANGE_TO_FLEE = 6
+
+const KEEPER_LAIR_RANGE_TO_START_FLEE = 9
+
+const KEEPER_LAIR_RANGE_TO_FLEE = 8
 
 function miner(creep) {
     // 캐러 갈 곳
@@ -417,4 +427,270 @@ function researcher(creep) {
     creep.delivery()
 }
 
-module.exports = { miner, extractor, claimer, pioneer, colonyDefender, wallMaker, researcher, guard }
+function reserver(creep) {
+    const targetRoomName = creep.memory.targetRoomName
+
+    if (creep.spawning) {
+        return
+    }
+
+    if (getRoomMemory(targetRoomName).isCombatant) {
+        runAway(creep, creep.memory.base)
+        return
+    }
+
+    if (creep.memory.getRecycled === true) {
+        if (creep.room.name === creep.memory.base) {
+            creep.getRecycled()
+            return
+        }
+        const room = Game.rooms[creep.memory.base]
+        if (!room) {
+            creep.suicide()
+            return
+        }
+        creep.moveToRoom(creep.memory.base)
+        return
+    }
+
+    const hostileCreeps = creep.room.getEnemyCombatants()
+
+    if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
+        creep.fleeFrom(hostileCreeps, 15)
+        return
+    }
+
+    const targetRoom = Game.rooms[targetRoomName]
+
+    if (!targetRoom) {
+        creep.moveToRoom(targetRoomName)
+        return
+    }
+
+    const controller = targetRoom ? targetRoom.controller : undefined
+
+    if (creep.pos.getRangeTo(controller.pos) > 1) {
+        const targetPos = controller.pos.getAtRange(1).find(pos => pos.walkable && (!pos.creep || (pos.creep.my && pos.creep.memory.role !== creep.memory.role)))
+        if (!targetPos) {
+            if (creep.pos.getRangeTo(controller.pos) > 3) {
+                creep.moveMy({ pos: controller.pos, range: 3 })
+            }
+            return
+        }
+        creep.moveMy({ pos: targetPos, range: 0 })
+        return
+    }
+
+    if (!controller.sign || controller.sign.username !== creep.owner.username) {
+        creep.signController(controller, "A creep can do what he wants, but not want what he wants.")
+    }
+
+    creep.setWorkingInfo(controller.pos, 1)
+
+    // if reserved, attack controller
+    if (controller.reservation && controller.reservation.username !== MY_NAME) {
+        creep.attackController(controller)
+        return
+    }
+
+    creep.reserveController(controller)
+    return
+}
+
+function remoteMiner(creep) {
+    targetRoomName = creep.memory.targetRoomName
+
+    if (creep.spawning) {
+        return
+    }
+
+    if (creep.memory.getRecycled === true) {
+        if (creep.room.name === creep.memory.base) {
+            creep.getRecycled()
+            return
+        }
+        const room = Game.rooms[creep.memory.base]
+        if (!room) {
+            creep.suicide()
+            return
+        }
+        creep.moveToRoom(creep.memory.base)
+        return
+    }
+
+    if (getRoomMemory(targetRoomName).isCombatant) {
+        runAway(creep, creep.memory.base)
+        return
+    }
+
+    const hostileCreeps = creep.room.getEnemyCombatants()
+
+    const roomType = getRoomType(creep.room.name)
+
+    if (roomType === 'sourceKeeper') {
+        if (creep.pos.findInRange(hostileCreeps, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(hostileCreeps, SOURCE_KEEPER_RANGE_TO_FLEE)
+            return
+        }
+
+        const keeperLairs = creep.room.find(FIND_HOSTILE_STRUCTURES).filter(structure => {
+            if (structure.structureType !== STRUCTURE_KEEPER_LAIR) {
+                return false
+            }
+
+            if (structure.ticksToSpawn > 15) {
+                return false
+            }
+
+            return true
+        })
+
+        if (creep.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_FLEE)
+            return
+        }
+
+    } else {
+        if (hostileCreeps.length > 0) {
+            runAway(creep, creep.memory.base)
+            return
+        }
+    }
+
+    const targetRoom = Game.rooms[targetRoomName]
+
+    if (!targetRoom) {
+        creep.moveToRoom(targetRoomName)
+        return
+    }
+
+    const source = Game.getObjectById(creep.memory.sourceId)
+    const container = Game.getObjectById(creep.memory.containerId) || targetRoom.structures.container.find(structure => structure.pos.isNearTo(source))
+    const isOtherCreep = container && container.pos.creep && container.pos.creep.memory && container.pos.creep.memory.role === creep.memory.role
+
+    const target = (container && !isOtherCreep) ? container : source
+
+    const range = (container && !isOtherCreep) ? 0 : 1
+
+    if (creep.pos.getRangeTo(target) > range) {
+        creep.moveMy({ pos: target.pos, range })
+        return
+    }
+
+    creep.setWorkingInfo(target.pos, range)
+
+    const harvestPower = creep.getActiveBodyparts(WORK) * HARVEST_POWER
+
+    if (source instanceof Source) {
+        if (container && (container.store.getUsedCapacity() >= (CONTAINER_CAPACITY - harvestPower))) {
+            if (container.hits < 245000) {
+                if (creep.store[RESOURCE_ENERGY] > 0) {
+                    creep.repair(container)
+                    return
+                } else if (creep.store.getFreeCapacity(RESOURCE_ENERGY)) {
+                    creep.harvest(source)
+                    return
+                }
+            }
+            if (Math.ceil(source.energy / harvestPower) < (source.ticksToRegeneration || 0)) {
+                return
+            }
+        }
+        creep.harvest(source)
+    } else if (source instanceof Mineral) {
+        creep.harvest(source)
+    }
+
+    if (creep.store[RESOURCE_ENERGY] > 0 && container && container.hits < 150000) {
+        creep.repair(container)
+    }
+}
+
+function sourceKeeperHandler(creep) {
+    const roomName = creep.memory.targetRoomName
+
+    if (creep.spawning) {
+        return
+    }
+
+    if (creep.hits < creep.hitsMax) {
+        creep.heal(creep)
+    }
+
+    if (getRoomMemory(targetRoomName).isCombatant) {
+        runAway(creep, creep.memory.base)
+        return
+    }
+
+    const room = Game.rooms[roomName]
+
+    if (!room || creep.room.name !== roomName) {
+        creep.moveToRoom(roomName, 2)
+        return
+    }
+
+    const sourceKeepers = room.find(FIND_HOSTILE_CREEPS).filter(creep => creep.owner.username === 'Source Keeper')
+
+    if (sourceKeepers.length === 0) {
+        const nextSourceKeeperLair = getNextSourceKeeperLair(creep)
+        if (nextSourceKeeperLair) {
+            creep.moveMy({ pos: nextSourceKeeperLair.pos, range: 1 })
+        }
+        return
+    } else {
+        delete creep.heap.nextSourceKeeperLair
+    }
+
+    const closeSourceKeeper = sourceKeepers.find(sourceKeeper => creep.pos.getRangeTo(sourceKeeper) <= 1)
+    if (closeSourceKeeper) {
+        creep.move(creep.pos.getDirectionTo(closeSourceKeeper))
+        creep.attack(closeSourceKeeper)
+        return
+    }
+
+    const goals = sourceKeepers.map(sourceKeeper => {
+        return { pos: sourceKeeper.pos, range: 1 }
+    })
+    creep.moveMy(goals)
+    return
+
+}
+
+function getNextSourceKeeperLair(creep) {
+    if (!creep.heap.nextSourceKeeperLair) {
+        return creep.heap.nextSourceKeeperLair = findNextSourceKeeperLair(creep.room.name)
+    }
+    return creep.heap.nextSourceKeeperLair
+}
+
+function findNextSourceKeeperLair(roomName) {
+    const room = Game.rooms[roomName]
+
+    if (!room) {
+        return undefined
+    }
+
+    const structures = room.find(FIND_HOSTILE_STRUCTURES)
+
+    let result = undefined
+    let ticksToSpawnMin = Infinity
+
+    for (const structure of structures) {
+        if (structure.structureType !== STRUCTURE_KEEPER_LAIR) {
+            continue
+        }
+
+        const ticksToSpawn = structure.ticksToSpawn
+        if (ticksToSpawn === undefined) {
+            continue
+        }
+        if (ticksToSpawn < ticksToSpawnMin) {
+            result = structure
+            ticksToSpawnMin = ticksToSpawn
+        }
+    }
+
+    return result
+}
+
+module.exports = { miner, extractor, claimer, pioneer, colonyDefender, wallMaker, researcher, guard, reserver, remoteMiner, sourceKeeperHandler }

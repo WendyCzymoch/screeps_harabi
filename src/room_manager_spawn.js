@@ -27,11 +27,12 @@ global.SPAWN_PRIORITY = {
 
     'colonyDefender': 4,
     'guard': 4,
+    'coreAttacker': 4,
     'sourceKeeperHandler': 4,
     'reserver': 4.1,
     'remoteMiner': 4.2,
-    'remoteHauler': 4.3,
-    'coreAttacker': 4.4,
+    'remoteBuilder': 4.3,
+    'remoteHauler': 4.4,
 
     'laborer': 5,
 
@@ -995,5 +996,6 @@ Room.prototype.requestScouter = function () {
 }
 
 module.exports = {
-    getLaborerModel
+    getLaborerModel,
+    getBuilderModel,
 }

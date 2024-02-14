@@ -500,7 +500,7 @@ Room.prototype.getSpawnCapacity = function () {
         }
     }
 
-    return result
+    return Math.ceil(result)
 }
 
 Room.prototype.getSpawnCapacityRatio = function () {

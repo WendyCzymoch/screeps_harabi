@@ -137,7 +137,7 @@ if (shardName === 'swc') {
 
   config.rampartHitsPerRclSquare = 5000
 
-  config.blockUpragade = true
+  config.blockUpragade = false
 
   config.distanceToRemote = 2
 
@@ -287,7 +287,7 @@ if (shardName === 'swc') {
 }
 
 // quad and duo settings
-config.IMPORTANT_STRUCTURE_TYPES = ['spawn', 'tower']
+config.IMPORTANT_STRUCTURE_TYPES = [STRUCTURE_SPAWN, STRUCTURE_TOWER, STRUCTURE_INVADER_CORE]
 
 config.duo = {
   IGNORE_TOWER_DAMAGE: true,
