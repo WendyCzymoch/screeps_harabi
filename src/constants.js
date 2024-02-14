@@ -121,7 +121,6 @@ global.SELF_DIRECTED_CREEP_ROELS = [
     'guard',
     'reserver',
     'remoteMiner',
-    'sourceKeeperHandler',
 ]
 
 global.CROSS = [

@@ -1,5 +1,4 @@
 const { getCombatInfo, GuardRequest } = require("./overlord_tasks_guard")
-const { isStronghold, constructSourceKeeperRoomInfra, getSourceKeeperRoomInfraPlan } = require("./room_manager_SK_mining")
 const { getBuilderModel } = require("./room_manager_spawn")
 const { getRoomMemory } = require("./util")
 
@@ -11,12 +10,6 @@ const RESERVATION_TICK_THRESHOLD = 1000
 
 Room.prototype.manageRemotes = function () {
     const activeRemotes = this.getActiveRemotes()
-
-    if (this.memory.activeSK.length > 0) {
-        for (const sourceKeeperRoomName of this.memory.activeSK) {
-            activeRemotes.push(this.getSourceKeeperRoomInfo(sourceKeeperRoomName))
-        }
-    }
 
     const invaderStrengthThreshold = getInvaderStrengthThreshold(this.controller.level) // 1에서 100, 8에서 1644정도
 
@@ -31,17 +24,9 @@ Room.prototype.manageRemotes = function () {
     for (const info of activeRemotes) {
         const targetRoomName = info.remoteName
 
-        const isSoucrKeeperRoom = info.isSoucrKeeperRoom
-
-        if (isSoucrKeeperRoom) {
-            if (isStronghold(targetRoomName)) {
-                continue
-            }
-        }
-
         const memory = getRoomMemory(targetRoomName)
 
-        const status = isSoucrKeeperRoom ? this.getSourceKeeperMiningInfo(targetRoomName) : this.getRemoteStatus(targetRoomName)
+        const status = this.getRemoteStatus(targetRoomName)
 
         if (!status) {
             continue
@@ -71,7 +56,7 @@ Room.prototype.manageRemotes = function () {
         const targetRoom = Game.rooms[targetRoomName]
 
         if (targetRoom) {
-            const invaders = [...targetRoom.findHostileCreeps()].filter(creep => creep.owner.username !== 'Source Keeper')
+            const invaders = targetRoom.findHostileCreeps()
             const enemyInfo = getCombatInfo(invaders)
             const isEnemy = invaders.some(creep => creep.checkBodyParts(INVADER_BODY_PARTS))
             const invaderCore = targetRoom.find(FIND_HOSTILE_STRUCTURES).find(structure => structure.structureType === STRUCTURE_INVADER_CORE)
@@ -95,12 +80,10 @@ Room.prototype.manageRemotes = function () {
                 delete memory.combatantsTicksToLive
             }
 
-            if (!isSoucrKeeperRoom) {
-                if (!memory.invaderCore && invaderCore) {
-                    memory.invaderCore = true
-                } else if (memory.invaderCore && !invaderCore) {
-                    memory.invaderCore = false
-                }
+            if (!memory.invaderCore && invaderCore) {
+                memory.invaderCore = true
+            } else if (memory.invaderCore && !invaderCore) {
+                memory.invaderCore = false
             }
         }
 
@@ -125,6 +108,10 @@ Room.prototype.manageRemotes = function () {
     this.constructRemote(remoteNameToConstruct, constructionComplete)
     this.spawnRemoteWorkers(remotesToSpawn, constructionComplete)
     this.manageRemoteHaulers()
+}
+
+Room.prototype.checkInvader = function (targetRoomName) {
+
 }
 
 Room.prototype.manageRemoteHaulers = function () {
@@ -453,6 +440,8 @@ function runRemoteHauler(creep, base, targetRoomName) {
 }
 
 Room.prototype.constructRemote = function (targetRoomName, constructionComplete) {
+    const activeRemotes = this.getActiveRemotes()
+
     if (!targetRoomName && constructionComplete) {
         delete this.heap.remoteNameToConstruct
 
@@ -491,12 +480,6 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
         return
     }
 
-    const roomType = getRoomType(targetRoomName)
-    if (roomType === 'sourceKeeper') {
-        constructSourceKeeperRoomInfra(this, targetRoomName)
-        return
-    }
-
     const targetRoom = Game.rooms[targetRoomName]
     if (!targetRoom) {
         return
@@ -506,8 +489,6 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
 
     const roomNameToConstruct = remoteStatus.roomNameToConstruct
     this.heap.remoteNameToConstruct = roomNameToConstruct
-
-    const activeRemotes = this.getActiveRemotes()
 
     const remoteInfoToConstruct = activeRemotes.find(info => info.remoteName === roomNameToConstruct)
 
@@ -537,7 +518,7 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
             remoteBuilderNumWork += remoteBuilder.getActiveBodyparts(WORK)
         }
 
-        if ((remoteBuilderNumWork < 6 * sourceIdsToConstruct.length) || (remoteBuilders.length % sourceIdsToConstruct.length !== 0)) {
+        if ((remoteBuilderNumWork < 6 * sourceIds.length) || (remoteBuilders.length % sourceIds.length !== 0)) {
             this.requestRemoteBuilder()
         }
     }
@@ -661,54 +642,8 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
                 repairTargetSourceId = sourceId
             }
         }
-    }
 
-    if (this.memory.activeSK && this.memory.activeSK.length > 0) {
-        for (const remoteName of this.memory.activeSK) {
 
-            if (!Game.rooms[remoteName]) {
-                continue
-            }
-
-            const infraPlan = getSourceKeeperRoomInfraPlan(this, remoteName)
-
-            for (const sourceId in infraPlan) {
-                let routeLostHitsTotal = 0
-                const sourceBlueprint = infraPlan[sourceId]
-
-                const structures = sourceBlueprint.infraPlan
-
-                for (const packed of structures) {
-                    const unpacked = unpackInfraPos(packed)
-
-                    const pos = unpacked.pos
-
-                    if (pos.roomName === this.name) {
-                        break
-                    }
-
-                    if (!Game.rooms[pos.roomName]) {
-                        continue
-                    }
-
-                    const road = pos.lookFor(LOOK_STRUCTURES).find(structure => structure.structureType === STRUCTURE_ROAD)
-
-                    if (road) {
-                        routeLostHitsTotal += road.hitsMax - road.hits
-                        lostHits += road.hitsMax - road.hits
-                        if (road.hits / road.hitsMax < 0.3) {
-                            numLowHits++
-                        }
-                        new RoomVisual(unpacked.pos.roomName).circle(unpacked.pos)
-                    }
-                }
-                if (routeLostHitsTotal > repairTargetLostHitsTotal) {
-                    repairTargetLostHitsTotal = routeLostHitsTotal
-                    repairTargetRoomName = remoteName
-                    repairTargetSourceId = sourceId
-                }
-            }
-        }
     }
 
     return this._remoteRoadDecayInfo = { lostHits, numLowHits, repairTargetRoomName, repairTargetSourceId }
@@ -742,35 +677,9 @@ function runRemoteRepairer(creep) {
 
     const hostileCreeps = creep.room.getEnemyCombatants()
 
-    const roomType = getRoomType(creep.room.name)
-
-    if (roomType === 'sourceKeeper') {
-        if (creep.pos.findInRange(hostileCreeps, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
-            creep.fleeFrom(hostileCreeps, SOURCE_KEEPER_RANGE_TO_FLEE)
-            return
-        }
-
-        const keeperLairs = creep.room.find(FIND_HOSTILE_STRUCTURES).filter(structure => {
-            if (structure.structureType !== STRUCTURE_KEEPER_LAIR) {
-                return false
-            }
-
-            if (structure.ticksToSpawn > 15) {
-                return false
-            }
-
-            return true
-        })
-
-        if (creep.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
-            creep.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_FLEE)
-            return
-        }
-    } else {
-        if (hostileCreeps.length > 0) {
-            runAway(creep, base.name)
-            return
-        }
+    if (hostileCreeps.length > 0) {
+        runAway(creep, base.name)
+        return
     }
 
     // 논리회로
@@ -1046,12 +955,6 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
         const status = this.getRemoteStatus(targetRoomName)
 
         const sourceIds = info.sourceIds
-
-        const isSoucrKeeperRoom = info.isSoucrKeeperRoom
-
-        if (isSoucrKeeperRoom) {
-
-        }
 
         const blueprint = this.getRemoteBlueprint(targetRoomName)
 
@@ -1934,5 +1837,4 @@ function runAway(creep, roomName) {
 
 module.exports = {
     runAway,
-    runRemoteBuilder,
 }
