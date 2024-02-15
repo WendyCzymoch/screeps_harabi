@@ -35,11 +35,11 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
         ignoreCreeps: true,
         ignoreOrder: false,
         visualize: false,
-        useRoad: this.memory.useRoad
+        moveCost: this.getMoveCost()
     }
     const mergedOptions = { ...defaultOptions, ...options }
 
-    const { staySafe, ignoreMap, ignoreCreeps, ignoreOrder, visualize, useRoad } = mergedOptions
+    const { staySafe, ignoreMap, ignoreCreeps, ignoreOrder, visualize, moveCost } = mergedOptions
 
     goals = normalizeGoals(goals)
 
@@ -87,11 +87,6 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
 
     if (this.needNewPath(goals)) {
         this.resetPath()
-        let moveCost = this.getMoveCost()
-        if (useRoad) {
-            moveCost = Math.max(1, moveCost)
-        }
-
         const result = this.searchPath(goals, { ignoreCreeps, staySafe, ignoreMap, moveCost })
         // 도착지까지 길이 안찾아지는 경우
         if (result === ERR_NO_PATH) {
@@ -122,10 +117,6 @@ Creep.prototype.moveMy = function (goals, options = {}) { //option = {staySafe, 
     if (this.heap.stuck >= 5) {
         this.say(`🚧`, true)
         const doIgnoreCreeps = Math.random() < 0.5
-        let moveCost = this.getMoveCost()
-        if (useRoad) {
-            moveCost = Math.max(1, moveCost)
-        }
         const result = this.searchPath(goals, { staySafe, ignoreMap, ignoreCreeps: doIgnoreCreeps, moveCost })
         if (result === ERR_NO_PATH) {
             this.heap.noPath = this.heap.noPath || 0

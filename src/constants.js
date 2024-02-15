@@ -107,7 +107,7 @@ global.CREEP_ROELS = [
     'coreAttacker',
     'blinky',
     'singleton',
-    'idler'
+    'idler',
 ]
 
 global.SELF_DIRECTED_CREEP_ROELS = [
@@ -121,6 +121,7 @@ global.SELF_DIRECTED_CREEP_ROELS = [
     'guard',
     'reserver',
     'remoteMiner',
+    'sourceKeeperHandler',
 ]
 
 global.CROSS = [

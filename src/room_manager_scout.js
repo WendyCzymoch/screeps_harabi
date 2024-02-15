@@ -132,13 +132,7 @@ Room.prototype.manageScout = function () {
       }
 
       const roomType = getRoomType(roomName)
-      if (roomType === 'sourceKeeper') {
-        if (this.checkSourceKeeperRoom(roomName)) {
-          this.memory.activeSK = this.memory.activeSK || []
-          data.recordLog(`SK: ${this.name} starts mining ${roomName}`, roomName)
-          this.memory.activeSK.push(roomName)
-        }
-      } else if (intel[scoutKeys.isRemoteCandidate]) {
+      if (roomType === 'sourceKeeper' || intel[scoutKeys.isRemoteCandidate]) {
         this.tryRemote(roomName)
       }
     } else if (this.memory.remotes && this.memory.remotes[roomName]) {
@@ -218,11 +212,6 @@ Room.prototype.tryRemote = function (roomName) {
   const intel = Overlord.getIntel(roomName)
 
   if (!Game.rooms[roomName]) {
-    return
-  }
-
-  // not adequate
-  if (!intel[scoutKeys.isRemoteCandidate]) {
     return
   }
 

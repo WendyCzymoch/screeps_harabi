@@ -539,7 +539,7 @@ function getSourceKeeperRoomInfraPlan(room, targetRoomName) {
   return result
 }
 
-Room.prototype.requestSourceKeeperHandler = function (targetRoomName) {
+Room.prototype.requestSourceKeeperHandler = function (targetRoomName, resourceIds) {
   if (!this.hasAvailableSpawn()) {
     return
   }
@@ -552,7 +552,8 @@ Room.prototype.requestSourceKeeperHandler = function (targetRoomName) {
   const memory = {
     role: 'sourceKeeperHandler',
     base: this.name,
-    targetRoomName: targetRoomName
+    targetRoomName: targetRoomName,
+    resourceIds
   }
 
   const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['sourceKeeperHandler'], cost: cost })

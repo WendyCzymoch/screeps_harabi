@@ -362,6 +362,14 @@ Spawn.prototype.spawnRequest = function (request) {
         const targetRoomName = request.memory.targetRoomName
         if (targetRoomName) {
             this.room.addRemoteCost(targetRoomName, request.cost)
+        } else {
+            const activeRemotes = this.room.getActiveRemotes()
+            const weightSum = activeRemotes.map(info => info.weight).reduce((acc, curr) => acc + curr, 0)
+            for (const info of activeRemotes) {
+                const remoteName = info.remoteName
+                const cost = request.cost * info.weight / weightSum
+                this.room.addRemoteCost(remoteName, cost)
+            }
         }
     }
 

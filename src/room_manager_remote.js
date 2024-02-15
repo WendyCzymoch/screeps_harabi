@@ -10,6 +10,14 @@ const SK_MINERAL_HAULER_RATIO = 0.2 + 0.1 + 0.2
 
 const RESERVATION_TICK_THRESHOLD = 1000
 
+const SOURCE_KEEPER_RANGE_TO_START_FLEE = 7
+
+const SOURCE_KEEPER_RANGE_TO_FLEE = 6
+
+const KEEPER_LAIR_RANGE_TO_START_FLEE = 9
+
+const KEEPER_LAIR_RANGE_TO_FLEE = 8
+
 const sourceKeeperHandlerBody = parseBody(`25m18a5h1a1h`)
 
 Room.prototype.manageRemotes = function () {
@@ -60,7 +68,7 @@ Room.prototype.manageRemotes = function () {
         const targetRoom = Game.rooms[targetRoomName]
 
         if (targetRoom) {
-            const invaders = targetRoom.findHostileCreeps()
+            const invaders = [...targetRoom.findHostileCreeps()].filter(creep => creep.owner.username !== 'Source Keeper')
             const enemyInfo = getCombatInfo(invaders)
             const isEnemy = invaders.some(creep => creep.checkBodyParts(INVADER_BODY_PARTS))
             const invaderCore = targetRoom.find(FIND_HOSTILE_STRUCTURES).find(structure => structure.structureType === STRUCTURE_INVADER_CORE)
@@ -179,12 +187,12 @@ Room.prototype.manageRemoteHaulers = function () {
         return
     }
 
-    for (const haluer of freeHaulers) {
+    for (const hauler of freeHaulers) {
         let targetSourceId = undefined
         let targetRoomName = undefined
         let score = 0
 
-        const capacity = haluer.store.getCapacity()
+        const capacity = hauler.store.getCapacity()
 
         source:
         for (const sourceId in sourceStats) {
@@ -200,7 +208,7 @@ Room.prototype.manageRemoteHaulers = function () {
                     }
                 }
             }
-            if (haluer.ticksToLive < 2 * stat.pathLength * 1.1) {
+            if (hauler.ticksToLive < 2 * stat.pathLength * 1.1) {
                 continue
             }
 
@@ -221,14 +229,17 @@ Room.prototype.manageRemoteHaulers = function () {
             }
         }
         if (score > 0) {
-            haluer.memory.targetRoomName = targetRoomName
-            haluer.memory.sourceId = targetSourceId
+            hauler.memory.targetRoomName = targetRoomName
+            hauler.memory.sourceId = targetSourceId
             sourceStats[targetSourceId].energyAmountNear -= capacity
-            runRemoteHauler(haluer, this, targetRoomName)
+            runRemoteHauler(hauler, this, targetRoomName)
         } else {
-            haluer.say('😴', true)
-            this.heap.numIdlingRemoteHaulerCarryParts += haluer.getActiveBodyparts(CARRY)
-            Game.map.visual.text(`😴`, haluer.pos, { fontSize: 5 })
+            hauler.say('😴', true)
+            this.heap.numIdlingRemoteHaulerCarryParts += hauler.getActiveBodyparts(CARRY)
+            Game.map.visual.text(`😴`, hauler.pos, { fontSize: 5 })
+            if (hauler.ticksToLive < hauler.body.length * CREEP_SPAWN_TIME) {
+                hauler.memory.getRecycled = true
+            }
         }
     }
 }
@@ -306,6 +317,7 @@ function runRemoteHauler(creep, base, targetRoomName) {
     // 논리회로
     if (creep.memory.supplying && creep.store.getUsedCapacity() === 0) {
         creep.memory.supplying = false
+        delete creep.heap.idling
         delete creep.memory.targetRoomName
         delete creep.memory.sourceId
     } else if (!creep.memory.supplying && creep.store.getFreeCapacity() === 0) {
@@ -401,7 +413,7 @@ function runRemoteHauler(creep, base, targetRoomName) {
             if (creep.withdraw(container, resourceType) === OK) {
                 const spawn = base.structures.spawn[0]
                 if (spawn) {
-                    creep.moveMy({ pos: spawn.pos, range: 3 })
+                    creep.moveMy({ pos: spawn.pos, range: 3 }, { moveCost: 1 })
                 }
             }
         }
@@ -426,10 +438,26 @@ function runRemoteHauler(creep, base, targetRoomName) {
         creep.moveMy({ pos: source.pos, range: 2 })
         return
     }
-
+    creep.heap.idling = creep.heap.idling || 0
+    creep.heap.idling++
     base.heap.numIdlingRemoteHaulerCarryParts += creep.getActiveBodyparts(CARRY)
     Game.map.visual.text(`😴`, creep.pos, { fontSize: 5 })
     creep.say('😴', true)
+
+    if (creep.heap.idling > 10) {
+        if (creep.store.getUsedCapacity() > 0) {
+            const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
+            if (base) {
+                base.addRemoteProfit(targetRoomName, amount)
+            }
+            creep.memory.supplying = true
+            console.log('too much idling. return to base')
+        } else {
+            console.log('too much idling. find another target')
+            delete creep.memory.targetRoomName
+            delete creep.memory.sourceId
+        }
+    }
 
     creep.setWorkingInfo(source.pos, 2)
     return
@@ -463,8 +491,6 @@ Room.prototype.requestRemoteHauler = function (options = {}) {
             cost += 100
         }
     } else {
-        memory.useRoad = true
-
         const energyCapacity = this.energyCapacityAvailable
 
         const maxCarry = options.maxCarry || 32
@@ -495,10 +521,10 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
         if (Math.random() < 0.005) {
             const roadDecayInfo = this.getRemoteRoadDecayInfo()
             const score = roadDecayInfo.lostHits + roadDecayInfo.numLowHits * 5000
-            const criteria = 3 * REPAIR_POWER * CREEP_LIFE_TIME
+            const criteria = REPAIR_POWER * CREEP_LIFE_TIME
             if (!this.memory.repairRemote && score > criteria) {
                 this.memory.repairRemote = true
-            } else if (this.memory.repairRemote && score < (criteria / 10)) {
+            } else if (this.memory.repairRemote && score < (criteria / 5)) {
                 this.memory.repairRemote = false
             }
         }
@@ -612,7 +638,9 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
                 if (!remoteStatus.roomNameToConstruct && pos.roomName !== this.name) {
                     remoteStatus.roomNameToConstruct = pos.roomName
                 }
-                complete = false
+                if (pos.roomName !== this.name) {
+                    complete = false
+                }
                 numConstructionSites++
                 continue
             }
@@ -644,7 +672,7 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
     let numLowHits = 0
     let repairTargetRoomName = undefined
     let repairTargetSourceId = undefined
-    let repairTargetLostHitsTotal = 0
+    let repairTargetScore = 0
 
     for (const info of activeRemotes) {
         const remoteName = info.remoteName
@@ -659,6 +687,7 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
 
         for (const resourceId of resourceIds) {
             let routeLostHitsTotal = 0
+            let routeHitxMaxTotal = 0
             const sourceBlueprint = blueprint[resourceId]
 
             if (sourceBlueprint.isMineral) {
@@ -684,15 +713,16 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
 
                 if (road) {
                     routeLostHitsTotal += road.hitsMax - road.hits
+                    routeHitxMaxTotal += road.hitsMax
                     lostHits += road.hitsMax - road.hits
                     if (road.hits / road.hitsMax < 0.3) {
                         numLowHits++
                     }
-                    new RoomVisual(unpacked.pos.roomName).circle(unpacked.pos)
                 }
             }
-            if (routeLostHitsTotal > repairTargetLostHitsTotal) {
-                repairTargetLostHitsTotal = routeLostHitsTotal
+            const routeScore = routeLostHitsTotal / routeHitxMaxTotal
+            if (routeScore > repairTargetScore) {
+                repairTargetScore = routeScore
                 repairTargetRoomName = remoteName
                 repairTargetSourceId = resourceId
             }
@@ -732,15 +762,39 @@ function runRemoteRepairer(creep) {
 
     const hostileCreeps = creep.room.getEnemyCombatants()
 
-    if (hostileCreeps.length > 0) {
-        runAway(creep, base.name)
-        return
+    const roomType = getRoomType(creep.room.name)
+
+    if (roomType === 'sourceKeeper') {
+        if (creep.pos.findInRange(hostileCreeps, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(hostileCreeps, SOURCE_KEEPER_RANGE_TO_FLEE)
+            return
+        }
+
+        const keeperLairs = creep.room.find(FIND_HOSTILE_STRUCTURES).filter(structure => {
+            if (structure.structureType !== STRUCTURE_KEEPER_LAIR) {
+                return false
+            }
+
+            if (structure.ticksToSpawn > 15) {
+                return false
+            }
+
+            return true
+        })
+
+        if (creep.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_FLEE)
+            return
+        }
+    } else {
+        if (hostileCreeps.length > 0) {
+            runAway(creep, base.name)
+            return
+        }
     }
 
     // 논리회로
     if (creep.memory.working && creep.store.getUsedCapacity() === 0) {
-        delete creep.memory.targetRoomName
-        delete creep.memory.sourceId
         creep.memory.working = false
     } else if (!creep.memory.working && creep.store.getFreeCapacity() === 0) {
         const source = Game.getObjectById(sourceId)
@@ -837,9 +891,35 @@ function runRemoteBuilder(creep, targetRoomName, sourceId) {
 
     const hostileCreeps = creep.room.getEnemyCombatants()
 
-    if (hostileCreeps.length > 0) {
-        runAway(creep, base.name)
-        return
+    const roomType = getRoomType(creep.room.name)
+
+    if (roomType === 'sourceKeeper') {
+        if (creep.pos.findInRange(hostileCreeps, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(hostileCreeps, SOURCE_KEEPER_RANGE_TO_FLEE)
+            return
+        }
+
+        const keeperLairs = creep.room.find(FIND_HOSTILE_STRUCTURES).filter(structure => {
+            if (structure.structureType !== STRUCTURE_KEEPER_LAIR) {
+                return false
+            }
+
+            if (structure.ticksToSpawn > 15) {
+                return false
+            }
+
+            return true
+        })
+
+        if (creep.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
+            creep.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_FLEE)
+            return
+        }
+    } else {
+        if (hostileCreeps.length > 0) {
+            runAway(creep, base.name)
+            return
+        }
     }
 
     if (creep.room.name !== targetRoomName) {
@@ -978,7 +1058,7 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
     let numCarry = 0
     let maxCarry = 0
 
-    const ratio = this.storage ? 1 : 0.8
+    const ratio = this.storage ? 1 : 0.9
     const energyCapacity = Math.max(this.energyCapacityAvailable * ratio, 300)
 
     const maxHaulerCarry = constructionComplete
@@ -1123,7 +1203,17 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) { // op
 
     const sourceKeeperHandlers = Overlord.getCreepsByRole(targetRoomName, 'sourceKeeperHandler')
     if (!sourceKeeperHandlers.find(creep => creep.ticksToLive > 200 || creep.spawning)) {
-        this.requestSourceKeeperHandler(targetRoomName)
+        const killMineralSourceKeeper = status.killMineralSourceKeeper
+        const resourceIds = []
+
+        for (const id in blueprints) {
+            if (!killMineralSourceKeeper && blueprints[id].isMineral) {
+                continue
+            }
+            resourceIds.push(id)
+        }
+
+        this.requestSourceKeeperHandler(targetRoomName, resourceIds)
         result.requested = true
         return result
     }
@@ -1175,7 +1265,7 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) { // op
                     containerId = sourceBlueprint.containerId = container.id
                 }
             }
-            this.requestRemoteMiner(targetRoomName, resourceId, { containerId, maxWork, needCarry: canReserve })
+            this.requestRemoteMiner(targetRoomName, resourceId, { containerId, maxWork })
             result.requested = true
             return result
         }
@@ -1186,6 +1276,7 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) { // op
             return result
         }
     }
+    return result
 }
 
 Room.prototype.spawnNormalRemoteWorkers = function (info, options) { // options = { requested, numCarry, maxCarry, needBigMiner, maxHaulerCarry,constructionComplete }
@@ -1282,6 +1373,7 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) { // options 
     const fontSize = 4
     const opacity = 1
     const black = '#000000'
+
     for (const resourceId of resourceIds) {
         const stat = sourceStat[resourceId]
         Game.map.visual.text(`⛏️${stat.work}/${maxWork}`, new RoomPosition(x, 20, targetRoomName), { fontSize, backgroundColor: stat.work >= maxWork ? black : COLOR_NEON_RED, opacity })
@@ -1338,7 +1430,7 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) { // options 
                 }
             }
             const numWork = maxWork === 5 ? (needBigMiner ? 12 : 6) : maxWork
-            this.requestRemoteMiner(targetRoomName, resourceId, { containerId, maxWork: numWork, needCarry: canReserve })
+            this.requestRemoteMiner(targetRoomName, resourceId, { containerId, maxWork: numWork })
             result.requested = true
             return result
         }
@@ -1523,7 +1615,8 @@ Room.prototype.getActiveRemotes = function () {
     const remoteInfos = []
 
     for (const remoteName of this.getRemoteNames()) {
-        if (isStronghold(remoteName)) {
+        const roomType = getRoomType(remoteName)
+        if (roomType === 'sourceKeeper' && isStronghold(remoteName)) {
             continue
         }
 
@@ -1538,10 +1631,8 @@ Room.prototype.getActiveRemotes = function () {
 
         const block = remoteStatus.block
 
-        if (remoteStatus.roomType === 'sourceKeeper') {
-            if (this.energyCapacityAvailable < 4270) { //energy to spawn SK handler
-                continue
-            }
+        if (remoteStatus.roomType === 'sourceKeeper' && this.energyCapacityAvailable < 4270) { //energy to spawn SK handler
+            continue
         }
 
         // basic
@@ -1635,6 +1726,7 @@ Room.prototype.getActiveRemotes = function () {
             result = resultTable[i]
         }
     }
+    result.sort((a, b) => (b.value / b.weight) - (a.value / a.weight))
     this.memory.activeRemotesTime = Game.time
     return this.memory.activeRemotes = result
 }
@@ -1686,7 +1778,7 @@ Room.prototype.getSourceKeeperRemoteValue = function (targetRoomName) {
             continue
         }
 
-        const income = canReserve ? 10 : 5
+        const income = 4000 / 300
         const distance = blueprint.pathLength
 
         const minerCost = (1600 / (CREEP_LIFE_TIME - distance)) // 12w7m1c
@@ -1750,7 +1842,7 @@ Room.prototype.getNormalRemoteValue = function (targetRoomName) {
 
     if (canReserve) {
         result.reserve = -1 * (BODYPART_COST[CLAIM] + BODYPART_COST[MOVE]) / CREEP_CLAIM_LIFE_TIME
-        result.total += remoteStatus.reserve
+        result.total += result.reserve
     }
 
     if (remoteStatus) {
@@ -1926,8 +2018,15 @@ Room.prototype.getRemoteBlueprints = function (targetRoomName) {
 
     const resources = targetRoom.find(FIND_SOURCES)
 
-    if (roomType !== 'normal') {
-        resources.push(...targetRoom.find(FIND_MINERALS))
+    const dangerSpots = []
+    if (roomType === 'sourceKeeper') {
+        const sourceKeeperLairs = targetRoom.find(FIND_HOSTILE_STRUCTURES).filter(structure => structure.structureType === STRUCTURE_KEEPER_LAIR)
+        const minerals = targetRoom.find(FIND_MINERALS)
+        for (const mineral of minerals) {
+            resources.push(mineral)
+            dangerSpots.push(mineral)
+            dangerSpots.push(...mineral.pos.findInRange(sourceKeeperLairs, 5))
+        }
     }
 
     const roadPositions = [...this.getAllRemoteRoadPositions()]
@@ -1938,6 +2037,8 @@ Room.prototype.getRemoteBlueprints = function (targetRoomName) {
     const intermediates = new Set()
 
     for (const resource of resources) {
+        const isMineral = !!resource.mineralType
+
         const search = PathFinder.search(resource.pos, { pos: startingPoint, range: 1 }, {
             plainCost: 5,
             swampCost: 6, // swampCost higher since road is more expensive on swamp
@@ -2037,23 +2138,28 @@ Room.prototype.getRemoteBlueprints = function (targetRoomName) {
 
         structures.push(containerPos.packInfraPos('container'))
 
+        remoteStatus.killMineralSourceKeeper = false
+
         for (const pos of path) {
             const roomName = pos.roomName
             if (![thisName, targetRoomName].includes(roomName)) {
                 intermediates.add(roomName)
             }
             structures.push(pos.packInfraPos('road'))
+            if (roomType === 'sourceKeeper' && remoteStatus && !isMineral && pos.findInRange(dangerSpots, 5).length > 0) {
+                remoteStatus.killMineralSourceKeeper = true
+            }
         }
 
         info.structures = structures
 
-        if (resource.mineralType) {
+        if (isMineral) {
             info.isMineral = true
             info.mineralType = resource.mineralType
             info.maxCarry = Math.floor(pathLength * SK_MINERAL_HAULER_RATIO) + 2
         } else {
             const ratio = roomType === 'normal' ? HAULER_RATIO : SK_HAULER_RATIO
-            const buffer = roomType === 'normal' ? 0.5 : 2
+            const buffer = roomType === 'normal' ? 1 : 2
             info.maxCarry = (path.length * ratio * 0.95) + buffer // 0.05 for reparing container, 0.5 for buffer
 
         }

@@ -606,4 +606,122 @@ function remoteMiner(creep) {
     }
 }
 
-module.exports = { miner, extractor, claimer, pioneer, colonyDefender, wallMaker, researcher, guard, reserver, remoteMiner }
+function sourceKeeperHandler(creep) {
+    const roomName = creep.memory.targetRoomName
+
+    if (creep.spawning) {
+        return
+    }
+
+    if (creep.hits < creep.hitsMax) {
+        creep.heal(creep)
+    }
+
+    if (getRoomMemory(roomName).isCombatant) {
+        runAway(creep, creep.memory.base)
+        return
+    }
+
+    const room = Game.rooms[roomName]
+
+    if (!room || creep.room.name !== roomName) {
+        creep.moveToRoom(roomName, 2)
+        return
+    }
+
+    if (!creep.memory.resourceIds) {
+        return
+    }
+
+    const targetResources = creep.memory.resourceIds.map(id => Game.getObjectById(id))
+
+    const sourceKeepers = room.find(FIND_HOSTILE_CREEPS).filter(creep => {
+        if (creep.owner.username !== 'Source Keeper') {
+            return false
+        }
+        if (creep.pos.findInRange(targetResources, 5).length === 0) {
+            return false
+        }
+        return true
+    })
+
+    if (sourceKeepers.length === 0) {
+        const nextSourceKeeperLair = getNextSourceKeeperLair(creep, targetResources)
+        if (nextSourceKeeperLair) {
+            creep.moveMy({ pos: nextSourceKeeperLair.pos, range: 1 })
+        }
+        return
+    } else {
+        delete creep.heap.nextSourceKeeperLair
+    }
+
+    const closeSourceKeeper = sourceKeepers.find(sourceKeeper => creep.pos.getRangeTo(sourceKeeper) <= 1)
+    if (closeSourceKeeper) {
+        creep.move(creep.pos.getDirectionTo(closeSourceKeeper))
+        creep.attack(closeSourceKeeper)
+        return
+    }
+
+    const goals = sourceKeepers.map(sourceKeeper => {
+        return { pos: sourceKeeper.pos, range: 1 }
+    })
+    creep.moveMy(goals)
+    return
+
+}
+
+function getNextSourceKeeperLair(creep, targetResources) {
+    if (!creep.heap.nextSourceKeeperLair) {
+        return creep.heap.nextSourceKeeperLair = findNextSourceKeeperLair(creep.room.name, targetResources)
+    }
+    return creep.heap.nextSourceKeeperLair
+}
+
+function findNextSourceKeeperLair(roomName, targetResources) {
+    const room = Game.rooms[roomName]
+
+    if (!room) {
+        return undefined
+    }
+
+    const structures = room.find(FIND_HOSTILE_STRUCTURES)
+
+    let result = undefined
+    let ticksToSpawnMin = Infinity
+
+    for (const structure of structures) {
+        if (structure.structureType !== STRUCTURE_KEEPER_LAIR) {
+            continue
+        }
+
+        if (structure.pos.findInRange(targetResources, 6).length === 0) {
+            continue
+        }
+
+        const ticksToSpawn = structure.ticksToSpawn
+        if (ticksToSpawn === undefined) {
+            continue
+        }
+
+        if (ticksToSpawn < ticksToSpawnMin) {
+            result = structure
+            ticksToSpawnMin = ticksToSpawn
+        }
+    }
+
+    return result
+}
+
+module.exports = {
+    miner,
+    extractor,
+    claimer,
+    pioneer,
+    colonyDefender,
+    wallMaker,
+    researcher,
+    guard,
+    reserver,
+    remoteMiner,
+    sourceKeeperHandler,
+}
