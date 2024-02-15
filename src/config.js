@@ -1,344 +1,329 @@
-const config = {}
+const config = {};
 
-const shardName = Game.shard.name
-config.shard = shardName
+const shardName = Game.shard.name;
+config.shard = shardName;
 
 if (shardName === 'swc') {
-  config.allies = [
+    config.allies = [];
 
-  ]
+    config.task = {
+        powerBank: false,
+        deposit: true,
+    };
 
-  config.task = {
-    powerBank: false,
-    deposit: true,
-  }
+    config.harass = true;
 
-  config.harass = true
+    config.economyStandard = {
+        1: 10000,
+        2: 10000,
+        3: 10000,
+        4: 20000,
+        5: 40000,
+        6: 80000,
+        7: 160000,
+        8: 320000,
+    };
 
-  config.economyStandard = {
-    1: 10000,
-    2: 10000,
-    3: 10000,
-    4: 20000,
-    5: 40000,
-    6: 80000,
-    7: 160000,
-    8: 320000,
-  }
+    config.compoundGoal = {
+        // for defense, ant
+        XUH2O: 2000,
+        UH2O: 1000,
+        UH: 1000,
 
-  config.compoundGoal = {
-    // for defense, ant
-    XUH2O: 2000,
-    UH2O: 1000,
-    UH: 1000,
+        // for blinky quad
+        XKHO2: 3000,
+        XLHO2: 4000,
+        XZHO2: 2000,
+        XGHO2: 1000,
 
-    // for blinky quad
-    XKHO2: 3000,
-    XLHO2: 4000,
-    XZHO2: 2000,
-    XGHO2: 1000,
+        KHO2: 1500,
+        LHO2: 1000,
+        ZHO2: 1000,
 
-    KHO2: 1500,
-    LHO2: 1000,
-    ZHO2: 1000,
+        KO: 1000,
+        LO: 1000,
+        ZO: 2000,
 
-    KO: 1000,
-    LO: 1000,
-    ZO: 2000,
+        // for worm
+        ZH: 1500,
+        ZH2O: 1500,
+        XZH2O: 1500,
+    };
 
-    // for worm
-    ZH: 1500,
-    ZH2O: 1500,
-    XZH2O: 1500,
-  }
+    config.notBuild = ['powerSpawn', 'nuker'];
 
-  config.notBuild = [
-    'powerSpawn',
-    'nuker'
-  ]
+    config.rampartLevel = 4;
 
-  config.rampartLevel = 4
+    config.alwaysShowMapInfo = true;
 
-  config.alwaysShowMapInfo = true
+    config.publicRamparts = true;
 
-  config.publicRamparts = true
+    config.rampartHitsPerRclSquare = 16000;
 
-  config.rampartHitsPerRclSquare = 16000
+    config.distanceToRemote = 2;
 
-  config.distanceToRemote = 2
-
-  config.alwaysShowDashboard = true
-
+    config.alwaysShowDashboard = true;
 } else if (shardName === 'shardSeason') {
-  config.allies = [
+    config.allies = [];
 
-  ]
+    config.task = {
+        powerBank: false,
+        deposit: false,
+    };
 
-  config.task = {
-    powerBank: false,
-    deposit: false,
-  }
+    config.harass = false;
 
-  config.harass = false
+    config.compoundGoal = {
+        // for defense, ant
+        XUH2O: 2000,
+        UH2O: 1000,
+        UH: 1000,
 
-  config.compoundGoal = {
-    // for defense, ant
-    XUH2O: 2000,
-    UH2O: 1000,
-    UH: 1000,
+        // for blinky quad
+        XKHO2: 3000,
+        XLHO2: 4000,
+        XZHO2: 2000,
+        XGHO2: 1000,
 
-    // for blinky quad
-    XKHO2: 3000,
-    XLHO2: 4000,
-    XZHO2: 2000,
-    XGHO2: 1000,
+        KHO2: 1500,
+        LHO2: 1000,
+        ZHO2: 1000,
 
-    KHO2: 1500,
-    LHO2: 1000,
-    ZHO2: 1000,
+        KO: 1000,
+        LO: 1000,
+        ZO: 2000,
 
-    KO: 1000,
-    LO: 1000,
-    ZO: 2000,
+        // for worm
+        ZH: 1500,
+        ZH2O: 1500,
+        XZH2O: 1500,
+    };
 
-    // for worm
-    ZH: 1500,
-    ZH2O: 1500,
-    XZH2O: 1500,
-  }
+    config.economyStandard = {
+        1: 10000,
+        2: 10000,
+        3: 10000,
+        4: 20000,
+        5: 40000,
+        6: 80000,
+        7: 160000,
+        8: 320000,
+    };
 
-  config.economyStandard = {
-    1: 10000,
-    2: 10000,
-    3: 10000,
-    4: 20000,
-    5: 40000,
-    6: 80000,
-    7: 160000,
-    8: 320000,
-  }
+    config.rampartLevel = 4;
 
-  config.rampartLevel = 4
+    config.market = false;
 
-  config.market = false
+    config.notBuild = ['powerSpawn', 'factory'];
 
-  config.notBuild = [
-    'powerSpawn',
-    'factory'
-  ]
+    config.labConstructLevel = 7;
 
-  config.labConstructLevel = 7
+    config.alwaysShowMapInfo = false;
 
-  config.alwaysShowMapInfo = false
+    config.publicRamparts = false;
 
-  config.publicRamparts = false
+    config.showTimeToClose = true;
 
-  config.showTimeToClose = true
+    config.rampartHitsPerRclSquare = 5000;
 
-  config.rampartHitsPerRclSquare = 5000
+    config.blockUpragade = false;
 
-  config.blockUpragade = false
+    config.distanceToRemote = 2;
+} else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) {
+    // world
+    config.allies = [];
 
-  config.distanceToRemote = 2
+    config.task = {
+        powerBank: true,
+        deposit: true,
+    };
 
-} else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) { // world
-  config.allies = [
+    config.harass = false;
 
-  ]
+    config.buyPixel = true;
 
-  config.task = {
-    powerBank: true,
-    deposit: true,
-  }
+    config.compoundGoal = {
+        // for defense, ant
+        XUH2O: 4000,
+        UH2O: 1000,
+        UH: 1000,
 
-  config.harass = false
+        // for blinky quad
+        XKHO2: 6000,
+        XLHO2: 8000,
+        XZHO2: 4000,
+        XGHO2: 2000,
 
-  config.buyPixel = true
+        KHO2: 1500,
+        LHO2: 1000,
+        ZHO2: 1000,
 
-  config.compoundGoal = {
-    // for defense, ant
-    XUH2O: 4000,
-    UH2O: 1000,
-    UH: 1000,
+        KO: 1000,
+        LO: 1000,
+        ZO: 2000,
 
-    // for blinky quad
-    XKHO2: 6000,
-    XLHO2: 8000,
-    XZHO2: 4000,
-    XGHO2: 2000,
+        // for worm
+        ZH: 1500,
+        ZH2O: 1500,
+        XZH2O: 1500,
 
-    KHO2: 1500,
-    LHO2: 1000,
-    ZHO2: 1000,
+        // repair
+        XLH2O: 6000,
 
-    KO: 1000,
-    LO: 1000,
-    ZO: 2000,
+        // upgrade
+        XGH2O: 6000,
 
-    // for worm
-    ZH: 1500,
-    ZH2O: 1500,
-    XZH2O: 1500,
+        // nuker
+        G: 5000,
+    };
 
-    // repair
-    XLH2O: 6000,
+    config.economyStandard = {
+        1: 10000,
+        2: 10000,
+        3: 10000,
+        4: 20000,
+        5: 40000,
+        6: 80000,
+        7: 160000,
+        8: 320000,
+    };
 
-    // upgrade
-    XGH2O: 6000,
+    config.rampartLevel = 4;
 
-    // nuker
-    G: 5000,
-  }
+    config.creditGoal = 3000000000;
 
-  config.economyStandard = {
-    1: 10000,
-    2: 10000,
-    3: 10000,
-    4: 20000,
-    5: 40000,
-    6: 80000,
-    7: 160000,
-    8: 320000,
-  }
+    config.alwaysShowMapInfo = false;
 
-  config.rampartLevel = 4
+    config.publicRamparts = false;
 
-  config.creditGoal = 3000000000
+    config.rampartHitsPerRclSquare = 16000;
 
-  config.alwaysShowMapInfo = false
+    config.distanceToRemote = 2;
+} else {
+    // local
+    config.allies = [];
 
-  config.publicRamparts = false
+    config.task = {
+        powerBank: true,
+        deposit: true,
+    };
 
-  config.rampartHitsPerRclSquare = 16000
+    config.harass = false;
 
-  config.distanceToRemote = 2
+    config.buyPixel = false;
 
-} else { // local
-  config.allies = [
+    config.compoundGoal = {
+        // for defense, ant
+        XUH2O: 4000,
+        UH2O: 1000,
+        UH: 1000,
 
-  ]
+        // for blinky quad
+        XKHO2: 6000,
+        XLHO2: 8000,
+        XZHO2: 4000,
+        XGHO2: 2000,
 
-  config.task = {
-    powerBank: true,
-    deposit: true,
-  }
+        KHO2: 1500,
+        LHO2: 1000,
+        ZHO2: 1000,
 
-  config.harass = false
+        KO: 1000,
+        LO: 1000,
+        ZO: 2000,
 
-  config.buyPixel = false
+        // for worm
+        ZH: 1500,
+        ZH2O: 1500,
+        XZH2O: 1500,
 
-  config.compoundGoal = {
-    // for defense, ant
-    XUH2O: 4000,
-    UH2O: 1000,
-    UH: 1000,
+        // repair
+        XLH2O: 6000,
 
-    // for blinky quad
-    XKHO2: 6000,
-    XLHO2: 8000,
-    XZHO2: 4000,
-    XGHO2: 2000,
+        // upgrade
+        XGH2O: 6000,
 
-    KHO2: 1500,
-    LHO2: 1000,
-    ZHO2: 1000,
+        // nuker
+        G: 5000,
+    };
 
-    KO: 1000,
-    LO: 1000,
-    ZO: 2000,
+    config.economyStandard = {
+        1: 6000,
+        2: 6000,
+        3: 6000,
+        4: 12000,
+        5: 24000,
+        6: 48000,
+        7: 96000,
+        8: 192000,
+    };
 
-    // for worm
-    ZH: 1500,
-    ZH2O: 1500,
-    XZH2O: 1500,
+    config.rampartLevel = 5;
 
-    // repair
-    XLH2O: 6000,
+    config.alwaysShowMapInfo = true;
 
-    // upgrade
-    XGH2O: 6000,
+    config.publicRamparts = false;
 
-    // nuker
-    G: 5000,
-  }
+    config.showTicks = true;
 
-  config.economyStandard = {
-    1: 6000,
-    2: 6000,
-    3: 6000,
-    4: 12000,
-    5: 24000,
-    6: 48000,
-    7: 96000,
-    8: 192000,
-  }
+    config.rampartHitsPerRclSquare = 16000;
 
-  config.rampartLevel = 5
-
-  config.alwaysShowMapInfo = true
-
-  config.publicRamparts = false
-
-  config.showTicks = true
-
-  config.rampartHitsPerRclSquare = 16000
-
-  config.distanceToRemote = 2
+    config.distanceToRemote = 2;
 }
 
 // quad and duo settings
-config.IMPORTANT_STRUCTURE_TYPES = [STRUCTURE_SPAWN, STRUCTURE_TOWER, STRUCTURE_INVADER_CORE]
+config.IMPORTANT_STRUCTURE_TYPES = [STRUCTURE_SPAWN, STRUCTURE_TOWER, STRUCTURE_INVADER_CORE];
 
 config.duo = {
-  IGNORE_TOWER_DAMAGE: true,
-  IGNORE_DAMAGE: true,
-}
+    IGNORE_TOWER_DAMAGE: true,
+    IGNORE_DAMAGE: true,
+};
 
 config.quad = {
-  IGNORE_DAMAGE_WHEN_PATHING: true,
-  QUAD_COST_VISUAL: false,
-  BULLDOZE_COST_VISUAL: false,
-  HEAL_BUFFER: 100
-}
+    IGNORE_DAMAGE_WHEN_PATHING: true,
+    QUAD_COST_VISUAL: false,
+    BULLDOZE_COST_VISUAL: false,
+    HEAL_BUFFER: 100,
+};
 
-config.RCL_THRESHOLD_TO_SAFEMODE = 2
+config.RCL_THRESHOLD_TO_SAFEMODE = 2;
 
 // energy thresholds
 
 config.energyLevel = {
-  REACT_TO_NUKES: 20,
+    REACT_TO_NUKES: 20,
 
-  CONSTRUCT: 30,
+    CONSTRUCT: 30,
 
-  STOP_SIEGE: 40,
+    STOP_SIEGE: 40,
 
-  RAMPART_LOW: 50,
+    RAMPART_LOW: 50,
 
-  BE_HELPED: 60,
+    BE_HELPED: 60,
 
-  HELP: 90,
+    HELP: 90,
 
-  UPGRADE: 100,
+    UPGRADE: 100,
 
-  FUNNEL: 110,
+    FUNNEL: 110,
 
-  DEPOSIT: 120,
+    DEPOSIT: 120,
 
-  RAMPART_MIDDLE: 130,
+    RAMPART_MIDDLE: 130,
 
-  FILL_NUKER: 140,
+    FILL_NUKER: 140,
 
-  OPERATE_POWER_SPAWN: 150,
+    OPERATE_POWER_SPAWN: 150,
 
-  POWERBANK: 160,
+    POWERBANK: 160,
 
-  STOP_FUNNEL: 200,
+    STOP_FUNNEL: 200,
 
-  RAMPART_HIGH: 210,
+    RAMPART_HIGH: 210,
 
-  BALANCE: 220
-}
+    BALANCE: 220,
+};
 
 module.exports = {
-  config
-}
+    config,
+};

@@ -1,152 +1,155 @@
 Creep.prototype.delivery = function () {
-
     if (this.ticksToLive < 50) {
         if (this.store.getUsedCapacity()) {
-            this.returnAll()
-            return
+            this.returnAll();
+            return;
         }
 
-        this.getRecycled()
-        return
+        this.getRecycled();
+        return;
     }
 
-    const deliveryRequest = this.heap.deliveryRequest
+    const deliveryRequest = this.heap.deliveryRequest;
     if (!deliveryRequest) {
-        return
+        return;
     }
 
     if (Game.time > deliveryRequest.deadline) {
-        delete this.heap.deliveryRequest
-        this.say('deadline', true)
-        return
+        delete this.heap.deliveryRequest;
+        this.say('deadline', true);
+        return;
     }
 
     for (const resourceType of Object.keys(this.store)) {
         if (resourceType === deliveryRequest.resourceType) {
-            continue
+            continue;
         } else {
-            this.returnAll()
-            return
+            this.returnAll();
+            return;
         }
     }
 
-    const target = Game.getObjectById(deliveryRequest.to)
+    const target = Game.getObjectById(deliveryRequest.to);
 
     if (this.memory.delivering === true) {
         if (this.giveCompoundTo(target, deliveryRequest.resourceType) === OK) {
-            delete this.heap.deliveryRequest
+            delete this.heap.deliveryRequest;
         }
-        return
+        return;
     }
 
-    let deposits = []
-    let deposit = false
+    let deposits = [];
+    let deposit = false;
     if (Array.isArray(deliveryRequest.from)) {
-        deposits = deliveryRequest.from.map((id) => { return Game.getObjectById(id) }).sort((depositA, depositB) => this.pos.getRangeTo(depositA.pos) - this.pos.getRangeTo(depositB.pos))
+        deposits = deliveryRequest.from
+            .map((id) => {
+                return Game.getObjectById(id);
+            })
+            .sort((depositA, depositB) => this.pos.getRangeTo(depositA.pos) - this.pos.getRangeTo(depositB.pos));
     } else {
-        deposit = Game.getObjectById(deliveryRequest.from)
+        deposit = Game.getObjectById(deliveryRequest.from);
     }
 
     if (Array.isArray(deliveryRequest.from)) {
         for (const deposit of deposits) {
             if (this.store.getFreeCapacity() === 0) {
-                this.memory.delivering = true
-                return
+                this.memory.delivering = true;
+                return;
             }
 
             if (!Object.keys(deposit.store).includes(deliveryRequest.resourceType)) {
-                continue
+                continue;
             }
-            this.getCompoundFrom(deposit, deliveryRequest.resourceType)
-            return
+            this.getCompoundFrom(deposit, deliveryRequest.resourceType);
+            return;
         }
-        this.memory.delivering = true
-        return
+        this.memory.delivering = true;
+        return;
     } else {
         if (!Object.keys(deposit.store).includes(deliveryRequest.resourceType)) {
-            delete this.heap.deliveryRequest
-            return
+            delete this.heap.deliveryRequest;
+            return;
         }
 
         if (this.store.getFreeCapacity() === 0 || this.getCompoundFrom(deposit, deliveryRequest.resourceType) === OK) {
-            this.memory.delivering = true
-            return
+            this.memory.delivering = true;
+            return;
         }
     }
-}
+};
 
 Creep.prototype.giveCompoundTo = function (target, resourceType) {
     if (this.pos.getRangeTo(target) > 1) {
-        this.moveMy({ pos: target.pos, range: 1 })
-        return ERR_NOT_IN_RANGE
+        this.moveMy({ pos: target.pos, range: 1 });
+        return ERR_NOT_IN_RANGE;
     }
-    return this.transfer(target, resourceType)
-}
+    return this.transfer(target, resourceType);
+};
 
 Creep.prototype.getCompoundFrom = function (target, resourceType) {
     if (this.pos.getRangeTo(target) > 1) {
-        this.moveMy({ pos: target.pos, range: 1 })
-        return ERR_NOT_IN_RANGE
+        this.moveMy({ pos: target.pos, range: 1 });
+        return ERR_NOT_IN_RANGE;
     }
-    return this.withdraw(target, resourceType)
-}
+    return this.withdraw(target, resourceType);
+};
 
 global.DeliveryRequest = function (from, to, resourceType) {
     if (Array.isArray(from)) {
-        this.from = []
+        this.from = [];
         for (const deposit of from) {
-            this.from.push(deposit.id)
+            this.from.push(deposit.id);
         }
     } else {
-        this.from = from.id
+        this.from = from.id;
     }
-    this.to = to.id
-    this.resourceType = resourceType
-    this.deadline = Game.time + 150
-    return
-}
+    this.to = to.id;
+    this.resourceType = resourceType;
+    this.deadline = Game.time + 150;
+    return;
+};
 
 Creep.prototype.getDeliveryRequest = function (from, to, resourceType) {
     if (this.spawning) {
-        return
+        return;
     }
 
     if (!this.isFree || this.spawning) {
-        return
+        return;
     }
 
-    const deliveryRequest = new DeliveryRequest(from, to, resourceType)
+    const deliveryRequest = new DeliveryRequest(from, to, resourceType);
 
-    this.memory.delivering = false
-    this.heap.deliveryRequest = deliveryRequest
-}
+    this.memory.delivering = false;
+    this.heap.deliveryRequest = deliveryRequest;
+};
 
 Object.defineProperties(Creep.prototype, {
     isFree: {
         get() {
-            return !this.heap.deliveryRequest
-        }
-    }
-})
+            return !this.heap.deliveryRequest;
+        },
+    },
+});
 
 Creep.prototype.returnAll = function () {
     for (const resourceType of Object.keys(this.store)) {
-        const terminal = this.room.terminal
+        const terminal = this.room.terminal;
         if (Object.values(RESOURCES_TO_TERMINAL).includes(resourceType) && terminal) {
-            this.giveCompoundTo(terminal, resourceType)
-            return
+            this.giveCompoundTo(terminal, resourceType);
+            return;
         }
 
-        const factory = this.room.structures.factory[0]
+        const factory = this.room.structures.factory[0];
         if (Object.values(RESOURCES_TO_FACTORY).includes(resourceType) && factory) {
-            this.giveCompoundTo(factory, resourceType)
-            return
+            this.giveCompoundTo(factory, resourceType);
+            return;
         }
 
-        const storage = this.room.storage
+        const storage = this.room.storage;
         if (storage) {
-            this.giveCompoundTo(storage, resourceType)
-            return
+            this.giveCompoundTo(storage, resourceType);
+            return;
         }
     }
-}
+};

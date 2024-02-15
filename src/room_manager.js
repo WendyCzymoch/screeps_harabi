@@ -38,11 +38,9 @@ Room.prototype.runRoomManager = function () {
         this.manageFactory()
 
         this.manageClaim()
-        this.manageSourceKeeperMining()
 
         this.manageScout()
         this.defenseNuke()
-
 
         this.fillNuker()
         this.managePowerSpawn()

@@ -1,64 +1,63 @@
 Creep.prototype.fleeFrom = function (from, range = 10, maxRooms = 2) {
+  from = Array.isArray(from) ? from : [from];
+  from = from.map((target) => {
+    const pos = target.pos || target;
+    return { pos, range };
+  });
 
-  from = Array.isArray(from) ? from : [from]
-  from = from.map(target => {
-    const pos = target.pos || target
-    return { pos, range }
-  })
-
-  const room = this.room
-  const moveCost = this.getMoveCost()
-  const costsForFlee = room.getCostMatrixForConflict()
+  const room = this.room;
+  const moveCost = this.getMoveCost();
+  const costsForFlee = room.getCostMatrixForConflict();
   const search = PathFinder.search(this.pos, from, {
     plainCost: Math.max(1, Math.ceil(2 * moveCost)),
     swampCost: Math.max(1, Math.ceil(10 * moveCost)),
     maxRooms,
     flee: true,
     roomCallback: function (roomName) {
-      const intel = Overlord.getIntel(roomName)
+      const intel = Overlord.getIntel(roomName);
       if (intel && intel[scoutKeys.numTower]) {
-        return false
+        return false;
       }
       if (roomName === room.name) {
-        return costsForFlee
+        return costsForFlee;
       }
-    }
-  })
+    },
+  });
 
-  const path = search.path
+  const path = search.path;
   if (!path) {
-    this.say(`⚠️`, true)
-    return
+    this.say(`⚠️`, true);
+    return;
   }
 
-  visualizePath(path, this.pos)
-  const nextPos = path[0]
+  visualizePath(path, this.pos);
+  const nextPos = path[0];
 
   if (nextPos) {
-    costsForFlee.set(nextPos.x, nextPos.y, 255)
-    costsForFlee.set(this.pos.x, this.pos.y, this.room.basicCostmatrix.get(this.pos.x, this.pos.y))
-    this.setNextPos(nextPos)
+    costsForFlee.set(nextPos.x, nextPos.y, 255);
+    costsForFlee.set(this.pos.x, this.pos.y, this.room.basicCostmatrix.get(this.pos.x, this.pos.y));
+    this.setNextPos(nextPos);
   }
 
-  this.resetPath()
-}
+  this.resetPath();
+};
 
 Room.prototype.getCostMatrixForConflict = function () {
   if (this._costMatrixForConflict) {
-    return this._costMatrixForConflict
+    return this._costMatrixForConflict;
   }
 
-  const costs = this.basicCostmatrix.clone()
+  const costs = this.basicCostmatrix.clone();
 
-  const enemyCombatants = this.getEnemyCombatants()
+  const enemyCombatants = this.getEnemyCombatants();
   for (const enemyCombatant of enemyCombatants) {
-    const range = enemyCombatant.rangedAttackPower > 0 ? 4 : 3
+    const range = enemyCombatant.rangedAttackPower > 0 ? 4 : 3;
     for (const pos of enemyCombatant.pos.getInRange(range)) {
       if (!pos.isWall && !pos.isSwamp && costs.get(pos.x, pos.y) < 3) {
-        costs.set(pos.x, pos.y, 3)
+        costs.set(pos.x, pos.y, 3);
       }
     }
   }
 
-  return this._costMatrixForConflict = costs
-}
+  return (this._costMatrixForConflict = costs);
+};

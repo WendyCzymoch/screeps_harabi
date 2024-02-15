@@ -1,129 +1,142 @@
-const { config } = require("./config")
-const { EFunnelGoalType } = require("./simpleAllies")
+const { config } = require("./config");
+const { EFunnelGoalType } = require("./simpleAllies");
 
 Overlord.getBestFunnelRequest = function () {
   if (Game._bestFunnelRequest !== undefined) {
-    return Game._bestFunnelRequest
+    return Game._bestFunnelRequest;
   }
 
-  const myFunnelRequest = getMyFunnelRequest()
-  const allyFunnelRequest = getAllyFunnelRequest()
+  const myFunnelRequest = getMyFunnelRequest();
+  const allyFunnelRequest = getAllyFunnelRequest();
 
   if (myFunnelRequest && allyFunnelRequest) {
-    return Game._bestFunnelRequest = ((myFunnelRequest.maxAmount <= allyFunnelRequest.maxAmount) ? myFunnelRequest : allyFunnelRequest)
+    return (Game._bestFunnelRequest =
+      myFunnelRequest.maxAmount <= allyFunnelRequest.maxAmount
+        ? myFunnelRequest
+        : allyFunnelRequest);
   }
 
-  return Game._bestFunnelRequest = (myFunnelRequest || allyFunnelRequest)
-}
+  return (Game._bestFunnelRequest = myFunnelRequest || allyFunnelRequest);
+};
 
 function getAllyFunnelRequest() {
-  const allyRequests = Memory.simpleAlliesCache
+  const allyRequests = Memory.simpleAlliesCache;
   if (!allyRequests) {
-    return undefined
+    return undefined;
   }
 
-  let result = undefined
+  let result = undefined;
 
   try {
     for (const allyName in allyRequests) {
       if (!allyRequests[allyName]) {
-        continue
+        continue;
       }
-      const requests = allyRequests[allyName].requests
+      const requests = allyRequests[allyName].requests;
       if (!requests) {
-        continue
+        continue;
       }
-      const funnelRequests = requests.funnel
+      const funnelRequests = requests.funnel;
       if (!funnelRequests) {
-        continue
+        continue;
       }
       for (const request of funnelRequests) {
         if (!result) {
-          result = request
-          continue
+          result = request;
+          continue;
         }
         if (request.maxAmount && request.maxAmount < result.maxAmount) {
-          result = request
-          continue
+          result = request;
+          continue;
         }
       }
     }
   } catch (err) {
-    console.log(err)
+    console.log(err);
   }
 
-  return result
+  return result;
 }
 
 function getMyFunnelRequest() {
-  const myFunnelList = Overlord.getMyFunnelList()
+  const myFunnelList = Overlord.getMyFunnelList();
 
   for (const request of myFunnelList) {
-    const roomName = request.roomName
-    const room = Game.rooms[roomName]
+    const roomName = request.roomName;
+    const room = Game.rooms[roomName];
     if (!room || !room.isMy) {
-      continue
+      continue;
     }
 
     if (room.energyLevel >= config.energyLevel.STOP_FUNNEL) {
-      request.enough = true
+      request.enough = true;
     }
 
-    return request
+    return request;
   }
 
-  return undefined
+  return undefined;
 }
 
 Overlord.getMyFunnelList = function () {
   if (Game._myFunnelList !== undefined) {
-    return Game._myFunnelList
+    return Game._myFunnelList;
   }
-  return Game._myFunnelList = getMyFunnelList()
-}
+  return (Game._myFunnelList = getMyFunnelList());
+};
 
 function getMyFunnelList() {
-  const myRooms = Overlord.myRooms
+  const myRooms = Overlord.myRooms;
 
-  const result = []
+  const result = [];
 
   for (const room of myRooms) {
-    if (!room.terminal || !room.terminal.RCLActionable || !room.storage || room.abandon) {
-      continue
+    if (
+      !room.terminal ||
+      !room.terminal.RCLActionable ||
+      !room.storage ||
+      room.abandon
+    ) {
+      continue;
     }
 
-    const level = room.controller.level
+    const level = room.controller.level;
 
     if (level !== 6) {
-      continue
+      continue;
     }
 
-    const goalType = level === 6 ? EFunnelGoalType.RCL7 : level === 7 ? EFunnelGoalType.RCL8 : undefined
+    const goalType =
+      level === 6
+        ? EFunnelGoalType.RCL7
+        : level === 7
+          ? EFunnelGoalType.RCL8
+          : undefined;
 
     if (!goalType) {
-      continue
+      continue;
     }
 
-    const amount = getFunnelAmount(room)
+    const amount = getFunnelAmount(room);
 
     const request = {
       maxAmount: amount,
       goalType,
-      roomName: room.name
-    }
-    result.push(request)
+      roomName: room.name,
+    };
+    result.push(request);
   }
 
-  result.sort((a, b) => (a.goalType - b.goalType) || (a.maxAmount - b.maxAmount))
+  result.sort((a, b) => a.goalType - b.goalType || a.maxAmount - b.maxAmount);
 
   for (let i = 0; i < result.length; i++) {
-    const request = result[i]
-    request.priority = i
+    const request = result[i];
+    request.priority = i;
   }
 
-  return result
+  return result;
 }
 
 function getFunnelAmount(room) {
-  return room.controller.progressTotal - room.controller.progress
+  return room.controller.progressTotal - room.controller.progress;
 }

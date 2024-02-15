@@ -1,5 +1,5 @@
 {
-  "name": "harabibot-2.2",
+  "name": "harabi_bot",
   "version": "1.0.0",
   "description": "screeps bot written by Harabi",
   "main": "main.js",
@@ -16,6 +16,21 @@
     "grunt-screeps": "^1.5.0"
   },
   "devDependencies": {
-    "grunt-rsync": "^3.0.0"
-  }
+    "@typescript-eslint/eslint-plugin": "^7.0.1",
+    "@typescript-eslint/parser": "^7.0.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "grunt-rsync": "^3.0.0",
+    "prettier": "^3.2.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sy-harabi/screeps_harabi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sy-harabi/screeps_harabi/issues"
+  },
+  "homepage": "https://github.com/sy-harabi/screeps_harabi#readme"
 }
