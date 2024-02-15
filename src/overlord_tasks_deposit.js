@@ -1,4 +1,4 @@
-const { config } = require("./config");
+const { config } = require('./config');
 
 const DEPOSIT_DISTANCE_THRESHOLD = 5;
 const WORKER_SIZE = 15;
@@ -7,17 +7,14 @@ const WORKER_ENERGY_COST = 3250; //15w10c25m
 const NUM_LOST_CREEPS_THRESHOLD = 2;
 
 Overlord.manageDepositTasks = function () {
-  const tasks = this.getTasksWithCategory("deposit");
+  const tasks = this.getTasksWithCategory('deposit');
 
   for (const depositRequest of Object.values(tasks)) {
     const targetRoomName = depositRequest.roomName;
     const roomInCharge = Game.rooms[depositRequest.roomNameInCharge];
 
     if (!roomInCharge) {
-      data.recordLog(
-        `DEPOSIT: stopped deposit mining at ${targetRoomName}. no room in charge`,
-        targetRoomName,
-      );
+      data.recordLog(`DEPOSIT: stopped deposit mining at ${targetRoomName}. no room in charge`, targetRoomName);
       this.deleteTask(depositRequest);
       return;
     }
@@ -25,7 +22,7 @@ Overlord.manageDepositTasks = function () {
     if (depositRequest.completed === true) {
       data.recordLog(
         `DEPOSIT: ${roomInCharge.name} completed DEPOSIT mining at ${targetRoomName}. returned ${depositRequest.amountReturned || 0} ${depositRequest.depositType}`,
-        targetRoomName,
+        targetRoomName
       );
       this.deleteTask(depositRequest);
       return;
@@ -33,20 +30,20 @@ Overlord.manageDepositTasks = function () {
 
     roomInCharge.runDepositWork(depositRequest);
     const color = resourceColor[depositRequest.depositType];
-    Game.map.visual.text(
-      `${depositRequest.depositType}`,
-      new RoomPosition(25, 35, depositRequest.roomName),
-      { color, opacity: 1, backgroundColor: "#000000" },
-    );
+    Game.map.visual.text(`${depositRequest.depositType}`, new RoomPosition(25, 35, depositRequest.roomName), {
+      color,
+      opacity: 1,
+      backgroundColor: '#000000',
+    });
     Game.map.visual.text(
       `⏳${depositRequest.lastCooldown}/${depositRequest.maxCooldown}`,
       new RoomPosition(25, 45, depositRequest.roomName),
-      { color, fontSize: 6, opacity: 1, backgroundColor: "#000000" },
+      { color, fontSize: 6, opacity: 1, backgroundColor: '#000000' }
     );
     Game.map.visual.line(
       new RoomPosition(25, 25, roomInCharge.name),
       new RoomPosition(25, 25, depositRequest.roomName),
-      { color, width: 2, opacity: 1 },
+      { color, width: 2, opacity: 1 }
     );
   }
 };
@@ -57,10 +54,7 @@ Overlord.checkDeposits = function (targetRoomName) {
     return;
   }
 
-  const roomsInRange = this.findMyRoomsInRange(
-    targetRoomName,
-    DEPOSIT_DISTANCE_THRESHOLD,
-  );
+  const roomsInRange = this.findMyRoomsInRange(targetRoomName, DEPOSIT_DISTANCE_THRESHOLD);
 
   const roomsSorted = roomsInRange.sort((a, b) => {
     const aDistance = Game.map.getRoomLinearDistance(targetRoomName, a.name);
@@ -72,7 +66,7 @@ Overlord.checkDeposits = function (targetRoomName) {
     return;
   }
 
-  const depositTasks = this.getTasksWithCategory("deposit");
+  const depositTasks = this.getTasksWithCategory('deposit');
   const deposits = targetRoom.find(FIND_DEPOSITS);
 
   for (const deposit of deposits) {
@@ -80,22 +74,25 @@ Overlord.checkDeposits = function (targetRoomName) {
       if (room.controller.level < 7) {
         continue;
       }
+
       if (!room.structures.factory.length === 0) {
         continue;
       }
+
       if (room.terminal && room.terminal.store[deposit.depositType] > 10000) {
         continue;
       }
+
       const route = this.findRoutesWithPortal(targetRoomName, room.name);
       if (route === ERR_NO_PATH) {
         continue;
       }
-      const length = route
-        .map((segment) => segment.length)
-        .reduce((acc, curr) => acc + curr, 0);
+
+      const length = route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0);
       if (route === ERR_NO_PATH || length > DEPOSIT_DISTANCE_THRESHOLD) {
         continue;
       }
+
       if (
         Object.values(depositTasks)
           .map((task) => task.roomNameInCharge)
@@ -104,32 +101,37 @@ Overlord.checkDeposits = function (targetRoomName) {
         `${room.name} already has deposit task`;
         continue;
       }
+
       if (room.memory.militaryThreat) {
         continue;
       }
+
       if (room.isReactingToNukes()) {
         continue;
       }
+
       if (room.energyLevel < config.energyLevel.DEPOSIT) {
         continue;
       }
+
       const depositRequest = new DepositRequest(room, deposit);
       const maxCooldown = room.getDepositMaxCooldown(depositRequest);
+
       if (depositRequest.lastCooldown >= maxCooldown) {
         continue;
       }
+
       depositRequest.maxCooldown = maxCooldown;
+
       Overlord.registerTask(depositRequest);
+
       return;
     }
   }
 };
 
 Room.prototype.getDepositMaxCooldown = function (depositRequest) {
-  const price = Business.getMaxBuyOrder(
-    depositRequest.depositType,
-    this.name,
-  ).finalPrice;
+  const price = Business.getMaxBuyOrder(depositRequest.depositType, this.name).finalPrice;
   const amount = WORKER_SIZE * (1500 - depositRequest.distance * 2.2);
   const cost = WORKER_ENERGY_COST * Business.energyPrice;
   return Math.min(50, Math.ceil((price * amount) / cost / RETURN_RATIO));
@@ -155,12 +157,12 @@ const DepositRequest = function (room, deposit) {
         return;
       },
       maxOps: 5000,
-    },
+    }
   );
 
   const distance = search.cost;
 
-  this.category = "deposit";
+  this.category = 'deposit';
   this.id = deposit.id;
 
   this.roomName = deposit.pos.roomName;
@@ -177,10 +179,7 @@ const DepositRequest = function (room, deposit) {
 };
 
 Room.prototype.runDepositWork = function (depositRequest) {
-  const depositWorkers = Overlord.getCreepsByRole(
-    depositRequest.depositId,
-    "depositWorker",
-  );
+  const depositWorkers = Overlord.getCreepsByRole(depositRequest.depositId, 'depositWorker');
   const numDepositWorker = depositWorkers.length;
 
   const roomName = depositRequest.roomName;
@@ -196,10 +195,7 @@ Room.prototype.runDepositWork = function (depositRequest) {
     const numLostDepositWorker = lostCreeps.depositWorker || 0;
     const numLostColonyDefender = lostCreeps.colonyDefender || 0;
 
-    if (
-      numLostColonyDefender + numLostDepositWorker >
-      NUM_LOST_CREEPS_THRESHOLD
-    ) {
+    if (numLostColonyDefender + numLostDepositWorker > NUM_LOST_CREEPS_THRESHOLD) {
       depositRequest.noMoreSpawn = true;
     } else if (depositRequest.lastCooldown > depositRequest.maxCooldown) {
       depositRequest.noMoreSpawn = true;
@@ -219,7 +215,7 @@ Room.prototype.runDepositWork = function (depositRequest) {
     new RoomVisual(roomName).text(
       `⏳${depositRequest.lastCooldown}/${depositRequest.maxCooldown}`,
       deposit.pos.x,
-      deposit.pos.y - 1,
+      deposit.pos.y - 1
     );
   }
 
@@ -229,10 +225,7 @@ Room.prototype.runDepositWork = function (depositRequest) {
 
   const distance = depositRequest.distance;
 
-  if (
-    this.sendTroops(roomName, 10000, { distance, task: depositRequest }) ===
-    false
-  ) {
+  if (this.sendTroops(roomName, 10000, { distance, task: depositRequest }) === false) {
     return;
   }
 
@@ -287,9 +280,7 @@ Creep.prototype.depositWork = function (depositRequest) {
       return;
     }
     if (this.memory.amount === undefined) {
-      this.memory.amount = this.store.getUsedCapacity(
-        depositRequest.depositType,
-      );
+      this.memory.amount = this.store.getUsedCapacity(depositRequest.depositType);
     }
     if (this.store.getUsedCapacity() > 0) {
       this.returnAll();
@@ -332,11 +323,7 @@ Creep.prototype.depositWork = function (depositRequest) {
 
   if (this.room.name !== depositRequest.roomName) {
     const parsed = parseCoord(depositRequest.packedCoord);
-    const targetPos = new RoomPosition(
-      parsed.x,
-      parsed.y,
-      depositRequest.roomName,
-    );
+    const targetPos = new RoomPosition(parsed.x, parsed.y, depositRequest.roomName);
     if (this.moveMy({ pos: targetPos, range: 1 }) === ERR_NO_PATH) {
       depositRequest.threatLevel++;
     }
@@ -351,9 +338,7 @@ Creep.prototype.depositWork = function (depositRequest) {
 
   const resourceType = deposit.depositType;
 
-  const tombstone = deposit.pos
-    .findInRange(FIND_TOMBSTONES, 3)
-    .find((tombstone) => tombstone.store[resourceType] > 0);
+  const tombstone = deposit.pos.findInRange(FIND_TOMBSTONES, 3).find((tombstone) => tombstone.store[resourceType] > 0);
 
   if (tombstone) {
     if (this.pos.getRangeTo(tombstone) > 1) {
@@ -381,12 +366,7 @@ Creep.prototype.depositWork = function (depositRequest) {
   if (range > 1) {
     const targetPos = deposit.pos
       .getAtRange(1)
-      .find(
-        (pos) =>
-          pos.walkable &&
-          (!pos.creep ||
-            (pos.creep.my && pos.creep.memory.role !== this.memory.role)),
-      );
+      .find((pos) => pos.walkable && (!pos.creep || (pos.creep.my && pos.creep.memory.role !== this.memory.role)));
     if (!targetPos) {
       this.moveMy({ pos: deposit.pos, range: 3 });
       return;
