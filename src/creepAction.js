@@ -452,12 +452,14 @@ function reserver(creep) {
 
   const targetRoomName = creep.memory.targetRoomName;
 
-  if (getRoomMemory(targetRoomName).isCombatant) {
-    runAway(creep, creep.memory.base);
+  if (!creep.readyToWork(targetRoomName, { wait: true })) {
     return;
   }
 
-  if (!creep.readyToWork(targetRoomName, { wait: true })) {
+  const targetRoom = Game.rooms[targetRoomName];
+
+  if (!targetRoom) {
+    creep.moveToRoom(targetRoomName);
     return;
   }
 
