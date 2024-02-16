@@ -685,64 +685,23 @@ function findNextSourceKeeperLair(roomName, targetResources) {
 }
 
 function mineralHauler(creep) {
-  const targetRoomName = creep.memory.targetRoomName;
-
   const base = Game.rooms[creep.memory.base];
+
+  if (!base) {
+    return;
+  }
 
   if (creep.spawning) {
     return;
   }
 
-  if (targetRoomName && getRoomMemory(targetRoomName).isCombatant) {
-    runAway(creep, creep.memory.base);
-    if (creep.room.name === creep.memory.base) {
-      delete creep.memory.targetRoomName;
-      delete creep.memory.sourceId;
-    }
+  const targetRoomName = creep.memory.targetRoomName;
+
+  if (!creep.readyToWork(targetRoomName)) {
     return;
   }
 
-  const hostileCreeps = creep.room.getEnemyCombatants();
-
-  const roomType = getRoomType(creep.room.name);
-
-  if (roomType === 'sourceKeeper') {
-    if (creep.pos.findInRange(hostileCreeps, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
-      creep.fleeFrom(hostileCreeps, SOURCE_KEEPER_RANGE_TO_FLEE);
-      return;
-    }
-
-    const keeperLairs = creep.room.find(FIND_HOSTILE_STRUCTURES).filter((structure) => {
-      if (structure.structureType !== STRUCTURE_KEEPER_LAIR) {
-        return false;
-      }
-
-      if ((structure.ticksToSpawn || 300) > 15) {
-        return false;
-      }
-
-      return true;
-    });
-
-    if (creep.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
-      creep.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_FLEE);
-      return;
-    }
-  } else {
-    if (hostileCreeps.length > 0) {
-      runAway(creep, base.name);
-      return;
-    }
-  }
-
-  if (creep.memory.getRecycled === true) {
-    if (creep.room.name === base.name) {
-      creep.getRecycled();
-      return;
-    }
-    creep.moveToRoom(base.name);
-    return;
-  }
+  const path = base.getRemotePath(targetRoomName, creep.memory.sourceId);
 
   // 논리회로
   if (creep.memory.supplying && creep.store.getUsedCapacity() === 0) {
@@ -753,13 +712,19 @@ function mineralHauler(creep) {
 
   // 행동
   if (creep.memory.supplying) {
-    if (!base) {
-      return;
-    }
-
     const terminal = base.terminal;
 
     if (!terminal) {
+      return;
+    }
+
+    if (!path) {
+      console.log(`No Path! room:${creep.memory.base}, remote:${targetRoomName}, source: ${creep.memory.sourceId} `);
+      return;
+    }
+
+    if (creep.pos.getRangeTo(terminal) > 3) {
+      creep.moveByPathMy(path);
       return;
     }
 
@@ -771,74 +736,12 @@ function mineralHauler(creep) {
     return;
   }
 
-  if (creep.ticksToLive < 1.1 * (creep.memory.sourcePathLength || 0)) {
+  if (creep.ticksToLive < 1.1 * (creep.memory.pathLength || 0)) {
     creep.memory.getRecycled = true;
     return;
   }
 
-  const targetRoom = Game.rooms[targetRoomName];
-
-  if (!targetRoom) {
-    creep.moveToRoom(targetRoomName);
-    return;
-  }
-
-  const source = Game.getObjectById(creep.memory.sourceId);
-
-  if (!source) {
-    creep.moveToRoom(targetRoomName);
-    return;
-  }
-
-  if (creep.room.name === targetRoomName) {
-    const tombstone = creep.pos
-      .findInRange(FIND_TOMBSTONES, 5)
-      .find((tombstone) => tombstone.store[RESOURCE_ENERGY] >= 50);
-
-    if (tombstone) {
-      creep.memory.targetId = tombstone.id;
-      creep.getEnergyFrom(tombstone.id);
-      return;
-    }
-
-    const droppedResource = creep.pos
-      .findInRange(FIND_DROPPED_RESOURCES, 5)
-      .find((resource) => resource.resourceType !== RESOURCE_ENERGY || resource.amount >= 50);
-
-    if (droppedResource) {
-      if (creep.pos.getRangeTo(droppedResource) > 1) {
-        creep.moveMy({ pos: droppedResource.pos, range: 1 });
-        return;
-      }
-      creep.pickup(droppedResource);
-      return;
-    }
-  }
-
-  const remoteMiner = source.pos
-    .findInRange(creep.room.creeps.remoteMiner, 1)
-    .find((creep) => creep.store && creep.store.getUsedCapacity() > 0);
-
-  if (remoteMiner) {
-    if (creep.pos.getRangeTo(remoteMiner) > 1) {
-      creep.moveMy({ pos: remoteMiner.pos, range: 1 });
-      return;
-    }
-    for (const resourceType in remoteMiner.store) {
-      if (remoteMiner.transfer(creep, resourceType) === OK) {
-        break;
-      }
-    }
-    return;
-  }
-
-  if (creep.pos.getRangeTo(source.pos) > 2) {
-    creep.moveMy({ pos: source.pos, range: 2 });
-    return;
-  }
-
-  creep.setWorkingInfo(source.pos, 2);
-  return;
+  creep.getResourceFromRemote(targetRoomName, creep.memory.sourceId, path);
 }
 
 function coreAttacker(creep) {

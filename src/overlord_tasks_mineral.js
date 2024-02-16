@@ -178,8 +178,8 @@ Room.prototype.runMineralTask = function (request) {
   }
 
   if (!isEnoughHaulers(request)) {
-    const sourcePathLength = request.distance;
-    this.requestMineralHauler(targetRoomName, mineralId, { maxCarry: request.haulerSize, sourcePathLength });
+    const pathLength = request.distance;
+    this.requestMineralHauler(targetRoomName, mineralId, { maxCarry: request.haulerSize, pathLength });
     return;
   }
 
@@ -283,6 +283,8 @@ function getMineralHaulerMagnitude(room, distance) {
 }
 
 Room.prototype.requestMineralHauler = function (targetRoomName, sourceId, options = {}) {
+  let { pathLength, maxCarry } = options;
+
   if (!this.hasAvailableSpawn()) {
     return;
   }
@@ -298,7 +300,7 @@ Room.prototype.requestMineralHauler = function (targetRoomName, sourceId, option
 
   const energyCapacity = this.energyCapacityAvailable;
 
-  const maxCarry = options.maxCarry || 25;
+  maxCarry = maxCarry || 25;
 
   let cost = 0;
   for (let i = 0; i < Math.min(maxCarry, 25); i++) {
@@ -312,8 +314,8 @@ Room.prototype.requestMineralHauler = function (targetRoomName, sourceId, option
   const spawnOptions = {};
   spawnOptions.priority = SPAWN_PRIORITY['mineralHauler'];
 
-  if (options.sourcePathLength) {
-    memory.sourcePathLength = options.sourcePathLength;
+  if (pathLength) {
+    memory.pathLength = pathLength;
   }
 
   const request = new RequestSpawn(body, name, memory, spawnOptions);

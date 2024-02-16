@@ -335,6 +335,7 @@ function runRemoteHauler(creep) {
 
     if (!path) {
       console.log(`No Path! room:${creep.memory.base}, remote:${targetRoomName}, source: ${creep.memory.sourceId} `);
+      return;
     }
 
     creep.moveByPathMy(path);
@@ -728,6 +729,7 @@ function runRemoteRepairer(creep) {
 
     if (!path) {
       console.log(`No Path! room:${creep.memory.base}, remote:${targetRoomName}, source: ${creep.memory.sourceId} `);
+      return;
     }
 
     creep.moveByPathMy(path);
@@ -1144,20 +1146,6 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
 
   const status = this.getRemoteStatus(targetRoomName);
 
-  if (reservationTick < 0) {
-    if (canReserve) {
-      const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver');
-      const numClaimParts = reservers.map((creep) => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0);
-
-      if (numClaimParts < 2 && reservers.length < (status.controllerAvailable || 2)) {
-        this.requestReserver(targetRoomName);
-        result.requested = true;
-        return result;
-      }
-    }
-    return result;
-  }
-
   const resourceIds = info.resourceIds;
 
   const maxWork = canReserve ? 5 : 3;
@@ -1271,6 +1259,10 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
       result.requested = true;
       return result;
     }
+  }
+
+  if (reservationTick < 0) {
+    return result;
   }
 
   for (const resourceId of resourceIds) {

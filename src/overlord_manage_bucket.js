@@ -1,6 +1,6 @@
-const CPU_THRESHOLD_UP = 0.9;
-const CPU_THRESHOLD_DOWN = 0.8;
-const BUCKET_THRESHOLD = 9000;
+const CPU_THRESHOLD_UP = 0.95;
+const CPU_THRESHOLD_DOWN = 0.9;
+const BUCKET_THRESHOLD = 6000;
 const CPU_INTERVAL = CREEP_LIFE_TIME / 3;
 
 Overlord.manageBucket = function () {

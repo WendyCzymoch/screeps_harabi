@@ -51,13 +51,38 @@ global.Overlord = {
     }
     Game._remotes = [];
     for (const myRoom of this.myRooms) {
-      const activeRemoteNames = myRoom.getActiveRemoteNames();
-      if (!activeRemoteNames) {
+      const activeRemotes = myRoom.getActiveRemotes();
+      if (!activeRemotes) {
         continue;
       }
-      Game._remotes.push(...activeRemoteNames);
+      for (const activeRemoteInfo of activeRemotes) {
+        if (activeRemoteInfo.block) {
+          continue;
+        }
+        Game._remotes.push(activeRemoteInfo.remoteName);
+      }
     }
     return Game._remotes;
+  },
+
+  get remoteSources() {
+    if (Game._remoteSources) {
+      return Game._remoteSources;
+    }
+    Game._remoteSources = [];
+    for (const myRoom of this.myRooms) {
+      const activeRemotes = myRoom.getActiveRemotes();
+      if (!activeRemotes) {
+        continue;
+      }
+      for (const activeRemoteInfo of activeRemotes) {
+        if (activeRemoteInfo.block) {
+          continue;
+        }
+        Game._remoteSources.push(...activeRemoteInfo.resourceIds);
+      }
+    }
+    return Game._remoteSources;
   },
 
   get deposits() {
