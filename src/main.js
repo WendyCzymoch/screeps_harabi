@@ -11,6 +11,7 @@ require('creep_prototype_combat');
 require('creep_prototype_harass');
 require('creep_prototype_hauler');
 require('creep_prototype_powerCreep');
+require('creep_prototype_remote');
 require('creep_prototype_researcher');
 require('creep_prototype');
 
@@ -96,13 +97,6 @@ const profiler = require('screeps-profiler');
 profiler.enable();
 
 delete Memory.globalReset;
-
-// resetScout();
-// for (const creep of Object.values(Game.creeps)) {
-//   if (creep.memory.role === 'remoteHauler') {
-//     creep.memory.assignedRoom = creep.memory.base;
-//   }
-// }
 
 module.exports.loop = () => {
   Overlord.memHack.pretick();
@@ -263,7 +257,7 @@ module.exports.loop = () => {
       );
     }
 
-    // 완료된 order 및 안보이는 방 memory 삭제 및 pixel 구입
+    // 완료된 order 및 안보이는 방 memory 삭제 및 c.site 삭제
     if (Game.time % 300 === 0) {
       //죽은 크립 메모리 삭제
       if (Object.keys(Memory.creeps).length > Object.keys(Game.creeps).length) {
@@ -282,6 +276,8 @@ module.exports.loop = () => {
       for (const order of finishedOrders) {
         Game.market.cancelOrder(order.id);
       }
+
+      Overlord.manageConstructionSites();
     }
 
     if (data.observe) {

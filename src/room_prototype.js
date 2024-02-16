@@ -475,6 +475,12 @@ Room.prototype.getBasicSpawnCapacity = function () {
     result += Math.min(10, Math.floor(this.energyAvailable / 450)) * 5;
   }
 
+  //wallMaker
+  const numWallMaker = this.getDesiredWallMakerCount();
+  const maxWork = Math.min(16, Math.floor(this.energyCapacityAvailable / 200));
+
+  result += numWallMaker * maxWork * 3;
+
   return (this._basicSpawnCapacity = result);
 };
 

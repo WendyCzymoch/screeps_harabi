@@ -27,6 +27,8 @@ Overlord.visualizeRoomInfo = function () {
       new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 26, startPos.y, option);
       return;
     }
+  } else {
+    Memory.showDashboard = 1;
   }
 
   new RoomVisual().rect(startPos.x + X_ENTIRE.start, startPos.y - 1, X_ENTIRE.end + 0.5, numMyRoom + 3, {

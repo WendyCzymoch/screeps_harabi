@@ -97,6 +97,9 @@ if (shardName === 'swc') {
     ZH: 1500,
     ZH2O: 1500,
     XZH2O: 1500,
+
+    // nuker
+    G: 1000,
   };
 
   config.economyStandard = {
@@ -114,7 +117,7 @@ if (shardName === 'swc') {
 
   config.market = false;
 
-  config.notBuild = ['powerSpawn', 'factory'];
+  config.notBuild = ['powerSpawn', 'factory', 'nuker'];
 
   config.labConstructLevel = 7;
 

@@ -180,7 +180,7 @@ Room.prototype.manageSpawn = function () {
     }
 
     // wallMaker 생산
-    if (this.creeps.wallMaker.length === 0 && this.getNeedWallMaker()) {
+    if (this.creeps.wallMaker.length < this.getDesiredWallMakerCount()) {
       this.requestWallMaker();
     }
   }
@@ -281,9 +281,17 @@ Room.prototype.getMaxNumManager = function () {
   return 2;
 };
 
-Room.prototype.getNeedWallMaker = function () {
+Room.prototype.getDesiredWallMakerCount = function () {
+  if (this._desiredWallMakerCount !== undefined) {
+    return this._desiredWallMakerCount;
+  }
+
+  if (this.heap.desiredWallMakerCount !== undefined && Math.random() > 0.01) {
+    return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount);
+  }
+
   if (this.structures.rampart.length === 0) {
-    return false;
+    return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 0);
   }
 
   const weakestRampart = this.weakestRampart;
@@ -291,24 +299,29 @@ Room.prototype.getNeedWallMaker = function () {
   const maxHits = RAMPART_HITS_MAX[this.controller.level];
 
   if (weakestRampart.hits > maxHits - 10000) {
-    return false;
-  }
-
-  if (weakestRampart.hits > RAMPART_HITS_THRESHOLD) {
-    return this.energyLevel >= config.energyLevel.RAMPART_HIGH;
+    return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 0);
   }
 
   const hits = weakestRampart.hits;
 
   if (this.energyLevel >= config.energyLevel.RAMPART_HIGH) {
-    return hits < RAMPART_HITS_THRESHOLD;
+    if (hits < RAMPART_HITS_THRESHOLD) {
+      const count = Math.ceil((this.energyLevel - config.energyLevel.RAMPART_HIGH) / 20);
+      return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = count);
+    }
   } else if (this.energyLevel >= config.energyLevel.RAMPART_MIDDLE) {
-    return hits < RAMPART_HITS_ENOUGH;
+    if (hits < RAMPART_HITS_ENOUGH) {
+      return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 1);
+    }
   } else if (this.energyLevel >= config.energyLevel.RAMPART_LOW) {
     const threshold = this.controller.level ^ (2 * config.rampartHitsPerRclSquare);
-    return hits < threshold;
+
+    if (hits < threshold) {
+      return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 1);
+    }
   }
-  return false;
+
+  return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 0);
 };
 
 Room.prototype.getManagerCarryTotal = function () {
