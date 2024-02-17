@@ -14,8 +14,12 @@ const METHODS_BY_CATEGORY = {
 Overlord.runTasks = function () {
   const categories = this.getTaskCategories();
   for (const category of categories) {
-    const functionName = METHODS_BY_CATEGORY[category];
-    Overlord[functionName]();
+    try {
+      const functionName = METHODS_BY_CATEGORY[category];
+      Overlord[functionName]();
+    } catch (err) {
+      data.recordError(err, category);
+    }
   }
 };
 

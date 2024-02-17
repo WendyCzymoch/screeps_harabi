@@ -145,7 +145,7 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
 
   // move to target room when there is no vision
   if (this.room.name !== targetRoomName) {
-    this.moveByPathMy(path, { reverse: true });
+    this.moveByRemotePath(path, { reverse: true });
     delete this.memory.targetId;
     return;
   }
@@ -176,7 +176,7 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
 
   // approach to target
   if (this.pos.getRangeTo(resource) > 5) {
-    this.moveByPathMy(path, { reverse: true });
+    this.moveByRemotePath(path, { reverse: true });
     return;
   }
 
@@ -267,25 +267,17 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
   return;
 };
 
-Creep.prototype.moveByPathMy = function (path, options = {}) {
+Creep.prototype.moveByRemotePath = function (path, options = {}) {
   const { reverse } = options;
 
-  let currentIndex = _.findIndex(path, (i) => i.isEqualTo(this.pos));
+  const result = reverse ? this.moveByPathMyReverse(path) : this.moveByPathMy(path);
 
-  if (currentIndex === -1) {
+  if (result !== OK) {
     const goals = path.map((pos) => {
       return { pos, range: 0 };
     });
-    this.moveMy(goals);
-    return;
+    return this.moveMy(goals);
   }
-
-  const nextIndex = reverse ? currentIndex - 1 : currentIndex + 1;
-
-  const nextPos = path[nextIndex];
-
-  this.setNextPos(nextPos);
-  this._moved = true;
 
   return OK;
 };

@@ -102,6 +102,7 @@ module.exports.loop = () => {
   Overlord.memHack.pretick();
 
   profiler.wrap(function () {
+    // hasRespawned
     if (hasRespawned()) {
       RawMemory.set('{}');
       for (const key in Memory) {
@@ -117,17 +118,22 @@ module.exports.loop = () => {
       console.log('respawn');
     }
 
-    if (config.shard === 'shardSeason') {
-      Memory.gcl = Memory.gcl || 1;
-      if (Game.gcl.level > Memory.gcl) {
-        console.log('gcl up');
-        const roomName = Memory.next;
-        const room = Game.rooms[roomName];
-        if (Memory.next && (!room || !room.isMy)) {
-          Memory.gcl = Game.gcl.level;
-          claim(roomName);
+    // autoClaim
+    try {
+      if (config.shard === 'shardSeason') {
+        Memory.gcl = Memory.gcl || 1;
+        if (Game.gcl.level > Memory.gcl) {
+          console.log('gcl up');
+          const roomName = Memory.next;
+          const room = Game.rooms[roomName];
+          if (Memory.next && (!room || !room.isMy)) {
+            Memory.gcl = Game.gcl.level;
+            claim(roomName);
+          }
         }
       }
+    } catch (err) {
+      data.recordError(err, 'autoclaim');
     }
 
     if (Memory.globalReset === undefined) {
@@ -136,67 +142,75 @@ module.exports.loop = () => {
     }
 
     // Overlord 동작
-    Overlord.classifyCreeps();
+    try {
+      Overlord.classifyCreeps();
+    } catch (err) {
+      data.recordError(err, 'classifyCreeps');
+    }
 
     // flag 실행
     for (const flag of Object.values(Game.flags)) {
-      const name = flag.name.toLowerCase();
-      const roomName = flag.pos.roomName;
-      if (name.includes('claim')) {
-        claim(roomName);
-        flag.remove();
-        continue;
-      }
-      if (name.includes('clear')) {
-        flag.manageClearAll();
-        continue;
-      }
-      if (name.includes('reconstruction')) {
-        flag.manageReconstruction();
-        continue;
-      }
-      if (name.includes('loot')) {
-        flag.lootRoom();
-        continue;
-      }
-      if (name.includes('send')) {
-        flag.sendIntershardingCreeps();
-        continue;
-      }
-      if (name.includes('intershard')) {
-        flag.claimIntershard();
-        continue;
-      }
-      if (name.includes('analyze')) {
-        Overlord.observeRoom(flag.pos.roomName);
-        if (flag.room) {
-          flag.room.optimizeBasePlan();
+      try {
+        const name = flag.name.toLowerCase();
+        const roomName = flag.pos.roomName;
+        if (name.includes('claim')) {
+          claim(roomName);
+          flag.remove();
+          continue;
         }
-        continue;
-      }
-      if (name.includes('baseplan')) {
-        Overlord.observeRoom(flag.pos.roomName);
-        if (flag.room) {
-          flag.room.getBasePlanByPos(flag.pos);
+        if (name.includes('clear')) {
+          flag.manageClearAll();
+          continue;
         }
-        continue;
-      }
-      if (name.includes('war')) {
-        flag.conductWar();
-        continue;
-      }
-      if (name.includes('nuke')) {
-        flag.nukeRoom();
-        flag.remove();
-        continue;
-      }
-      if (name.includes('dismantle')) {
-        flag.dismantleRoom();
-        continue;
-      }
-      if (name.includes('observe')) {
-        Overlord.observeRoom(flag.pos.roomName);
-        continue;
+        if (name.includes('reconstruction')) {
+          flag.manageReconstruction();
+          continue;
+        }
+        if (name.includes('loot')) {
+          flag.lootRoom();
+          continue;
+        }
+        if (name.includes('send')) {
+          flag.sendIntershardingCreeps();
+          continue;
+        }
+        if (name.includes('intershard')) {
+          flag.claimIntershard();
+          continue;
+        }
+        if (name.includes('analyze')) {
+          Overlord.observeRoom(flag.pos.roomName);
+          if (flag.room) {
+            flag.room.optimizeBasePlan();
+          }
+          continue;
+        }
+        if (name.includes('baseplan')) {
+          Overlord.observeRoom(flag.pos.roomName);
+          if (flag.room) {
+            flag.room.getBasePlanByPos(flag.pos);
+          }
+          continue;
+        }
+        if (name.includes('war')) {
+          flag.conductWar();
+          continue;
+        }
+        if (name.includes('nuke')) {
+          flag.nukeRoom();
+          flag.remove();
+          continue;
+        }
+        if (name.includes('dismantle')) {
+          flag.dismantleRoom();
+          continue;
+        }
+        if (name.includes('observe')) {
+          Overlord.observeRoom(flag.pos.roomName);
+          continue;
+        }
+      } catch (err) {
+        data.recordError(err, flag.name);
       }
     }
 
@@ -208,7 +222,11 @@ module.exports.loop = () => {
 
     // 방마다 roomManager 동작
     for (const room of Object.values(Game.rooms)) {
-      room.runRoomManager();
+      try {
+        room.runRoomManager();
+      } catch (err) {
+        data.recordError(err, room.name);
+      }
     }
 
     // independent creeps 동작
@@ -217,31 +235,18 @@ module.exports.loop = () => {
       try {
         const role = creep.memory.role;
         creepAction[role](creep);
-      } catch (error) {}
-    }
-
-    // powerCreep 실행
-    for (const powerCreep of Object.values(Game.powerCreeps)) {
-      const roomName = powerCreep.name.split(' ')[0];
-      if (!Game.rooms[roomName]) {
-        continue;
+      } catch (err) {
+        console.log(err.stack.split('at'));
       }
-      if (!powerCreep.room) {
-        Game.rooms[roomName].memory.hasOperator = false;
-        const powerSpawn = Game.rooms[roomName].structures.powerSpawn[0];
-        if (!powerSpawn) {
-          continue;
-        }
-        powerCreep.spawn(powerSpawn);
-        continue;
-      }
-      Game.rooms[roomName].memory.hasOperator = true;
-      powerCreep.actRoomOperator();
     }
 
     // 방마다 traffic manager 동작
     for (const room of Object.values(Game.rooms)) {
-      room.manageTraffic();
+      try {
+        room.manageTraffic();
+      } catch (err) {
+        data.recordError(err, room.name);
+      }
     }
 
     // 없어진 flag 메모리 삭제
@@ -277,7 +282,11 @@ module.exports.loop = () => {
         Game.market.cancelOrder(order.id);
       }
 
-      Overlord.manageConstructionSites();
+      try {
+        Overlord.manageConstructionSites();
+      } catch (err) {
+        data.recordError(err, 'manageConstructionSites');
+      }
     }
 
     if (data.observe) {
@@ -287,22 +296,24 @@ module.exports.loop = () => {
     const terminal = Overlord.structures.terminal.sort()[data.terminalOrder];
     data.terminalOrder = (data.terminalOrder + 1) % Overlord.structures.terminal.length;
     if (terminal && (!Memory.abandon || !Memory.abandon.includes(terminal.room.name))) {
-      terminal.run();
+      try {
+        terminal.run();
+      } catch (err) {
+        data.recordError(err, terminal.room.name);
+      }
     }
 
     if (Math.random() < 0.01 && config.buyPixel && config.creditGoal && Game.market.credits > config.creditGoal) {
       Business.buy('pixel', 500);
     }
 
-    Overlord.manageBucket();
-
     try {
+      Overlord.manageBucket();
       Overlord.visualizeRoomInfo();
       Overlord.mapInfo();
+      Overlord.exportStats();
     } catch (err) {
-      console.log(err);
+      data.recordError(err, 'overlord');
     }
-
-    Overlord.exportStats();
   });
 };

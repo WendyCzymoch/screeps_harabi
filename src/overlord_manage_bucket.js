@@ -141,7 +141,7 @@ Overlord.getBestRemote = function () {
       if (!remoteStatus.block) {
         continue;
       }
-      const value = room.getRemoteValue(room, remoteName).total;
+      const value = room.getRemoteValue(remoteName).total;
       const weight = room.getRemoteSpawnUsage(remoteName).total;
       if (!score || score < value / weight) {
         score = value / weight;

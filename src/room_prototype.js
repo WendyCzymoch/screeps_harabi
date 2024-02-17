@@ -468,18 +468,17 @@ Room.prototype.getBasicSpawnCapacity = function () {
 
   //laborer
   const basicNumWork = 12;
-  result += basicNumWork * 3;
+  result += basicNumWork * 2;
 
   //extractor
-  if (level >= 6 && this.structures.extractor.length > 0 && this.mineral.mineralAmount > 0) {
+  if (level >= 6) {
     result += Math.min(10, Math.floor(this.energyAvailable / 450)) * 5;
   }
 
   //wallMaker
-  const numWallMaker = this.getDesiredWallMakerCount();
-  const maxWork = Math.min(16, Math.floor(this.energyCapacityAvailable / 200));
-
-  result += numWallMaker * maxWork * 3;
+  if (level >= config.rampartLevel) {
+    result += Math.min(16, Math.floor(this.energyCapacityAvailable / 200)) * 3;
+  }
 
   return (this._basicSpawnCapacity = result);
 };
@@ -502,6 +501,8 @@ Room.prototype.getSpawnCapacity = function () {
       result += info.weight;
     }
   }
+
+  result += Math.ceil(this.maxWork * 1.4);
 
   if (this.memory.depositRequests) {
     for (const depositRequest of Object.values(this.memory.depositRequests)) {

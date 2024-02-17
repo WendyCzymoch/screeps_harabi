@@ -43,6 +43,7 @@ Room.prototype.manageRemotes = function () {
       continue;
     }
 
+    info.block = status.block;
     if (status.block) {
       Game.map.visual.text(`⛔`, new RoomPosition(49, 5, targetRoomName), {
         fontSize: 5,
@@ -338,7 +339,7 @@ function runRemoteHauler(creep) {
       return;
     }
 
-    creep.moveByPathMy(path);
+    creep.moveByRemotePath(path);
     return;
   }
 
@@ -436,7 +437,7 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
 
     if (Math.random() < 0.005) {
       const roadDecayInfo = this.getRemoteRoadDecayInfo();
-      const score = roadDecayInfo.lostHits + roadDecayInfo.numLowHits * 5000;
+      const score = roadDecayInfo.lostHits + roadDecayInfo.numLowHits * 10000;
       const criteria = REPAIR_POWER * CREEP_LIFE_TIME;
       if (!this.memory.repairRemote && score > criteria) {
         this.memory.repairRemote = true;
@@ -461,8 +462,12 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
       if (remoteBuilder.room.name !== this.name || isEdgeCoord(remoteBuilder.pos.x, remoteBuilder.pos.y)) {
         remoteBuilder.moveToRoom(this.name);
       } else {
-        remoteBuilder.memory.role = 'laborer';
-        remoteBuilder.memory.isBuilder = true;
+        if (this.controller.level === 8) {
+          remoteBuilder.memory.role = 'wallMaker';
+        } else {
+          remoteBuilder.memory.role = 'laborer';
+          remoteBuilder.memory.isBuilder = true;
+        }
       }
     }
 
@@ -474,7 +479,7 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
     return;
   }
 
-  Game.map.visual.text('construct', new RoomPosition(25, 5, targetRoomName));
+  Game.map.visual.text('🏗️', new RoomPosition(45, 5, targetRoomName), { fontSize: 5 });
 
   const remoteStatus = this.getRemoteStatus(targetRoomName);
 
@@ -603,7 +608,8 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
   let numLowHits = 0;
   let repairTargetRoomName = undefined;
   let repairTargetSourceId = undefined;
-  let repairTargetScore = 0;
+  let repairTargetNumLowHits = 0;
+  let repairTargetLostHitsTotal = 0;
 
   for (const info of activeRemotes) {
     const remoteName = info.remoteName;
@@ -618,7 +624,7 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
 
     for (const resourceId of resourceIds) {
       let routeLostHitsTotal = 0;
-      let routeHitsMaxTotal = 0;
+      let routeNumLowHits = 0;
       const sourceBlueprint = blueprint[resourceId];
 
       if (sourceBlueprint.isMineral) {
@@ -644,18 +650,23 @@ Room.prototype.getRemoteRoadDecayInfo = function () {
 
         if (road) {
           routeLostHitsTotal += road.hitsMax - road.hits;
-          routeHitsMaxTotal += road.hitsMax;
           lostHits += road.hitsMax - road.hits;
           if (road.hits / road.hitsMax < 0.5) {
+            routeNumLowHits++;
             numLowHits++;
           }
         }
       }
-      const routeScore = routeLostHitsTotal / routeHitsMaxTotal;
-      if (routeScore > repairTargetScore) {
-        repairTargetScore = routeScore;
+
+      if (routeNumLowHits < repairTargetNumLowHits) {
+        continue;
+      }
+
+      if (routeNumLowHits > repairTargetNumLowHits || routeLostHitsTotal > repairTargetLostHitsTotal) {
         repairTargetRoomName = remoteName;
         repairTargetSourceId = resourceId;
+        repairTargetNumLowHits = routeNumLowHits;
+        repairTargetLostHitsTotal = routeLostHitsTotal;
       }
     }
   }
@@ -691,6 +702,8 @@ function runRemoteRepairer(creep) {
   }
 
   const targetRoomName = creep.memory.targetRoomName;
+
+  Game.map.visual.text('🔧', new RoomPosition(45, 5, targetRoomName), { fontSize: 5 });
 
   if (!creep.readyToWork(targetRoomName)) {
     return;
@@ -732,7 +745,7 @@ function runRemoteRepairer(creep) {
       return;
     }
 
-    creep.moveByPathMy(path);
+    creep.moveByRemotePath(path);
 
     return;
   }
@@ -1490,7 +1503,6 @@ Room.prototype.getActiveRemoteNames = function () {
 
 Room.prototype.resetActiveRemotes = function () {
   delete this.memory.activeRemotes;
-  delete this.memory.activeRemotesTime;
 };
 
 /**
@@ -1498,9 +1510,33 @@ Room.prototype.resetActiveRemotes = function () {
  * @returns array of objects which contains informations: remoteName, intermediate, value, weight, resourceIds, block
  */
 Room.prototype.getActiveRemotes = function () {
-  if (this.memory.activeRemotes && this.memory.activeRemotesTime && Game.time < this.memory.activeRemotesTime + 20) {
-    return this.memory.activeRemotes;
+  if (this._activeRemotes !== undefined) {
+    return this._activeRemotes;
   }
+
+  const numSpawn = this.structures.spawn.length;
+  const canReserve = this.energyCapacityAvailable >= 650;
+  const level = this.controller.level;
+
+  if (this.memory.activeRemotes) {
+    const before = this.memory.activeRemotes;
+    if (
+      before.numSpawn === numSpawn &&
+      before.canReserve === canReserve &&
+      before.level === level &&
+      Game.time < before.time + CREEP_LIFE_TIME
+    ) {
+      return (this._activeRemotes = before.infos);
+    }
+  }
+
+  const result = {
+    infos: [],
+    numSpawn,
+    canReserve,
+    level,
+    time: Game.time,
+  };
 
   const remoteInfos = [];
 
@@ -1515,11 +1551,9 @@ Room.prototype.getActiveRemotes = function () {
       continue;
     }
 
-    if (remoteStatus.forbidden) {
+    if (Memory.blockedRemotes && Memory.blockedRemotes.includes(remoteName)) {
       continue;
     }
-
-    const block = remoteStatus.block;
 
     if (remoteStatus.roomType === 'sourceKeeper' && this.energyCapacityAvailable < 4270) {
       //energy to spawn SK handler
@@ -1543,7 +1577,6 @@ Room.prototype.getActiveRemotes = function () {
       value: value.total,
       weight: spawnUsage.total,
       resourceIds: Object.keys(remoteStatus.blueprints),
-      block,
     };
 
     remoteInfos.push(info);
@@ -1562,7 +1595,6 @@ Room.prototype.getActiveRemotes = function () {
       value: betterSourceValue,
       weight: betterSourceWeight,
       resourceIds: [betterSourceId],
-      block,
     };
 
     remoteInfos.push(info2);
@@ -1571,8 +1603,8 @@ Room.prototype.getActiveRemotes = function () {
   let spawnCapacityForRemotes = Math.floor(this.structures.spawn.length * 485 - this.getBasicSpawnCapacity());
 
   if (spawnCapacityForRemotes <= 0) {
-    this.memory.activeRemotesTime = Game.time;
-    return (this.memory.activeRemotes = []);
+    this.memory.activeRemotes = result;
+    return (this._activeRemotes = result.infos);
   }
 
   // vaules
@@ -1588,8 +1620,9 @@ Room.prototype.getActiveRemotes = function () {
   for (let i = 0; i < remoteInfos.length; i++) {
     const info = remoteInfos[i];
     const remoteName = remoteInfos[i].remoteName;
-    const w = Math.ceil(info.weight);
     const v = info.value;
+    const w = Math.ceil(info.weight + (this.controller.level < 8 ? v * 1.4 : 0));
+    // if controller level is under 8, should consider upgrader spawn usage
     const intermediateNames = info.intermediates;
     for (let j = spawnCapacityForRemotes; j > 0; j--) {
       if (j + w > spawnCapacityForRemotes || table[j] === 0) {
@@ -1626,22 +1659,25 @@ Room.prototype.getActiveRemotes = function () {
   }
 
   // find best option
-  let result = [];
   let bestValue = 0;
   for (let i = 0; i < table.length; i++) {
     if (table[i] > bestValue) {
       bestValue = table[i];
-      result = resultTable[i];
+      result.infos = resultTable[i];
     }
   }
-  result.sort((a, b) => b.value / b.weight - a.value / a.weight);
-  this.memory.activeRemotesTime = Game.time;
-  return (this.memory.activeRemotes = result);
+  result.infos.sort((a, b) => b.value / b.weight - a.value / a.weight);
+
+  this.memory.activeRemotes = result;
+
+  return (this._activeRemotes = result.infos);
 };
 
 Room.prototype.addRemote = function (targetRoomName) {
   this.memory.remotes = this.memory.remotes || {};
   this.memory.remotes[targetRoomName] = {};
+
+  this.getRemoteBlueprints(targetRoomName);
 
   this.resetActiveRemotes();
 };
@@ -1804,9 +1840,6 @@ Room.prototype.getSourceKeeperRemoteSpawnUsage = function (targetRoomName) {
     }
     result.total += 20; // miner
     result.total += blueprint.maxCarry * 1.5;
-    if (this.controller.level < 8) {
-      result.total += 3 * 9; // upgrader. assume income is 9e/tick
-    }
   }
 
   if (remoteStatus) {
@@ -1893,9 +1926,6 @@ Room.prototype.getNormalRemoteSpawnUsage = function (targetRoomName) {
   for (const blueprint of Object.values(blueprints)) {
     const resourceId = blueprint.resourceId;
     result.resources[resourceId] = 0;
-    if (this.controller.level < 8) {
-      result.resources[resourceId] += 3 * 5; // upgrader. assume that income is 5e/tick
-    }
     result.resources[resourceId] += needBigMiner ? 20 : 13; // miner
     result.resources[resourceId] += blueprint.maxCarry * (canReserve ? 1.5 : 2); // hauler
     if (!canReserve) {
@@ -1937,11 +1967,14 @@ Room.prototype.getRemoteBlueprints = function (targetRoomName) {
 
   const startingPoint = this.getStoragePos();
   if (!startingPoint) {
+    console.log(`${this.name} has no strage pos`);
     return;
   }
 
   const targetRoom = Game.rooms[targetRoomName];
   if (!targetRoom) {
+    console.log(`${this.name} cannot see ${targetRoomName}`);
+    this.deleteRemote(targetRoomName);
     return;
   }
 

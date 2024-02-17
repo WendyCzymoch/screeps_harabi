@@ -1,6 +1,5 @@
 const VISUALIZE_GOAL = false;
 const VISUALIZE_MOVE = false;
-const VISUALIZE_PATH_TO_MAP = false;
 
 Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
   if (ignoreMap === undefined) {
@@ -29,6 +28,16 @@ Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
  * @returns {Constant} ERR_NOT_IN_RANGE - Tried swapPos but failed. target is not adjacent
  */
 Creep.prototype.moveMy = function (goals, options = {}) {
+  //spawn 중이면 return
+  if (this.spawning) {
+    return ERR_BUSY;
+  }
+
+  //fatigue 있으면 return
+  if (this.fatigue || this.getActiveBodyparts(MOVE) === 0) {
+    return ERR_TIRED;
+  }
+
   //option = {staySafe, ignoreMap}
   const defaultOptions = {
     staySafe: this.room.heap.isEnemy && this.room.isWalledUp,
@@ -61,14 +70,9 @@ Creep.prototype.moveMy = function (goals, options = {}) {
     return ERR_BUSY;
   }
 
-  //spawn 중이면 return
-  if (this.spawning) {
-    return ERR_BUSY;
-  }
-
   // stay 중이면 return
   if (this.heap.stay) {
-    if (this.heap.stay > Game.time) {
+    if (Game.time < this.heap.stay) {
       this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' });
       this.say(`🛌${this.heap.stay - Game.time}`, true);
       return ERR_NO_PATH;
@@ -78,11 +82,6 @@ Creep.prototype.moveMy = function (goals, options = {}) {
         this.memory.notifiedStuck = true;
       }
     }
-  }
-
-  //fatigue 있으면 return
-  if (this.fatigue || this.getActiveBodyparts(MOVE) === 0) {
-    return ERR_TIRED;
   }
 
   if (this.needNewPath(goals)) {
@@ -134,57 +133,25 @@ Creep.prototype.moveMy = function (goals, options = {}) {
   this.heap.lastPos = this.pos;
   this.heap.lastPosTick = Game.time;
 
-  // path의 첫번째에 도착했으면 첫 번째를 지우자
-  if (this.heap.path[0] && this.pos.isEqualTo(this.heap.path[0])) {
-    this.heap.path.shift();
-  }
-
-  if (visualize) {
-    visualizePath(this.heap.path, this.pos);
-  }
-
-  // 다음꺼한테 가자
-  const nextPos = this.heap.path[0];
-
-  if ((VISUALIZE_MOVE || TRAFFIC_TEST) && nextPos) {
-    this.room.visual.arrow(this.pos, nextPos, { color: 'red', opacity: 1 });
-  }
-
-  // 다음꺼 없거나 다음꺼가 멀면 뭔가 잘못된거니까 리셋
-  if (!nextPos) {
-    this.resetPath();
-    this.say('🚫', true);
-    return ERR_NOT_FOUND;
-  }
-
   const path = this.heap.path;
   const goal = path[path.length - 1];
 
+  if (visualize) {
+    visualizePath(path, this.pos);
+  }
+
   //같은 방에 있으면 목적지 표시. 다른 방에 있으면 지도에 표시
-  if (goal && this.pos.roomName === goal.roomName) {
-    if (VISUALIZE_GOAL === true) {
-      this.room.visual.line(this.pos, goal, { color: 'yellow', lineStyle: 'dashed' });
-    }
-  } else if (VISUALIZE_PATH_TO_MAP && this.heap.path && this.heap.path.length > 0) {
-    Game.map.visual.poly(this.heap.path, { stroke: '#ffe700', strokeWidth: 1, opacity: 0.75 });
+  if (VISUALIZE_GOAL && goal && this.pos.roomName === goal.roomName) {
+    this.room.visual.line(this.pos, goal, { color: 'yellow', lineStyle: 'dashed' });
   }
 
-  if (this.pos.roomName !== nextPos.roomName || this.pos.getRangeTo(nextPos) > 1) {
+  const result = this.moveByPathMy(path);
+
+  if (result !== OK) {
     this.resetPath();
-    this.say('🛑', true);
-    return ERR_NOT_FOUND;
   }
 
-  this.setNextPos(nextPos);
-
-  // 움직였으니까 _moved 체크
-  this._moved = true;
-
-  // 여기는 validCoord인데 다음꺼는 validCoord가 아니면 이제 방의 edge인거다. 다음꺼를 지우자.
-  if (!isEdgeCoord(this.pos.x, this.pos.y) && isEdgeCoord(nextPos.x, nextPos.y)) {
-    this.heap.path.shift();
-  }
-  return OK;
+  return result;
 };
 
 global.normalizeGoals = function (goals) {
@@ -210,6 +177,55 @@ global.normalizeGoals = function (goals) {
     result.push({ pos, range });
   }
   return result;
+};
+
+Creep.prototype.moveByPathMy = function (path) {
+  let index = _.findIndex(path, (i) => i.isEqualTo(this.pos));
+
+  if (index === -1) {
+    if (!this.pos.isNearTo(path[0])) {
+      return ERR_NOT_FOUND;
+    }
+  }
+
+  index++;
+
+  if (index >= path.length) {
+    return ERR_NOT_FOUND;
+  }
+
+  const nextPos = path[index];
+
+  this.setNextPos(nextPos);
+
+  this._moved = true;
+
+  return OK;
+};
+
+Creep.prototype.moveByPathMyReverse = function (path) {
+  let index = _.findIndex(path, (i) => i.isEqualTo(this.pos));
+
+  if (index === -1) {
+    if (!this.pos.isNearTo(path[path.length - 1])) {
+      return ERR_NOT_FOUND;
+    }
+    index = path.length - 1;
+  } else {
+    index--;
+  }
+
+  if (index < 0) {
+    return ERR_NOT_FOUND;
+  }
+
+  const nextPos = path[index];
+
+  this.setNextPos(nextPos);
+
+  this._moved = true;
+
+  return OK;
 };
 
 Creep.prototype.getCost = function () {
@@ -336,6 +352,8 @@ Creep.prototype.resetPath = function () {
   delete this.heap.path;
   delete this.heap.stuck;
   delete this.heap.lastPos;
+  delete this.heap.stay;
+  delete this.heap.noPath;
 };
 
 /**
@@ -350,10 +368,6 @@ Creep.prototype.needNewPath = function (goals) {
   }
 
   if (this.heap.path.length === 0) {
-    return true;
-  }
-
-  if (this.pos.getRangeTo(this.heap.path[0]) > 1) {
     return true;
   }
 

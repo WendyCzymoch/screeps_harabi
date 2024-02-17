@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 // This is the conventional segment used for team communication
 const allySegmentID = 77;
 
@@ -9,18 +9,10 @@ const maxSegmentsOpen = 10;
 const EFunnelGoalType = {
   GCL: 0,
   RCL7: 1,
-  RCL8: 2
+  RCL8: 2,
 };
 
-const requestTypes = [
-  'resource',
-  'defense',
-  'attack',
-  'player',
-  'work',
-  'funnel',
-  'room',
-]
+const requestTypes = ['resource', 'defense', 'attack', 'player', 'work', 'funnel', 'room'];
 
 //
 class SimpleAllies {
@@ -30,36 +22,35 @@ class SimpleAllies {
     this.currentAlly;
   }
 
-
   /**
    * To call before any requests are made or responded to. Configures some required values and gets ally requests
    */
   initRun(roomName) {
     // Reset the data of myRequests for roomName
-    this.reset(roomName)
+    this.reset(roomName);
     if (Math.random() < 0.01) {
       for (const requestType of requestTypes) {
-        const requests = this.myRequests[requestType] || []
-        this.myRequests[requestType] = requests.filter(request => {
-          const roomName = request.roomName
-          const room = Game.rooms[roomName]
+        const requests = this.myRequests[requestType] || [];
+        this.myRequests[requestType] = requests.filter((request) => {
+          const roomName = request.roomName;
+          const room = Game.rooms[roomName];
           if (!room || !room.isMy || room.getIsWrecked()) {
-            return false
+            return false;
           }
-          return true
-        })
+          return true;
+        });
       }
     }
     this.readAllySegment();
 
-    Memory.simpleAlliesCache = Memory.simpleAlliesCache || {}
-    Memory.simpleAlliesCache[this.currentAlly] = this.allySegmentData
+    Memory.simpleAlliesCache = Memory.simpleAlliesCache || {};
+    Memory.simpleAlliesCache[this.currentAlly] = this.allySegmentData;
   }
 
   reset(roomName) {
     for (const requestType of requestTypes) {
-      const requests = this.myRequests[requestType] || []
-      this.myRequests[requestType] = requests.filter(request => request.roomName !== roomName)
+      const requests = this.myRequests[requestType] || [];
+      this.myRequests[requestType] = requests.filter((request) => request.roomName !== roomName);
     }
   }
 
@@ -68,23 +59,20 @@ class SimpleAllies {
    */
   readAllySegment() {
     if (allies.length === undefined) {
-      throw Error("Failed to find an ally for simpleAllies, you probably have none :(");
+      throw Error('Failed to find an ally for simpleAllies, you probably have none :(');
     }
     this.currentAlly = allies[Game.time % allies.length];
     // Make a request to read the data of the next ally in the list, for next tick
     const nextAllyName = allies[(Game.time + 1) % allies.length];
     RawMemory.setActiveForeignSegment(nextAllyName, allySegmentID);
     // Maybe the code didn't run last tick, so we didn't set a new read segment
-    if (!RawMemory.foreignSegment)
-      return;
-    if (RawMemory.foreignSegment.username !== this.currentAlly)
-      return;
+    if (!RawMemory.foreignSegment) return;
+    if (RawMemory.foreignSegment.username !== this.currentAlly) return;
     // Protect from errors as we try to get ally segment data
     try {
       this.allySegmentData = JSON.parse(RawMemory.foreignSegment.data);
-    }
-    catch (err) {
-      console.log('Error in getting requests for simpleAllies', this.currentAlly);
+    } catch (err) {
+      data.recordError(err, 'readAllySegment');
     }
   }
 
@@ -97,7 +85,7 @@ class SimpleAllies {
       throw Error('Too many segments open: simpleAllies');
     }
     const newSegmentData = {
-      requests: this.myRequests
+      requests: this.myRequests,
     };
     RawMemory.segments[allySegmentID] = JSON.stringify(newSegmentData);
     RawMemory.setPublicSegments([allySegmentID]);
@@ -201,5 +189,5 @@ class SimpleAllies {
 module.exports = {
   allySegmentID: allySegmentID,
   EFunnelGoalType: EFunnelGoalType,
-  simpleAllies: new SimpleAllies()
+  simpleAllies: new SimpleAllies(),
 };

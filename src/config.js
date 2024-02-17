@@ -117,7 +117,7 @@ if (shardName === 'swc') {
 
   config.market = false;
 
-  config.notBuild = ['powerSpawn', 'factory', 'nuker'];
+  config.notBuild = ['powerSpawn', 'nuker'];
 
   config.labConstructLevel = 7;
 

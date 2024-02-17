@@ -1,5 +1,5 @@
-const { config } = require("./config");
-const { EFunnelGoalType } = require("./simpleAllies");
+const { config } = require('./config');
+const { EFunnelGoalType } = require('./simpleAllies');
 
 Overlord.getBestFunnelRequest = function () {
   if (Game._bestFunnelRequest !== undefined) {
@@ -11,9 +11,7 @@ Overlord.getBestFunnelRequest = function () {
 
   if (myFunnelRequest && allyFunnelRequest) {
     return (Game._bestFunnelRequest =
-      myFunnelRequest.maxAmount <= allyFunnelRequest.maxAmount
-        ? myFunnelRequest
-        : allyFunnelRequest);
+      myFunnelRequest.maxAmount <= allyFunnelRequest.maxAmount ? myFunnelRequest : allyFunnelRequest);
   }
 
   return (Game._bestFunnelRequest = myFunnelRequest || allyFunnelRequest);
@@ -52,7 +50,7 @@ function getAllyFunnelRequest() {
       }
     }
   } catch (err) {
-    console.log(err);
+    data.recordError(err, 'getAllyFunnelRequest');
   }
 
   return result;
@@ -91,12 +89,7 @@ function getMyFunnelList() {
   const result = [];
 
   for (const room of myRooms) {
-    if (
-      !room.terminal ||
-      !room.terminal.RCLActionable ||
-      !room.storage ||
-      room.abandon
-    ) {
+    if (!room.terminal || !room.terminal.RCLActionable || !room.storage || room.abandon) {
       continue;
     }
 
@@ -106,12 +99,7 @@ function getMyFunnelList() {
       continue;
     }
 
-    const goalType =
-      level === 6
-        ? EFunnelGoalType.RCL7
-        : level === 7
-          ? EFunnelGoalType.RCL8
-          : undefined;
+    const goalType = level === 6 ? EFunnelGoalType.RCL7 : level === 7 ? EFunnelGoalType.RCL8 : undefined;
 
     if (!goalType) {
       continue;

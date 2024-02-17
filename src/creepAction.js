@@ -514,12 +514,20 @@ function remoteMiner(creep) {
 
   const targetRoom = Game.rooms[targetRoomName];
 
-  if (!targetRoom) {
-    creep.moveToRoom(targetRoomName);
+  const path = base.getRemotePath(targetRoomName, creep.memory.sourceId);
+
+  if (!path) {
+    console.log(`No Path! room:${creep.memory.base}, remote:${targetRoomName}, source: ${creep.memory.sourceId} `);
     return;
   }
 
   const source = Game.getObjectById(creep.memory.sourceId);
+
+  if (!source || creep.pos.getRangeTo(source) > 3) {
+    creep.moveByRemotePath(path, { reverse: true });
+    return;
+  }
+
   const container =
     Game.getObjectById(creep.memory.containerId) ||
     targetRoom.structures.container.find((structure) => structure.pos.isNearTo(source));
@@ -724,7 +732,7 @@ function mineralHauler(creep) {
     }
 
     if (creep.pos.getRangeTo(terminal) > 3) {
-      creep.moveByPathMy(path);
+      creep.moveByRemotePath(path);
       return;
     }
 

@@ -43,7 +43,7 @@ Overlord.visualizeRoomInfo = function () {
   }
   new RoomVisual().text('Bucket ' + Game.cpu.bucket, 10, startPos.y, option);
   new RoomVisual().text(`Room: ${numMyRoom}`, 15, startPos.y, option);
-  new RoomVisual().text(`Remote: ${Overlord.remotes.length}(rooms)`, 18.5, startPos.y, option);
+  new RoomVisual().text(`Remote: ${Overlord.remoteSources.length}(sources)`, 18.5, startPos.y, option);
   new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 26, startPos.y, option);
 
   // 각 방마다 표시

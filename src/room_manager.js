@@ -4,6 +4,7 @@ global.SPAWN_CAPACITY_THRESHOLD = 0.9;
 
 Room.prototype.runRoomManager = function () {
   this.updateIntel();
+
   if (!this.isMy) {
     this.checkTombstone();
     return;

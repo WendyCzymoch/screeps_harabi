@@ -236,12 +236,16 @@ global.visual = function () {
   return 'show basePlan';
 };
 
-global.resetScout = function (roomName) {
-  if (roomName === undefined) {
+global.resetScout = function (options = {}) {
+  const { roomName, resetRemotes } = options;
+
+  if (!roomName) {
     for (const myRoom of Overlord.myRooms) {
       delete myRoom.memory.scout;
-      delete myRoom.memory.remotes;
-      delete myRoom.memory.activeRemotes;
+      if (resetRemotes) {
+        delete myRoom.memory.remotes;
+        delete myRoom.memory.activeRemotes;
+      }
       const scouters = Overlord.getCreepsByRole(myRoom.name, 'scouter');
       for (const scouter of scouters) {
         scouter.suicide();
@@ -262,8 +266,10 @@ global.resetScout = function (roomName) {
       return 'invalid roomName';
     }
     delete room.memory.scout;
-    delete room.memory.remotes;
-    delete room.memory.activeRemotes;
+    if (resetRemotes) {
+      delete room.memory.remotes;
+      delete room.memory.activeRemotes;
+    }
     const scouter = Overlord.getCreepsByRole(roomName, 'scouter')[0];
     if (scouter) {
       scouter.suicide();
@@ -396,4 +402,21 @@ global.pathDebuggingTool = function (startX, startY, startRoomName, goalX, goalY
   const path = search.path;
 
   visualizePath(path);
+};
+
+global.blockRemote = function (roomName) {
+  roomName = roomName.toUpperCase();
+  Memory.blockedRemotes = Memory.blockedRemotes || [];
+  if (Memory.blockedRemotes.includes(roomName)) {
+    return 'already blocked';
+  }
+  Memory.blockedRemotes.push(roomName);
+  return `block ${roomName} from remote mining`;
+};
+
+global.openRemote = function (roomName) {
+  roomName = roomName.toUpperCase();
+  Memory.blockedRemotes = Memory.blockedRemotes || [];
+  Memory.blockedRemotes = Memory.blockedRemotes.filter((value) => value !== roomName);
+  return `open ${roomName} to remote mining`;
 };
