@@ -815,8 +815,8 @@ global.harasserBody = {
   550: blinkyBodyMaker(0, 1, 1),
   760: blinkyBodyMaker(1, 2, 1),
   1300: blinkyBodyMaker(0, 5, 1),
-  1800: blinkyBodyMaker(5, 6, 1),
-  2260: blinkyBodyMaker(6, 8, 1),
+  1800: blinkyBodyMaker(0, 6, 2),
+  2300: blinkyBodyMaker(0, 7, 3),
   5600: blinkyBodyMaker(0, 19, 6),
 };
 
@@ -825,8 +825,8 @@ global.harasserBodyMoveFirst = {
   550: blinkyBodyMaker(0, 1, 1, true),
   760: blinkyBodyMaker(1, 2, 1, true),
   1300: blinkyBodyMaker(0, 5, 1, true),
-  1800: blinkyBodyMaker(5, 6, 1, true),
-  2260: blinkyBodyMaker(6, 8, 1, true),
+  1800: blinkyBodyMaker(0, 6, 2, true),
+  2300: blinkyBodyMaker(0, 7, 3, true),
   5600: blinkyBodyMaker(0, 19, 6, true),
 };
 

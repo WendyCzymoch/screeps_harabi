@@ -765,7 +765,7 @@ function runRemoteBuilder(creep) {
   }
   const targetRoomName = creep.memory.targetRoomName;
 
-  if (!creep.readyToWork(targetRoomName)) {
+  if (!creep.readyToWork(targetRoomName, { wait: true })) {
     return;
   }
 

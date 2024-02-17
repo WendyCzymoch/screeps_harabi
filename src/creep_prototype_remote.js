@@ -12,6 +12,13 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
 
   if (wait) {
     if (!getRoomMemory(targetRoomName).isCombatant && !this.room.isCombatant()) {
+      if (Game.time < this.memory.timeToWait) {
+        if (this.pos.getRangeToEdge() < 5) {
+          this.moveToRoom(this.memory.base);
+        }
+        return false;
+      }
+
       if (this.avoidSourceKeepers() === OK) {
         return false;
       }
@@ -22,6 +29,8 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
       return false;
     }
 
+    this.memory.timeToWait = Game.time + 10;
+
     this.moveToRoom(this.memory.base);
     this.say('🏠', true);
     return false;
@@ -30,7 +39,7 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
   if (this.memory.runAway) {
     this.moveToRoom(this.memory.base);
     this.say('🏠', true);
-    if (this.room.name === this.memory.base) {
+    if (this.room.name === this.memory.base && !isEdgeCoord(this.pos.x, this.pos.y)) {
       delete this.memory.targetRoomName;
       delete this.memory.sourceId;
       delete this.memory.runAway;

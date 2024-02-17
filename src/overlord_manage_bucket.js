@@ -54,7 +54,7 @@ Overlord.getAverageCpu = function () {
   return (Game._avgCPU = Memory.averageCpu);
 };
 
-Overlord.removeRemote = function (number) {
+Overlord.removeRemote = function (number = 1) {
   const worstRemotes = this.getWorstRemotes(number);
 
   for (const worstRemote of worstRemotes) {
@@ -80,7 +80,7 @@ Overlord.removeRemote = function (number) {
   }
 };
 
-Overlord.getWorstRemotes = function (number) {
+Overlord.getWorstRemotes = function (number = 1) {
   const myRooms = this.myRooms;
 
   const candidates = [];
