@@ -16,15 +16,7 @@ Overlord.visualizeRoomInfo = function () {
     // even if Memory.shoaMapInfo === 0, do mapInfo for every 1000 ticks
     // this is for deleting outdated memories
     if (Memory.showDashboard === 0) {
-      const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY };
-      new RoomVisual().text('Time ' + Game.time, 0.5, startPos.y, option);
-      if (Overlord.getAverageCpu()) {
-        new RoomVisual().text('CPU ' + Math.floor(10 * Overlord.getAverageCpu()) / 10, 6, startPos.y, option);
-      }
-      new RoomVisual().text('Bucket ' + Game.cpu.bucket, 10, startPos.y, option);
-      new RoomVisual().text(`Room: ${numMyRoom}`, 15, startPos.y, option);
-      new RoomVisual().text(`Remote: ${Overlord.remoteSources.length}(sources)`, 18.5, startPos.y, option);
-      new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 26, startPos.y, option);
+      visualizeBasicInfo(startPos, numMyRoom);
       return;
     }
   } else {
@@ -36,15 +28,7 @@ Overlord.visualizeRoomInfo = function () {
     opacity: 0.3,
   }); // 틀 만들기
 
-  const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY };
-  new RoomVisual().text('Time ' + Game.time, 0.5, startPos.y, option);
-  if (Overlord.getAverageCpu()) {
-    new RoomVisual().text('CPU ' + Math.floor(10 * Overlord.getAverageCpu()) / 10, 6, startPos.y, option);
-  }
-  new RoomVisual().text('Bucket ' + Game.cpu.bucket, 10, startPos.y, option);
-  new RoomVisual().text(`Room: ${numMyRoom}`, 15, startPos.y, option);
-  new RoomVisual().text(`Remote: ${Overlord.remoteSources.length}(sources)`, 18.5, startPos.y, option);
-  new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 26, startPos.y, option);
+  visualizeBasicInfo(startPos, numMyRoom);
 
   // 각 방마다 표시
   for (let i = -1; i < numMyRoom; i++) {
@@ -75,6 +59,23 @@ Overlord.visualizeRoomInfo = function () {
   }
   visualizeTasks();
 };
+
+function visualizeBasicInfo(startPos, numMyRoom) {
+  const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY };
+  new RoomVisual().text('Time ' + Game.time, 0.5, startPos.y, option);
+  if (Overlord.getAverageCpu()) {
+    new RoomVisual().text(
+      `CPU ${Math.floor(10 * Overlord.getAverageCpu()) / 10}/${Game.cpu.limit}`,
+      6,
+      startPos.y,
+      option
+    );
+  }
+  new RoomVisual().text('Bucket ' + Game.cpu.bucket, 12, startPos.y, option);
+  new RoomVisual().text(`Room: ${numMyRoom}`, 18, startPos.y, option);
+  new RoomVisual().text(`Remote: ${Overlord.remoteSources.length}(sources)`, 22.5, startPos.y, option);
+  new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 31, startPos.y, option);
+}
 
 Object.defineProperties(Room.prototype, {
   progressHour: {
@@ -248,11 +249,6 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
       new RoomPosition(25, 12, targetRoomName),
       { fontSize: 5, color: COLOR_NEON_YELLOW, backgroundColor: '#000000', opacity: 1 }
     );
-    Game.map.visual.line(new RoomPosition(25, 25, room.name), new RoomPosition(25, 25, targetRoomName), {
-      color: COLOR_NEON_YELLOW,
-      width: 0.5,
-      lineStyle: 'dashed',
-    });
   }
 
   const totalIncome = Math.floor(10 * income) / 10;

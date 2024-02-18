@@ -68,6 +68,15 @@ Room.prototype.manageRemotes = function () {
       }
     }
 
+    const visualPosition = new RoomPosition(25, 25, targetRoomName);
+    Game.map.visual.line(new RoomPosition(25, 25, this.name), visualPosition, {
+      color: COLOR_NEON_YELLOW,
+      width: 1,
+      lineStyle: 'dashed',
+    });
+
+    Game.map.visual.circle(visualPosition, { fill: COLOR_NEON_YELLOW, radius: 5 });
+
     if (!status.constructionComplete) {
       constructionComplete = false;
     }
