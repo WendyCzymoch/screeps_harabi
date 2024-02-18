@@ -108,6 +108,8 @@ Overlord.mapInfo = function () {
     if (Memory.showMapInfo === 0 && Game.time % 1000 !== 0) {
       return;
     }
+  } else {
+    Memory.showMapInfo = 1;
   }
 
   for (const roomName in Memory.rooms) {

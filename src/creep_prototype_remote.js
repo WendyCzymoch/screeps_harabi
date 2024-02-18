@@ -11,6 +11,17 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
   const { wait } = options;
 
   if (wait) {
+    if (this.memory.getRecycled) {
+      if (this.room.name === this.memory.base) {
+        this.getRecycled();
+        this.say('🗑️', true);
+      } else {
+        this.moveToRoom(this.memory.base);
+        this.say('🏠', true);
+      }
+      return false;
+    }
+
     if (!getRoomMemory(targetRoomName).isCombatant && !this.room.isCombatant()) {
       if (Game.time < this.memory.timeToWait) {
         if (this.pos.getRangeToEdge() < 5) {
@@ -66,7 +77,7 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
     return false;
   }
 
-  if (this.memory.getRecycled === true) {
+  if (this.memory.getRecycled) {
     if (this.room.name === this.memory.base) {
       this.getRecycled();
       this.say('🗑️', true);

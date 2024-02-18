@@ -164,7 +164,7 @@ function doCombat(guards, roomName) {
       guard.moveToRoom(roomName, 2);
       continue;
     }
-    const tagets = guard.room.findHostileCreeps();
+    const tagets = guard.room.findHostileCreeps().filter((creep) => creep.owner.username !== 'Source Keeper');
     if (tagets.length > 0) {
       guard.handleCombatants(tagets);
       continue;

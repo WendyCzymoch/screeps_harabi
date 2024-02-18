@@ -9,46 +9,55 @@ global.MANAGER_MAX_CARRY = 16;
 
 global.EMERGENCY_WORK_MAX = 100;
 
-global.SPAWN_PRIORITY = {
-  hauler: 2,
+const SPAWN_ORDER = [
+  'hauler',
 
-  roomDefender: 2,
-  attacker: 2,
-  healer: 2,
+  'roomDefender',
 
-  claimer: 2,
-  pioneer: 2,
+  'attacker',
+  'healer',
 
-  manager: 3,
-  distributor: 3,
-  wallMaker: 3.1,
-  extractor: 3.2,
-  scouter: 3.3,
+  'manager',
+  'distributor',
+  'scouter',
 
-  colonyDefender: 4,
-  guard: 4,
-  coreAttacker: 4,
-  sourceKeeperHandler: 4,
-  reserver: 4.1,
-  remoteMiner: 4.2,
-  remoteBuilder: 4.3,
-  remoteHauler: 4.4,
-  mineralHauler: 4.4,
+  'colonyDefender',
 
-  laborer: 5,
+  'claimer',
+  'pioneer',
 
-  powerBankAttacker: 6,
-  powerBankHealer: 6,
+  'powerBankAttacker',
+  'powerBankHealer',
+  'highwayHauler',
 
-  highwayHauler: 7,
+  'depositWorker',
 
-  researcher: 8,
+  'guard',
+  'sourceKeeperHandler',
+  'coreAttacker',
 
-  dismantler: 9,
+  'reserver',
+  'remoteMiner',
+  'remoteBuilder',
+  'remoteHauler',
+  'mineralHauler',
 
-  depositWorker: 9,
-  looter: 9,
-};
+  'extractor',
+  'laborer',
+  'wallMaker',
+
+  'researcher',
+
+  'dismantler',
+  'looter',
+];
+
+global.SPAWN_PRIORITY = {};
+
+for (let i = 0; i < SPAWN_ORDER.length; i++) {
+  const role = SPAWN_ORDER[i];
+  SPAWN_PRIORITY[role] = i + 1;
+}
 
 Room.prototype.manageSpawn = function () {
   if (!this.hasAvailableSpawn()) {
@@ -265,7 +274,7 @@ Room.prototype.hasAvailableSpawn = function () {
     return this._hasAvailableSpawn;
   }
 
-  return (this._hasAvailableSpawn = this.structures.spawn.some((s) => !s.spawining));
+  return (this._hasAvailableSpawn = this.structures.spawn.some((s) => !s.spawning));
 };
 
 Room.prototype.getMaxNumManager = function () {

@@ -425,8 +425,9 @@ Creep.prototype.getRecycled = function () {
   if (anySpawn) {
     if (this.pos.getRangeTo(anySpawn) > 2) {
       this.moveMy({ pos: anySpawn.pos, range: 1 });
+      return;
     }
-    return;
+    this.suicide();
   }
   this.suicide();
   return;

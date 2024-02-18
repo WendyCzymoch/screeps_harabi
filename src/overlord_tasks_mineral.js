@@ -202,7 +202,7 @@ function isEnoughHaulers(request) {
   const mineralHaulers = Overlord.getCreepsByRole(targetRoomName, 'mineralHauler').filter(
     (creep) =>
       creep.memory.sourceId === mineralId &&
-      (creep.spawning || creep.ticksToLive > creep.body.length * CREEP_SPAWN_TIME + request.distance)
+      (creep.spawning || creep.ticksToLive > creep.body.length * CREEP_SPAWN_TIME + 2 * request.distance)
   );
 
   return mineralHaulers.length >= request.haulerNumber;

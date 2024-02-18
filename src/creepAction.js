@@ -768,6 +768,17 @@ function mineralHauler(creep) {
     return;
   }
 
+  const thisCreepUsedCapacity = creep.store.getUsedCapacity();
+  const otherMineralHaulers = creep.room.creeps.mineralHauler;
+
+  if (
+    otherMineralHaulers.some(
+      (creep) => creep.store.getFreeCapacity() && creep.store.getUsedCapacity() > thisCreepUsedCapacity
+    )
+  ) {
+    return;
+  }
+
   // find target and grab resource
   const droppedResources = source.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
 

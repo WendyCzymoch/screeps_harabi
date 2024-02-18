@@ -1,3 +1,4 @@
+const { config } = require('./config');
 const { getCombatInfo, GuardRequest } = require('./overlord_tasks_guard');
 const { getBuilderModel } = require('./room_manager_spawn');
 const { getRoomMemory } = require('./util');
@@ -849,7 +850,11 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
 
   this.memory.currentRemoteIncome = 0;
 
-  let requested = false;
+  let requested = !this.hasAvailableSpawn();
+
+  if (requested && !Memory.showMapInfo) {
+    return;
+  }
 
   const needBigMiner = this.getNeedBigMiner();
 
