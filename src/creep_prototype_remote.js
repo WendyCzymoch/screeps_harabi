@@ -228,13 +228,13 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
     }
   }
 
-  const structures = resource.pos.findInRange(FIND_STRUCTURES, 1);
+  const containers = resource.pos
+    .findInRange(FIND_STRUCTURES, 1)
+    .filter((structure) => structure.structureType === STRUCTURE_CONTAINER);
 
-  if (structures.length > 0) {
+  if (containers.length > 0) {
     const threshold = Math.min(this.store.getFreeCapacity(), 500);
-    const target = structures.find(
-      (structure) => structure.store && structure.store.getUsedCapacity(resourceType) >= threshold
-    );
+    const target = containers.find((container) => container.store.getUsedCapacity(resourceType) >= threshold);
     if (target) {
       this.memory.targetId = target.id;
       return this.getResourceFrom(target, { resourceType });

@@ -337,6 +337,9 @@ Overlord.manageConstructionSites = function () {
     console.log(`${progress} ${currentProgress}`);
 
     if (currentProgress <= progress) {
+      if (constructionSite.room && constructionSite.room.isMy) {
+        continue;
+      }
       constructionSite.remove();
       delete this.heap.constructionSites[id];
       continue;

@@ -1,4 +1,4 @@
-const { getCombatInfo } = require('./overlord_tasks_guard');
+const { getCombatInfo, GuardRequest } = require('./overlord_tasks_guard');
 const { getInvaderStrengthThreshold, isStronghold } = require('./room_manager_remote');
 const { getRoomMemory } = require('./util');
 
@@ -24,13 +24,19 @@ Room.prototype.checkMineral = function (targetRoomName) {
     return;
   }
 
-  const targetRoom = Game.rooms[targetRoomName];
-
-  if (!targetRoom || !targetRoom.terminal || targetRoom.energyCapacityAvailable < 4270) {
+  if (!this.terminal || this.energyCapacityAvailable < 4270) {
     return;
   }
 
-  if (targetRoom.terminal.store.getFreeCapacity() < 50000) {
+  const terminal = this.terminal;
+
+  if (terminal.store.getFreeCapacity() < 50000) {
+    return;
+  }
+
+  const targetRoom = Game.rooms[targetRoomName];
+
+  if (!targetRoom) {
     return;
   }
 
@@ -45,7 +51,7 @@ Room.prototype.checkMineral = function (targetRoomName) {
       continue;
     }
 
-    if (targetRoom.terminal.store[mineral.mineralType] > 50000) {
+    if (terminal.store[mineral.mineralType] > 50000) {
       continue;
     }
 
@@ -123,7 +129,7 @@ Room.prototype.runMineralTask = function (request) {
 
   const invaderStrengthThreshold = getInvaderStrengthThreshold(this.controller.level);
 
-  if (targetRoom) {
+  if (!this.getActiveRemoteNames().includes(targetRoomName) && targetRoom) {
     const invaders = [...targetRoom.findHostileCreeps()].filter((creep) => creep.owner.username !== 'Source Keeper');
 
     const enemyInfo = getCombatInfo(invaders);
@@ -192,6 +198,7 @@ Room.prototype.runMineralTask = function (request) {
 function isEnoughHaulers(request) {
   const targetRoomName = request.roomName;
   const mineralId = request.mineralId;
+
   const mineralHaulers = Overlord.getCreepsByRole(targetRoomName, 'mineralHauler').filter(
     (creep) =>
       creep.memory.sourceId === mineralId &&
@@ -277,7 +284,7 @@ const MineralRequest = function (room, mineral) {
 function getMineralHaulerMagnitude(room, distance) {
   const energyCapacity = room.energyCapacityAvailable;
   const maxSize = Math.min(25, Math.floor(energyCapacity / 100));
-  const number = Math.floor((0.32 * distance) / maxSize) + 1;
+  const number = Math.ceil((0.32 * distance) / maxSize) + 1;
   const size = Math.min(maxSize, Math.ceil((0.32 * distance) / (number - 1)));
   return { size, number };
 }

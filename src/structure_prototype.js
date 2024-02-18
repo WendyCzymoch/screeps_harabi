@@ -60,7 +60,7 @@ Object.defineProperties(StructureController.prototype, {
 
         this.room.heap.controllerContainerId = container.id;
         return (this._container = container);
-      } catch (error) {
+      } catch (err) {
         data.recordError(err, this.room.name);
       }
     },
@@ -87,7 +87,7 @@ Object.defineProperties(StructureController.prototype, {
         }
         this.room.heap.controllerLinkId = link.id;
         return (this._link = link);
-      } catch (error) {
+      } catch (err) {
         data.recordError(err, this.room.name);
       }
     },
@@ -166,7 +166,6 @@ Object.defineProperties(StructureStorage.prototype, {
         this.room.heap.storageLinkId = link.id;
         return (this._link = link);
       } catch (err) {
-        console.log(this.room.name);
         data.recordError(err, this.room.name);
       }
     },

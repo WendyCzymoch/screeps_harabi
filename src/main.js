@@ -236,7 +236,7 @@ module.exports.loop = () => {
         const role = creep.memory.role;
         creepAction[role](creep);
       } catch (err) {
-        console.log(err.stack.split('at'));
+        data.recordError(err, creep.name);
       }
     }
 

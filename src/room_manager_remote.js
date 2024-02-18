@@ -800,8 +800,8 @@ function runRemoteBuilder(creep) {
         return;
       }
 
-      if (creep.pos.getRangeTo(target) > 3) {
-        creep.moveMy({ pos: target.pos, range: 3 });
+      if (creep.pos.getRangeTo(target) > 3 || isEdgeCoord(creep.pos.x, creep.pos.y)) {
+        creep.moveMy({ pos: target.pos, range: 1 });
         return;
       }
 

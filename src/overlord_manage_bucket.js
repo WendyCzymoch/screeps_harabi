@@ -1,6 +1,6 @@
 const CPU_THRESHOLD_UP = 0.95;
-const CPU_THRESHOLD_DOWN = 0.9;
-const BUCKET_THRESHOLD = 6000;
+const CPU_THRESHOLD_DOWN = 0.8;
+const BUCKET_THRESHOLD = 8000;
 const CPU_INTERVAL = CREEP_LIFE_TIME / 3;
 
 Overlord.manageBucket = function () {
@@ -21,8 +21,8 @@ Overlord.manageBucket = function () {
   const cpuThreshold = limitCpu * CPU_THRESHOLD_UP;
 
   if (averageCpu > cpuThreshold || Game.cpu.bucket < BUCKET_THRESHOLD) {
-    const diff = averageCpu - limitCpu;
-    const number = Math.clamp(diff / 3, 1, Overlord.myRooms.length);
+    const diff = averageCpu - cpuThreshold;
+    const number = Math.clamp(Math.ceil(diff / 3), 1, Overlord.myRooms.length);
     this.removeRemote(number);
   } else if (averageCpu / limitCpu < CPU_THRESHOLD_DOWN) {
     this.addRemote();

@@ -46,9 +46,7 @@ Creep.prototype.getResourceFrom = function (target, options = {}) {
   }
 
   for (const resourceType in target.store) {
-    if (target.store[resourceType] > 0) {
-      return this.withdraw(target, resourceType);
-    }
+    return this.withdraw(target, resourceType);
   }
   return ERR_NOT_ENOUGH_RESOURCES;
 };

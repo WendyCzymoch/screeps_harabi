@@ -1,11 +1,5 @@
 const { config } = require('./config');
-const {
-  runAway,
-  SOURCE_KEEPER_RANGE_TO_START_FLEE,
-  SOURCE_KEEPER_RANGE_TO_FLEE,
-  KEEPER_LAIR_RANGE_TO_START_FLEE,
-  KEEPER_LAIR_RANGE_TO_FLEE,
-} = require('./room_manager_remote');
+const { runAway } = require('./room_manager_remote');
 const { getRoomMemory } = require('./util');
 
 function miner(creep) {
@@ -110,7 +104,7 @@ function extractor(creep) {
   const mineral = Game.getObjectById(creep.memory.mineral);
   const extractor = creep.room.structures.extractor[0];
   if (!extractor) {
-    this.getRecycled();
+    creep.getRecycled();
     return;
   }
   const container = extractor.pos.findInRange(creep.room.structures.container, 1)[0];
@@ -512,21 +506,25 @@ function remoteMiner(creep) {
     return;
   }
 
-  const targetRoom = Game.rooms[targetRoomName];
-
   const path = base.getRemotePath(targetRoomName, creep.memory.sourceId);
-
-  if (!path) {
-    console.log(`No Path! room:${creep.memory.base}, remote:${targetRoomName}, source: ${creep.memory.sourceId} `);
-    return;
-  }
 
   const source = Game.getObjectById(creep.memory.sourceId);
 
-  if (!source || creep.pos.getRangeTo(source) > 3) {
-    creep.moveByRemotePath(path, { reverse: true });
-    return;
+  if (path) {
+    if (!source || creep.pos.getRangeTo(source) > 3) {
+      creep.moveByRemotePath(path, { reverse: true });
+      return;
+    }
+  } else {
+    if (!source) {
+      creep.moveToRoom(targetRoomName);
+      return;
+    } else if (creep.pos.getRangeTo(source) > 3) {
+      creep.moveMy({ pos: source.pos, range: 1 });
+    }
   }
+
+  const targetRoom = Game.rooms[targetRoomName];
 
   const container =
     Game.getObjectById(creep.memory.containerId) ||
@@ -705,11 +703,9 @@ function mineralHauler(creep) {
 
   const targetRoomName = creep.memory.targetRoomName;
 
-  if (!creep.readyToWork(targetRoomName)) {
+  if (!creep.readyToWork(targetRoomName, { wait: true })) {
     return;
   }
-
-  const path = base.getRemotePath(targetRoomName, creep.memory.sourceId);
 
   // 논리회로
   if (creep.memory.supplying && creep.store.getUsedCapacity() === 0) {
@@ -726,13 +722,8 @@ function mineralHauler(creep) {
       return;
     }
 
-    if (!path) {
-      console.log(`No Path! room:${creep.memory.base}, remote:${targetRoomName}, source: ${creep.memory.sourceId} `);
-      return;
-    }
-
-    if (creep.pos.getRangeTo(terminal) > 3) {
-      creep.moveByRemotePath(path);
+    if (creep.pos.getRangeTo(terminal) > 1) {
+      creep.moveMy({ pos: terminal.pos, range: 1 });
       return;
     }
 
@@ -749,7 +740,88 @@ function mineralHauler(creep) {
     return;
   }
 
-  creep.getResourceFromRemote(targetRoomName, creep.memory.sourceId, path);
+  // if there is target in memory, use
+  if (creep.memory.targetId) {
+    const target = Game.getObjectById(creep.memory.targetId);
+    const result = creep.getResourceFrom(target);
+
+    if (result === ERR_NOT_IN_RANGE) {
+      return;
+    }
+
+    delete creep.memory.targetId;
+
+    if (result === OK) {
+      return;
+    }
+
+    delete creep.memory.targetId;
+  }
+
+  const source = Game.getObjectById(creep.memory.sourceId);
+
+  if (!source) {
+    creep.moveToRoom(creep.memory.targetRoomName);
+    return;
+  } else if (creep.pos.getRangeTo(source) > 5) {
+    creep.moveMy({ pos: source.pos, range: 1 });
+    return;
+  }
+
+  // find target and grab resource
+  const droppedResources = source.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
+
+  if (droppedResources.length > 0) {
+    const target = droppedResources.find((resource) => {
+      if (resource.amount < 50) {
+        return false;
+      }
+      return true;
+    });
+
+    if (target) {
+      creep.memory.targetId = target.id;
+      return creep.getResourceFrom(target);
+    }
+  }
+
+  const tombstones = source.pos.findInRange(FIND_TOMBSTONES, 5);
+
+  if (tombstones.length > 0) {
+    const target = tombstones.find((tombstone) => {
+      if (tombstone.store.getUsedCapacity() === 0) {
+        return false;
+      }
+      return true;
+    });
+
+    if (target) {
+      creep.memory.targetId = target.id;
+      return creep.getResourceFrom(target);
+    }
+  }
+
+  const remoteMiner = source.pos
+    .findInRange(creep.room.creeps.remoteMiner, 1)
+    .find((creep) => creep.store.getUsedCapacity() > 0);
+
+  if (remoteMiner) {
+    if (creep.pos.getRangeTo(remoteMiner) > 1) {
+      creep.moveMy({ pos: remoteMiner.pos, range: 1 });
+      return;
+    }
+
+    for (const resourceType in remoteMiner.store) {
+      return remoteMiner.transfer(creep, resourceType);
+    }
+  }
+
+  // if no target, idle.
+  if (creep.pos.getRangeTo(source) > 2) {
+    return creep.moveMy({ pos: source.pos, range: 1 });
+  }
+
+  creep.setWorkingInfo(source.pos, 2);
 }
 
 function coreAttacker(creep) {
