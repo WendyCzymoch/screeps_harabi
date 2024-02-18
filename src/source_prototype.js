@@ -71,7 +71,7 @@ Object.defineProperties(Source.prototype, {
           return undefined;
         }
 
-        if (this.room.memory.basePlan.linkPositions) {
+        if (!this.room.memory.basePlan.linkPositions) {
           return undefined;
         }
 
