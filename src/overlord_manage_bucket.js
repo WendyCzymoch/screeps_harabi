@@ -1,7 +1,7 @@
 const CPU_THRESHOLD_UP = 0.95;
 const CPU_THRESHOLD_DOWN = 0.85;
 const BUCKET_THRESHOLD = 8000;
-const CPU_INTERVAL = CREEP_LIFE_TIME / 3;
+const CPU_INTERVAL = CREEP_LIFE_TIME;
 
 Overlord.manageBucket = function () {
   const averageCpu = this.getAverageCpu();
@@ -43,6 +43,7 @@ Overlord.getAverageCpu = function () {
   }
 
   const lastCpu = Memory.stats.cpu.used;
+
   if (lastCpu === undefined) {
     return;
   }

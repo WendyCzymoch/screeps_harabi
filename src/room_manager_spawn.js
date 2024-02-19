@@ -121,8 +121,8 @@ Room.prototype.manageSpawn = function () {
       this.requestLaborer({ maxWork: 16, boost, isBuilder: true });
     }
   } else if (this.constructionSites.length > 0) {
-    if (numWorkBuild < 6) {
-      this.requestLaborer({ maxWork: 6, isBuilder: true });
+    if (numWorkBuild < 2 * this.controller.level) {
+      this.requestLaborer({ maxWork: 10, isBuilder: true });
     }
   }
 
@@ -133,8 +133,8 @@ Room.prototype.manageSpawn = function () {
   const maxNumLaborer = Math.min(this.controller.available, Math.ceil(maxWork / this.laborer.numWorkEach));
   const numLaborer = this.creeps.laborer.filter((creep) => (creep.ticksToLive || 1500) > 3 * creep.body.length).length;
   const numWorkEach = Math.ceil(maxWork / maxNumLaborer);
-  // source 가동률만큼만 생산
 
+  // source 가동률만큼만 생산
   if (TRAFFIC_TEST) {
     if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
       this.requestLaborer({ maxWork: 1 });
@@ -544,27 +544,38 @@ Room.prototype.requestHauler = function (numCarry, option = { isUrgent: false, o
 };
 
 function getBuilderModel(energyCapacity, maxWork) {
-  const body = [];
-  let cost = 0;
-  let numWork = 0;
+  let cost = 200;
+  let work = 1;
+  let move = 1;
+  let carry = 1;
+  while (energyCapacity > cost && work + move + carry < MAX_CREEP_SIZE) {
+    if ((move === 0 || (work + carry) / move >= 2) && energyCapacity >= cost + BODYPART_COST[MOVE]) {
+      move++;
+      cost += BODYPART_COST[MOVE];
+      continue;
+    }
 
-  while (energyCapacity > cost) {
-    if (maxWork && numWork >= maxWork) {
+    if ((carry === 0 || carry / work <= 2) && energyCapacity >= cost + BODYPART_COST[CARRY]) {
+      carry++;
+      cost += BODYPART_COST[CARRY];
+      continue;
+    }
+
+    if (maxWork && work >= maxWork) {
       break;
     }
 
-    if (energyCapacity >= cost + 200) {
-      if (body.length + 3 > 50) {
-        break;
-      }
-      body.push(WORK, CARRY, MOVE);
-      numWork += 1;
-      cost += 200;
+    if (energyCapacity >= cost + BODYPART_COST[WORK]) {
+      work++;
+      cost += BODYPART_COST[WORK];
       continue;
     }
     break;
   }
-  return { body, numWork, cost };
+
+  const body = parseBody(`${work - 1}w${carry}c${move - 1}m1w1m`);
+
+  return { body, numWork: work, cost };
 }
 
 function getLaborerModel(energyCapacity, maxWork) {

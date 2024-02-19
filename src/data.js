@@ -21,16 +21,7 @@ data.recordLog = function (text, roomName, groupInterval = 180) {
 
   const roomNameWithColor = `<span style = "color: yellow">[${roomHyperLink}]</span>`;
 
-  const now = new Date();
-  const utcNow = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
-  const koreaNow = utcNow + 9 * 60 * 60 * 1000;
-  const koreaDate = new Date(koreaNow);
-
-  const month = toTwoDigits(koreaDate.getMonth() + 1);
-  const date = toTwoDigits(koreaDate.getDate());
-  const minutes = toTwoDigits(koreaDate.getMinutes());
-
-  const koreaDateText = `${koreaDate.getFullYear()}.${month}.${date}. ${koreaDate.getHours()}:${minutes}`;
+  const koreaDateText = getKoreaDateText();
   const koreaDateTextWithColor = `<span style = "color: magenta">[${koreaDateText}]</span>`;
 
   const tickWithColor = `<span style = "color: lime">[tick: ${Game.time}]</span>`;
@@ -52,6 +43,19 @@ data.recordLog = function (text, roomName, groupInterval = 180) {
   }
 };
 
+function getKoreaDateText() {
+  const now = new Date();
+  const utcNow = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
+  const koreaNow = utcNow + 9 * 60 * 60 * 1000;
+  const koreaDate = new Date(koreaNow);
+
+  const month = toTwoDigits(koreaDate.getMonth() + 1);
+  const date = toTwoDigits(koreaDate.getDate());
+  const minutes = toTwoDigits(koreaDate.getMinutes());
+
+  return `${koreaDate.getFullYear()}.${month}.${date}. ${koreaDate.getHours()}:${minutes}`;
+}
+
 data.getErrLog = function () {
   Memory._errLog = Memory._errLog || [];
   return Memory._errLog;
@@ -70,6 +74,9 @@ data.recordError = function (err, note) {
     return;
   }
 
+  const koreaDateText = getKoreaDateText();
+  log.koreaTime = koreaDateText;
+
   errLog.push(log);
 
   while (errLog.length > 10) {
@@ -81,7 +88,9 @@ data.logErr = function () {
   const errLog = this.getErrLog();
 
   for (const log of errLog) {
-    console.log(`<span style = "color: red">[tick: ${log.time}]</span> \n ${log.stack}`);
+    console.log(
+      `<span style = "color: red">[tick: ${log.time}] [${log.koreaTime}] [${log.note}]</span> \n ${log.stack}`
+    );
   }
 };
 

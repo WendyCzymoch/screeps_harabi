@@ -63,18 +63,19 @@ Overlord.visualizeRoomInfo = function () {
 function visualizeBasicInfo(startPos, numMyRoom) {
   const option = { color: 'cyan', strokeWidth: 0.2, align: 'left', opacity: OPACITY };
   new RoomVisual().text('Time ' + Game.time, 0.5, startPos.y, option);
-  if (Overlord.getAverageCpu()) {
+  const cpuAverage = Overlord.getAverageCpu();
+  if (cpuAverage) {
     new RoomVisual().text(
-      `CPU ${Math.floor(10 * Overlord.getAverageCpu()) / 10}/${Game.cpu.limit}`,
+      `CPU ${Math.floor(10 * cpuAverage) / 10}/${Game.cpu.limit}(${Math.ceil((1000 * cpuAverage) / Game.cpu.limit) / 10}%)`,
       6,
       startPos.y,
       option
     );
   }
-  new RoomVisual().text('Bucket ' + Game.cpu.bucket, 12, startPos.y, option);
-  new RoomVisual().text(`Room: ${numMyRoom}`, 18, startPos.y, option);
-  new RoomVisual().text(`Remote: ${Overlord.remoteSources.length}(sources)`, 22.5, startPos.y, option);
-  new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 31, startPos.y, option);
+  new RoomVisual().text('Bucket ' + Game.cpu.bucket, 13.5, startPos.y, option);
+  new RoomVisual().text(`Room: ${numMyRoom}`, 19.5, startPos.y, option);
+  new RoomVisual().text(`Remote: ${Overlord.remoteSources.length}(sources)`, 24, startPos.y, option);
+  new RoomVisual().text(`Creep: ${Object.keys(Game.creeps).length}`, 32.5, startPos.y, option);
 }
 
 Object.defineProperties(Room.prototype, {

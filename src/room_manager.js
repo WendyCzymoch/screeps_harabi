@@ -401,10 +401,10 @@ Room.prototype.manageFactory = function () {
 
   this.factoryDistribution();
 
-  const factoryTarget = this.getFactoryTarget();
+  this.getFactoryTarget();
 
-  if (factoryTarget) {
-    this.operateFactory(factoryTarget);
+  if (this.memory.factoryTarget) {
+    this.operateFactory();
   }
 };
 

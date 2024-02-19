@@ -73,6 +73,7 @@ Room.prototype.manageRemotes = function () {
       color: COLOR_NEON_YELLOW,
       width: 1,
       lineStyle: 'dashed',
+      opacity: 0.3,
     });
 
     Game.map.visual.circle(visualPosition, { fill: COLOR_NEON_YELLOW, radius: 5 });
@@ -460,7 +461,7 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
 
     if (this.memory.repairRemote) {
       if (remoteBuilders.length === 0) {
-        this.requestRemoteBuilder();
+        this.requestRemoteBuilder(6);
       }
       for (const remoteBuilder of remoteBuilders) {
         runRemoteRepairer(remoteBuilder);
@@ -480,7 +481,6 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
         }
       }
     }
-
     return;
   }
 
@@ -488,8 +488,6 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
   if (!targetRoom) {
     return;
   }
-
-  Game.map.visual.text('🏗️', new RoomPosition(45, 5, targetRoomName), { fontSize: 5 });
 
   const remoteStatus = this.getRemoteStatus(targetRoomName);
 
@@ -534,11 +532,15 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
     }
 
     if (
-      remoteBuilderNumWork < 6 * resourceIdsToConstruct.length ||
+      remoteBuilderNumWork < 10 * resourceIdsToConstruct.length ||
       remoteBuilders.length % resourceIdsToConstruct.length !== 0
     ) {
-      this.requestRemoteBuilder();
+      this.requestRemoteBuilder(10);
     }
+  }
+
+  if (remoteStatus.roomNameToConstruct) {
+    Game.map.visual.text('🏗️', new RoomPosition(5, 5, remoteStatus.roomNameToConstruct), { fontSize: 5 });
   }
 
   if (Math.random() < 0.9) {
@@ -600,9 +602,10 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
     }
   }
 
+  remoteStatus.constructionComplete = complete;
+
   if (complete) {
     delete remoteStatus.roomNameToConstruct;
-    remoteStatus.constructionComplete = complete;
     remoteStatus.constructionCompleteTime = Game.time;
   }
 };
@@ -713,7 +716,7 @@ function runRemoteRepairer(creep) {
 
   const targetRoomName = creep.memory.targetRoomName;
 
-  Game.map.visual.text('🔧', new RoomPosition(45, 5, targetRoomName), { fontSize: 5 });
+  Game.map.visual.text('🔧', new RoomPosition(5, 5, targetRoomName), { fontSize: 5 });
 
   if (!creep.readyToWork(targetRoomName)) {
     return;
@@ -760,7 +763,20 @@ function runRemoteRepairer(creep) {
     return;
   }
 
-  creep.getResourceFromRemote(targetRoomName, creep.memory.sourceId, path, { resourceType: RESOURCE_ENERGY });
+  if (
+    [ERR_NOT_ENOUGH_RESOURCES, ERR_NOT_FOUND].includes(
+      creep.getResourceFromRemote(targetRoomName, creep.memory.sourceId, path, { resourceType: RESOURCE_ENERGY })
+    )
+  ) {
+    const resource = Game.getObjectById(creep.memory.sourceId);
+    if (resource) {
+      if (creep.pos.getRangeTo(resource) > 1) {
+        creep.moveMy({ pos: resource.pos, range: 1 });
+        return;
+      }
+      creep.harvest(resource);
+    }
+  }
 }
 
 function runRemoteBuilder(creep) {
@@ -800,11 +816,11 @@ function runRemoteBuilder(creep) {
     const constructionSites = creep.room.constructionSites;
 
     if (constructionSites.length > 0 && creep.store.getUsedCapacity(RESOURCE_ENERGY)) {
-      if (!creep.heap.targetId || !Game.getObjectById(creep.heap.targetId)) {
-        creep.heap.targetId = creep.pos.findClosestByRange(constructionSites).id;
+      let target = Game.getObjectById(creep.heap.targetId);
+      if (!target || target.room.name !== creep.room.name) {
+        target = creep.pos.findClosestByRange(constructionSites);
+        creep.heap.targetId = target.id;
       }
-
-      const target = Game.getObjectById(creep.heap.targetId);
 
       if (!target) {
         return;
@@ -812,7 +828,6 @@ function runRemoteBuilder(creep) {
 
       if (creep.pos.getRangeTo(target) > 3 || isEdgeCoord(creep.pos.x, creep.pos.y)) {
         creep.moveMy({ pos: target.pos, range: 1 });
-        return;
       }
 
       creep.setWorkingInfo(target.pos, 3);
@@ -822,12 +837,23 @@ function runRemoteBuilder(creep) {
     return;
   }
 
-  creep.getResourceFromRemote(targetRoomName, creep.memory.sourceId, path, { resourceType: RESOURCE_ENERGY });
+  if (
+    [ERR_NOT_ENOUGH_RESOURCES, ERR_NOT_FOUND].includes(
+      creep.getResourceFromRemote(targetRoomName, creep.memory.sourceId, path, { resourceType: RESOURCE_ENERGY })
+    )
+  ) {
+    const resource = Game.getObjectById(creep.memory.sourceId);
+    if (resource) {
+      if (creep.pos.getRangeTo(resource) > 1) {
+        creep.moveMy({ pos: resource.pos, range: 1 });
+        return;
+      }
+      creep.harvest(resource);
+    }
+  }
 }
 
-Room.prototype.requestRemoteBuilder = function () {
-  const maxWork = 6;
-
+Room.prototype.requestRemoteBuilder = function (maxWork = 10) {
   if (!this.hasAvailableSpawn()) {
     return;
   }
@@ -977,6 +1003,8 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) {
 
   const sourceStat = {};
 
+  const constructing = this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === targetRoomName;
+
   for (const resourceId of resourceIds) {
     const blueprint = blueprints[resourceId];
 
@@ -998,7 +1026,7 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) {
       maxCarry: sourceMaxCarry,
     };
 
-    if (this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === targetRoomName) {
+    if (constructing) {
       continue;
     }
     result.maxCarry += sourceMaxCarry;
@@ -1116,7 +1144,7 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) {
     if (numCarry < result.maxCarry) {
       this.requestRemoteHauler({
         maxCarry: maxHaulerCarry,
-        noRoad: !constructionComplete,
+        noRoad: !status.constructionComplete,
       });
       result.requested = true;
       return result;
@@ -1179,6 +1207,8 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
 
   const sourceStat = {};
 
+  const constructing = this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === targetRoomName;
+
   for (const resourceId of resourceIds) {
     const blueprint = blueprints[resourceId];
     const sourceMaxCarry = blueprint.maxCarry * (canReserve ? 1 : 0.3);
@@ -1190,7 +1220,7 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
       maxCarry: sourceMaxCarry,
     };
 
-    if (this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === targetRoomName) {
+    if (constructing) {
       const source = Game.getObjectById(resourceId);
       if (source && source.energyAmountNear < 500) {
         continue;
@@ -1222,7 +1252,7 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
 
   status.sourceStat = sourceStat;
 
-  if (!this.heap.remoteNameToConstruct || this.heap.remoteNameToConstruct !== targetRoomName) {
+  if (!constructing) {
     let income = 0;
     const value = this.getRemoteValue(targetRoomName);
     for (const resourceId of resourceIds) {
@@ -1325,7 +1355,7 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
     if (numCarry < result.maxCarry) {
       this.requestRemoteHauler({
         maxCarry: maxHaulerCarry,
-        noRoad: !constructionComplete,
+        noRoad: !status.constructionComplete,
       });
       result.requested = true;
       return result;
@@ -1614,7 +1644,11 @@ Room.prototype.getActiveRemotes = function () {
     remoteInfos.push(info2);
   }
 
-  let spawnCapacityForRemotes = Math.floor(this.structures.spawn.length * 485 - this.getBasicSpawnCapacity());
+  let spawnCapacityForRemotes = Math.floor(this.structures.spawn.length * 500 - this.getBasicSpawnCapacity());
+
+  const spawnCapacityMargin = numSpawn > 1 ? 150 * (numSpawn - 1) : 20;
+
+  spawnCapacityForRemotes -= spawnCapacityMargin;
 
   if (spawnCapacityForRemotes <= 0) {
     this.memory.activeRemotes = result;
@@ -1691,6 +1725,8 @@ Room.prototype.addRemote = function (targetRoomName) {
   this.memory.remotes = this.memory.remotes || {};
   this.memory.remotes[targetRoomName] = {};
 
+  data.recordLog(`REMOTE: ${this.name} add remote ${targetRoomName}`);
+
   this.getRemoteBlueprints(targetRoomName);
 
   this.resetActiveRemotes();
@@ -1700,6 +1736,8 @@ Room.prototype.deleteRemote = function (targetRoomName) {
   this.memory.remotes = this.memory.remotes || {};
 
   delete this.memory.remotes[targetRoomName];
+
+  data.recordLog(`REMOTE: ${this.name} delete remote ${targetRoomName}`);
 
   this.resetActiveRemotes();
 };

@@ -67,7 +67,7 @@ if (shardName === 'swc') {
   config.allies = [];
 
   config.task = {
-    powerBank: false,
+    powerBank: true,
     deposit: false,
   };
 
@@ -117,7 +117,7 @@ if (shardName === 'swc') {
 
   config.market = false;
 
-  config.notBuild = ['powerSpawn', 'nuker'];
+  config.notBuild = ['nuker'];
 
   config.labConstructLevel = 7;
 
@@ -202,6 +202,8 @@ if (shardName === 'swc') {
   config.rampartHitsPerRclSquare = 16000;
 
   config.distanceToRemote = 2;
+
+  config.shards = ['shard0', 'shard1', 'shard2', 'shard3'];
 } else {
   // local
   config.allies = [];
@@ -324,7 +326,11 @@ config.energyLevel = {
 
   RAMPART_HIGH: 210,
 
-  BALANCE: 220,
+  BATTERY: 220,
+
+  STOP_BALANCE: 250,
+
+  BALANCE: 300,
 };
 
 module.exports = {

@@ -521,6 +521,7 @@ function remoteMiner(creep) {
       return;
     } else if (creep.pos.getRangeTo(source) > 3) {
       creep.moveMy({ pos: source.pos, range: 1 });
+      return;
     }
   }
 

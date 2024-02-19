@@ -118,10 +118,10 @@ Creep.prototype.avoidSourceKeepers = function () {
     return ERR_INVALID_TARGET;
   }
 
-  const combatants = this.room.getEnemyCombatants().filter((creep) => creep.owner.username === 'Source Keeper');
+  const sourceKeepers = this.room.getEnemyCombatants().filter((creep) => creep.owner.username === 'Source Keeper');
 
-  if (this.pos.findInRange(combatants, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
-    this.fleeFrom(combatants, SOURCE_KEEPER_RANGE_TO_FLEE);
+  if (this.pos.findInRange(sourceKeepers, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
+    this.fleeFrom(sourceKeepers, SOURCE_KEEPER_RANGE_TO_FLEE, 1);
     return OK;
   }
 
@@ -156,24 +156,24 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
   const base = Game.rooms[this.memory.base];
 
   if (!base) {
-    return;
+    return ERR_INVALID_ARGS;
   }
 
   if (!path) {
-    return;
+    return ERR_INVALID_ARGS;
   }
 
   // move to target room when there is no vision
   if (this.room.name !== targetRoomName) {
     this.moveByRemotePath(path, { reverse: true });
     delete this.memory.targetId;
-    return;
+    return ERR_NOT_IN_RANGE;
   }
 
   const resource = Game.getObjectById(resourceId);
 
   if (!resource) {
-    return;
+    return ERR_INVALID_ARGS;
   }
 
   // if there is target in memory, use
@@ -182,13 +182,13 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
     const result = this.getResourceFrom(target, { resourceType });
 
     if (result === ERR_NOT_IN_RANGE) {
-      return;
+      return ERR_NOT_IN_RANGE;
     }
 
     delete this.memory.targetId;
 
     if (result === OK) {
-      return;
+      return OK;
     }
 
     delete this.memory.targetId;
@@ -197,7 +197,7 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
   // approach to target
   if (this.pos.getRangeTo(resource) > 5) {
     this.moveByRemotePath(path, { reverse: true });
-    return;
+    return ERR_NOT_IN_RANGE;
   }
 
   // find target and grab resource
@@ -250,7 +250,7 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
       this.memory.targetId = target.id;
       return this.getResourceFrom(target, { resourceType });
     }
-    return;
+    return ERR_NOT_ENOUGH_RESOURCES;
   }
 
   const remoteMiner = resource.pos
@@ -260,21 +260,24 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
   if (remoteMiner) {
     if (this.pos.getRangeTo(remoteMiner) > 1) {
       this.moveMy({ pos: remoteMiner.pos, range: 1 });
-      return;
+      return ERR_NOT_IN_RANGE;
     }
 
     if (resourceType) {
-      return remoteMiner.transfer(this, resourceType);
+      remoteMiner.transfer(this, resourceType);
+      return OK;
     }
 
     for (const resourceType in remoteMiner.store) {
-      return remoteMiner.transfer(this, resourceType);
+      remoteMiner.transfer(this, resourceType);
+      return OK;
     }
   }
 
   // if no target, idle.
   if (this.pos.getRangeTo(resource) > 2) {
-    return this.moveMy({ pos: resource.pos, range: 1 });
+    this.moveMy({ pos: resource.pos, range: 1 });
+    return ERR_NOT_IN_RANGE;
   }
 
   this.setWorkingInfo(resource.pos, 2);
@@ -284,7 +287,7 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
   this.say('😴', true);
   Game.map.visual.text(`😴`, this.pos, { fontSize: 5 });
 
-  return;
+  return ERR_NOT_FOUND;
 };
 
 Creep.prototype.moveByRemotePath = function (path, options = {}) {

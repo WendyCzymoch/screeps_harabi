@@ -35,8 +35,9 @@ require('grafana_stats');
 
 require('market_business');
 
-require('overlord_manage_bucket');
 require('overlord_harass');
+require('overlord_manage_bucket');
+require('overlord_manage_claim');
 require('overlord_manage_resources');
 require('overlord_metric');
 require('overlord_tasks_blinky');

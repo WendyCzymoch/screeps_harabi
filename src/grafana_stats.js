@@ -2,12 +2,11 @@
 
 Overlord.exportStats = function () {
   // Reset stats object
-  Memory.stats = {
-    gcl: {},
-    rooms: {},
-    cpu: {},
-    gpl: {}
-  };
+  Memory.stats = Memory.stats || {};
+  Memory.stats.gcl = {};
+  Memory.stats.rooms = {};
+  Memory.stats.gpl = {};
+  Memory.stats.cpu = Memory.stats.cpu || {};
 
   Memory.stats.time = Game.time;
 
@@ -32,12 +31,12 @@ Overlord.exportStats = function () {
     XZHO2: 0,
     XGH2O: 0,
     XGHO2: 0,
-  }
+  };
   for (const room of Overlord.myRooms) {
-    let roomStats = Memory.stats.rooms[room.name] = {};
-    roomStats.storageEnergy = (room.storage ? room.storage.store.energy : 0);
-    roomStats.terminalEnergy = (room.terminal ? room.terminal.store.energy : 0);
-    roomStats.terminalUsed = (room.terminal ? room.terminal.store.getUsedCapacity() : 0)
+    let roomStats = (Memory.stats.rooms[room.name] = {});
+    roomStats.storageEnergy = room.storage ? room.storage.store.energy : 0;
+    roomStats.terminalEnergy = room.terminal ? room.terminal.store.energy : 0;
+    roomStats.terminalUsed = room.terminal ? room.terminal.store.getUsedCapacity() : 0;
     roomStats.energyAvailable = room.energyAvailable;
     roomStats.energyCapacityAvailable = room.energyCapacityAvailable;
     roomStats.controllerProgress = room.controller.progress;
@@ -46,15 +45,19 @@ Overlord.exportStats = function () {
     if (room.terminal) {
       for (const resourceType in room.terminal.store) {
         if (resourceType === RESOURCE_ENERGY) {
-          continue
+          continue;
         }
-        resources[resourceType] = resources[resourceType] || 0
-        resources[resourceType] += room.terminal.store[resourceType]
+        resources[resourceType] = resources[resourceType] || 0;
+        resources[resourceType] += room.terminal.store[resourceType];
       }
     }
   }
 
-  Memory.stats.resources = resources
+  const localMemory = JSON.parse(InterShardMemory.getLocal() || '{}');
+  localMemory.numRooms = Object.keys(Memory.stats.rooms).length;
+  InterShardMemory.setLocal(JSON.stringify(localMemory));
+
+  Memory.stats.resources = resources;
 
   // Collect GCL stats
   Memory.stats.gcl.progress = Game.gcl.progress;
@@ -67,10 +70,18 @@ Overlord.exportStats = function () {
   Memory.stats.gpl.level = Game.gpl.level;
 
   // Collect credit stats
-  Memory.stats.credit = Game.market.credits
+  Memory.stats.credit = Game.market.credits;
 
   // Collect CPU stats
   Memory.stats.cpu.bucket = Game.cpu.bucket;
   Memory.stats.cpu.limit = Game.cpu.limit;
-  Memory.stats.cpu.used = Game.cpu.getUsed();
-}
+  const used = Game.cpu.getUsed();
+  Memory.stats.cpu.used = Game.cpu.getUsed() + (Memory.stats.cpu.serializeCpu || 0);
+
+  if (!Memory.stats.cpu.serializeCpu || Game.time > (Memory.stats.cpu.serializeCpuTime || 0) + CREEP_LIFE_TIME) {
+    const before = used;
+    JSON.stringify(Memory);
+    Memory.stats.cpu.serializeCpu = Game.cpu.getUsed() - before;
+    Memory.stats.cpu.serializeCpuTime = Game.time;
+  }
+};
