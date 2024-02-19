@@ -1725,7 +1725,7 @@ Room.prototype.addRemote = function (targetRoomName) {
   this.memory.remotes = this.memory.remotes || {};
   this.memory.remotes[targetRoomName] = {};
 
-  data.recordLog(`REMOTE: ${this.name} add remote ${targetRoomName}`);
+  data.recordLog(`REMOTE: ${this.name} add remote ${targetRoomName}`, this.name);
 
   this.getRemoteBlueprints(targetRoomName);
 
@@ -1737,7 +1737,7 @@ Room.prototype.deleteRemote = function (targetRoomName) {
 
   delete this.memory.remotes[targetRoomName];
 
-  data.recordLog(`REMOTE: ${this.name} delete remote ${targetRoomName}`);
+  data.recordLog(`REMOTE: ${this.name} delete remote ${targetRoomName}`, this.name);
 
   this.resetActiveRemotes();
 };
@@ -2015,6 +2015,8 @@ Room.prototype.getRemoteBlueprints = function (targetRoomName) {
     return remoteStatus.blueprints;
   }
 
+  console.log(`${this.name} starts get blueprint of ${targetRoomName}`);
+
   const roomType = getRoomType(targetRoomName);
 
   const startingPoint = this.getStoragePos();
@@ -2201,6 +2203,7 @@ Room.prototype.getRemoteBlueprints = function (targetRoomName) {
   }
 
   if (array.length === 0) {
+    console.log(`${this.name} cannot get blueprint for ${targetRoomName}`);
     return;
   }
 
@@ -2229,6 +2232,8 @@ Room.prototype.getRemoteBlueprints = function (targetRoomName) {
       remoteStatus.controllerAvailable = targetRoom.controller.pos.available;
     }
   }
+
+  console.log(`${this.name} got blueprint for ${targetRoomName}`);
 
   return result;
 };

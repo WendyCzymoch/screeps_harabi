@@ -3,6 +3,26 @@ const CPU_THRESHOLD_DOWN = 0.85;
 const BUCKET_THRESHOLD = 8000;
 const CPU_INTERVAL = CREEP_LIFE_TIME;
 
+Overlord.getBlockedRemoteNames = function () {
+  const result = [];
+
+  for (const remote of this.myRooms) {
+    const remoteNames = remote.getRemoteNames();
+    for (const remoteName of remoteNames) {
+      const status = remote.getRemoteStatus(remoteName);
+      if (status.block) {
+        result.push(remoteName);
+      }
+    }
+  }
+
+  for (const remoteName of result) {
+    console.log(remoteName);
+  }
+
+  return result;
+};
+
 Overlord.manageBucket = function () {
   const averageCpu = this.getAverageCpu();
 

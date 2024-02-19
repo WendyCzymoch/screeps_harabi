@@ -316,10 +316,6 @@ Overlord.classifyCreeps = function () {
 Overlord.manageConstructionSites = function () {
   const constructionSites = Game.constructionSites;
 
-  if (Object.keys(constructionSites).length < 80) {
-    return;
-  }
-
   this.heap.constructionSites = this.heap.constructionSites || {};
 
   for (const id in this.heap.constructionSites) {

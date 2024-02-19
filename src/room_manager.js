@@ -147,7 +147,6 @@ Room.prototype.checkTombstone = function () {
     const TTL = attacker ? attacker.ticksToLive : 0;
     intel[scoutKeys.inaccessible] = intel[scoutKeys.inaccessible] || Game.time;
     intel[scoutKeys.inaccessible] = Math.max(intel[scoutKeys.inaccessible], Game.time + TTL);
-    intel[scoutKeys.lastScout] = Game.time;
 
     if (!deadDefendersId.includes(targetId)) {
       // defender가 아닐 경우 여기서 넘기자.

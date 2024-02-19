@@ -48,6 +48,7 @@ Room.prototype.manageScout = function () {
 
   if (Game.time - status.startTick > scoutInterval) {
     delete this.memory.scout;
+    return;
   }
 
   if (!status.state) {
@@ -225,6 +226,9 @@ Room.prototype.tryRemote = function (roomName) {
     return;
   }
 
+  console.log(`-------------------------------------------`);
+  console.log(`${this.name} try remote ${roomName}`);
+
   const value = this.getRemoteValue(roomName);
 
   if (value.total <= 0) {
@@ -241,6 +245,8 @@ Room.prototype.tryRemote = function (roomName) {
     return;
   }
 
+  console.log(`remote competition ${this.name} vs ${roomBefore.name}`);
+
   // competition
 
   const valueBefore = roomBefore.getRemoteValue(roomName);
@@ -250,6 +256,9 @@ Room.prototype.tryRemote = function (roomName) {
     this.addRemote(roomName);
     return;
   }
+
+  console.log(`${roomBefore.name} is better than ${this.name}`);
+  console.log(`-------------------------------------------`);
 };
 
 Room.prototype.analyzeIntel = function () {
