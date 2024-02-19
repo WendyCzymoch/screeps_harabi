@@ -123,6 +123,7 @@ Room.prototype.manageScout = function () {
     const depth = status.depth[node] + 1;
 
     const distanceToRemote = config.distanceToRemote;
+
     if (Game.map.getRoomLinearDistance(this.name, roomName) <= distanceToRemote && depth <= 2 * distanceToRemote) {
       const room = Game.rooms[roomName];
       if (!room || !intel) {
@@ -138,9 +139,9 @@ Room.prototype.manageScout = function () {
         this.tryRemote(roomName);
         this.checkMineral(roomName);
       }
-    } else if (this.memory.remotes && this.memory.remotes[roomName]) {
-      delete this.memory.remotes[roomName];
-      delete this.memory.activeRemotes;
+    } else if (this.getRemoteStatus(roomName)) {
+      data.recordLog(`REMOTE: ${this.name} delete remote ${roomName}. depth ${depth}`);
+      this.deleteRemote(roomName);
     }
 
     // success
@@ -156,10 +157,10 @@ Room.prototype.manageScout = function () {
 
     // failure
     if (result === ERR_NO_PATH) {
+      data.recordLog(`SCOUT: ${this.name} failed to scout ${roomName}`);
       status.depth[status.next] = true;
       status.queue.push(status.next);
       delete status.next;
-
       status.state = 'BFS';
     }
     return;

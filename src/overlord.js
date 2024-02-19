@@ -320,7 +320,6 @@ Overlord.manageConstructionSites = function () {
 
   for (const id in this.heap.constructionSites) {
     const constructionSite = Game.getObjectById(id);
-    console.log(constructionSite);
     if (!constructionSite) {
       delete this.heap.constructionSites[id];
       continue;
@@ -331,8 +330,6 @@ Overlord.manageConstructionSites = function () {
     const progress = info.progress;
 
     const currentProgress = constructionSite.progress;
-
-    console.log(`${progress} ${currentProgress}`);
 
     if (currentProgress <= progress) {
       if (constructionSite.room && constructionSite.room.isMy) {
