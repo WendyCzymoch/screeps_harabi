@@ -1,3 +1,4 @@
+const { config } = require('./config');
 const { getCombatInfo, GuardRequest } = require('./overlord_tasks_guard');
 const { getInvaderStrengthThreshold, isStronghold } = require('./room_manager_remote');
 const { getRoomMemory } = require('./util');
@@ -119,6 +120,15 @@ Room.prototype.runMineralTask = function (request) {
     request.complete = true;
     request.result = 'depleted';
     return;
+  }
+
+  if (config.seasonNumber === 6) {
+    const secondsToClose = Overlord.getSecondsToClose(targetRoomName);
+    if (secondsToClose < 600) {
+      request.result = 'closed';
+      request.completed = true;
+      return;
+    }
   }
 
   // check invader

@@ -98,6 +98,9 @@ if (shardName === 'swc') {
     ZH2O: 1500,
     XZH2O: 1500,
 
+    // upgrade
+    XGH2O: 1000,
+
     // nuker
     G: 1000,
   };
@@ -125,7 +128,7 @@ if (shardName === 'swc') {
 
   config.publicRamparts = false;
 
-  config.showTimeToClose = true;
+  config.seasonNumber = 6;
 
   config.rampartHitsPerRclSquare = 5000;
 

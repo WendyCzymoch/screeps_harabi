@@ -90,7 +90,7 @@ Room.prototype.manageScout = function () {
           return false;
         }
 
-        const roomStatus = Overlord.getRoomStatus(roomName).status;
+        const roomStatus = Game.map.getRoomStatus(roomName).status;
 
         if (roomStatus !== undefined && roomStatus !== 'normal') {
           return false;

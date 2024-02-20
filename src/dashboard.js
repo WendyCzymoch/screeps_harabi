@@ -308,7 +308,7 @@ function visualizeResources(numMyRoom) {
   }
 
   const resourcesByTier = {
-    0: [...BASIC_MINERALS, 'power'],
+    0: [...BASIC_MINERALS, 'G', 'power'],
     1: Object.keys(TIER1_COMPOUNDS),
     2: Object.keys(TIER2_COMPOUNDS),
     3: Object.keys(TIER3_COMPOUNDS),

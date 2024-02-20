@@ -1,10 +1,10 @@
-const MinHeap = require("./util_min_heap")
+const MinHeap = require('./util_min_heap')
 
 const AVOID_SOURCE_KEEPER_RANGE = 6
 
 Overlord.findMyRoomsInRange = function (fromRoomName, range) {
   const myRooms = this.myRooms
-  const myRoomsFiltered = myRooms.filter(room => {
+  const myRoomsFiltered = myRooms.filter((room) => {
     if (Game.map.getRoomLinearDistance(fromRoomName, room.name) > range) {
       return false
     }
@@ -15,12 +15,12 @@ Overlord.findMyRoomsInRange = function (fromRoomName, range) {
 
 Overlord.findClosestRoom = function (fromRoomName, roomNames, ignoreMap = 1, maxRooms = 16) {
   const routeLenthCache = {}
-  const roomNamesFiltered = roomNames.filter(roomName => {
+  const roomNamesFiltered = roomNames.filter((roomName) => {
     const route = this.findRoutesWithPortal(fromRoomName, roomName, ignoreMap)
     if (!Array.isArray(route)) {
       return false
     }
-    const length = route.map(segment => segment.length).reduce((acc, curr) => acc + curr, 0)
+    const length = route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0)
     if (length > maxRooms) {
       return false
     }
@@ -43,18 +43,25 @@ Overlord.findClosestRoom = function (fromRoomName, roomNames, ignoreMap = 1, max
 Overlord.findClosestMyRoom = function (fromRoomName, level = 0, ignoreMap = 1, maxRooms = 16) {
   const myRooms = Overlord.myRooms
   const routeLenthCache = {}
-  const myRoomsFiltered = myRooms.filter(room => {
+  const myRoomsFiltered = myRooms.filter((room) => {
     if (room.controller.level < level) {
       return false
     }
+
+    if (Game.map.getRoomLinearDistance(room.name, fromRoomName) > maxRooms) {
+      return false
+    }
+
     const route = this.findRoutesWithPortal(fromRoomName, room.name, ignoreMap)
     if (!Array.isArray(route)) {
       return false
     }
-    const length = route.map(segment => segment.length).reduce((acc, curr) => acc + curr, 0)
+
+    const length = route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0)
     if (length > maxRooms) {
       return false
     }
+
     routeLenthCache[room.name] = length
     return true
   })
@@ -128,7 +135,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
 
         // 방 안보이면 기본 CostMatrix 쓰자
         if (!room) {
-          const costs = new PathFinder.CostMatrix
+          const costs = new PathFinder.CostMatrix()
 
           const roomType = getRoomType(roomName)
 
@@ -171,7 +178,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
         }
 
         // staySafe가 true면 defenseCostMatrix 사용. 아니면 basicCostmatrix 사용.
-        const costs = ((room.isMy) && staySafe) ? room.defenseCostMatrix.clone() : room.basicCostmatrix.clone()
+        const costs = room.isMy && staySafe ? room.defenseCostMatrix.clone() : room.basicCostmatrix.clone()
         // 방 보이고 ignoreCreeps가 false고 지금 이 방이 creep이 있는 방이면 creep 위치에 cost 255 설정
         if (!ignoreCreeps && startRoomName === roomName) {
           const creepCost = ignoreCreeps === false ? 255 : ignoreCreeps
@@ -186,7 +193,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
         return costs
       },
       maxRooms: maxRoomsNow,
-      maxOps: maxRoomsNow > 1 ? 40000 : 5000
+      maxOps: maxRoomsNow > 1 ? 40000 : 5000,
     })
     if (search.incomplete) {
       return ERR_NO_PATH
@@ -235,7 +242,9 @@ function getPortalPositions(roomName, toRoomName) {
     const pos = new RoomPosition(parsed.x, parsed.y, roomName)
     positions.push(pos)
   }
-  return positions.map(pos => { return { pos, range: 1 } })
+  return positions.map((pos) => {
+    return { pos, range: 1 }
+  })
 }
 
 Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap = 1) {
@@ -243,7 +252,7 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
   costs[startRoomName] = 0
 
   const previous = []
-  const queue = new MinHeap(roomName => costs[roomName])
+  const queue = new MinHeap((roomName) => costs[roomName])
   const portalSet = {}
 
   queue.insert(startRoomName)
@@ -332,7 +341,6 @@ Overlord.getAdjacentRoomNames = function (roomName) {
 }
 
 function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
-
   if (roomName === startRoomName) {
     return 1
   }
@@ -349,51 +357,41 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
   const room = Game.rooms[roomName]
 
   if (room && (room.isMy || room.isMyRemote)) {
-    return Overlord.heap.roomCost[roomName] = 1
+    return (Overlord.heap.roomCost[roomName] = 1)
   }
 
   const intel = Overlord.getIntel(roomName)
 
   if (allies.includes(intel[scoutKeys.owner])) {
-    return Overlord.heap.roomCost[roomName] = 1
+    return (Overlord.heap.roomCost[roomName] = 1)
   }
 
   const inaccessible = intel[scoutKeys.inaccessible]
   if (ignoreMap < 2 && inaccessible && inaccessible > Game.time) {
-    return Overlord.heap.roomCost[roomName] = Infinity
+    return (Overlord.heap.roomCost[roomName] = Infinity)
   }
 
   if (intel[scoutKeys.numTower] > 0) {
-    return Overlord.heap.roomCost[roomName] = Infinity
+    return (Overlord.heap.roomCost[roomName] = Infinity)
   }
 
-  const status = Overlord.getRoomStatus(roomName)
+  const status = Game.map.getRoomStatus(roomName)
 
   if (status && status.status !== 'normal') {
-    return Overlord.heap.roomCost[roomName] = Infinity
+    return (Overlord.heap.roomCost[roomName] = Infinity)
   }
 
   const roomType = getRoomType(roomName)
 
   if (roomType === 'highway') {
-    return Overlord.heap.roomCost[roomName] = 1
+    return (Overlord.heap.roomCost[roomName] = 1)
   }
 
-  return Overlord.heap.roomCost[roomName] = 1.5
+  return (Overlord.heap.roomCost[roomName] = 1.5)
 }
 
 Overlord.getIntel = function (roomName) {
   Memory.rooms[roomName] = Memory.rooms[roomName] || {}
   Memory.rooms[roomName].intel = Memory.rooms[roomName].intel || {}
   return Memory.rooms[roomName].intel
-}
-
-Overlord.getRoomStatus = function (roomName) {
-  const intel = this.getIntel(roomName)
-  if (intel[scoutKeys.roomStatus] && intel[scoutKeys.roomStatusTime] && Game.time < intel[scoutKeys.roomStatusTime] + 10000) {
-    return intel[scoutKeys.roomStatus]
-  }
-
-  intel[scoutKeys.roomStatusTime] = Game.time
-  return intel[scoutKeys.roomStatus] = Game.map.getRoomStatus(roomName)
 }

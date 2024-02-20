@@ -1,4 +1,4 @@
-const { config } = require("./config")
+const { config } = require('./config')
 
 const POWER_BANK_DAMAGE_THRESHOLD = 600
 const POWER_BANK_DAMAGE_THRESHOLD_WITH_BOOSTED = 1920
@@ -23,7 +23,10 @@ Overlord.managePowerBankTasks = function () {
     }
 
     if (powerBankRequest.completed === true) {
-      data.recordLog(`POWERBANK: ${roomInCharge.name} completed powerBank mining at ${targetRoomName}. returned Power: ${powerBankRequest.amountReturned || 0}/${powerBankRequest.amount}`, targetRoomName)
+      data.recordLog(
+        `POWERBANK: ${roomInCharge.name} completed powerBank mining at ${targetRoomName}. returned Power: ${powerBankRequest.amountReturned || 0}/${powerBankRequest.amount}`,
+        targetRoomName
+      )
       this.deleteTask(powerBankRequest)
       continue
     }
@@ -31,7 +34,11 @@ Overlord.managePowerBankTasks = function () {
     roomInCharge.runPowerBankRequest(powerBankRequest)
     const color = resourceColor.power
     Game.map.visual.text('power', new RoomPosition(25, 35, powerBankRequest.roomName), { color })
-    Game.map.visual.line(new RoomPosition(25, 25, roomInCharge.name), new RoomPosition(25, 35, powerBankRequest.roomName), { color, width: 2 })
+    Game.map.visual.line(
+      new RoomPosition(25, 25, roomInCharge.name),
+      new RoomPosition(25, 35, powerBankRequest.roomName),
+      { color, width: 2 }
+    )
   }
 }
 
@@ -83,10 +90,22 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
   }
 
   // check completed
-  const completed = powerBankRequest.noMoreSpawn && powerBankAttackers.length === 0 && powerBankHealers.length === 0 && highwayHaulers.length === 0
+  const completed =
+    powerBankRequest.noMoreSpawn &&
+    powerBankAttackers.length === 0 &&
+    powerBankHealers.length === 0 &&
+    highwayHaulers.length === 0
   if (completed) {
     powerBankRequest.completed = true
     return
+  }
+
+  if (config.seasonNumber === 6) {
+    const secondsToClose = Overlord.getSecondsToClose(targetRoomName)
+    if (secondsToClose < 60) {
+      powerBankRequest.completed = true
+      return
+    }
   }
 
   // check noMoreSpawn
@@ -133,7 +152,10 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
   powerBankRequest.remainingTicks = remainingTicks
 
   // if remaining ticks got sufficiently low, set true to sendHaulers
-  if (!powerBankRequest.sendHaulers && remainingTicks < (distance + (Math.ceil(haulerNeeded / 3) * MAX_CREEP_SIZE * CREEP_SPAWN_TIME)) + buffer) {
+  if (
+    !powerBankRequest.sendHaulers &&
+    remainingTicks < distance + Math.ceil(haulerNeeded / 3) * MAX_CREEP_SIZE * CREEP_SPAWN_TIME + buffer
+  ) {
     powerBankRequest.sendHaulers = true
   }
 
@@ -143,7 +165,11 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
     return
   }
 
-  Game.map.visual.text(`⏳:${remainingTicks} 🔴:${powerBankRequest.amount}`, new RoomPosition(25, 15, powerBankRequest.roomName), { fontSize: 6, color: '#f000ff' })
+  Game.map.visual.text(
+    `⏳:${remainingTicks} 🔴:${powerBankRequest.amount}`,
+    new RoomPosition(25, 15, powerBankRequest.roomName),
+    { fontSize: 6, color: '#f000ff' }
+  )
 
   // update destroyed
   if (targetRoom && !powerBank) {
@@ -184,13 +210,17 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
     return
   }
 
-  const powerBankAttackersFiltered = powerBankAttackers.filter(creep => (creep.ticksToLive || 1500) > (buffer + distance + creep.body.length * CREEP_SPAWN_TIME))
+  const powerBankAttackersFiltered = powerBankAttackers.filter(
+    (creep) => (creep.ticksToLive || 1500) > buffer + distance + creep.body.length * CREEP_SPAWN_TIME
+  )
   if (powerBankAttackersFiltered.length === 0) {
     this.requestPowerBankAttacker(powerBankRequest)
     return
   }
 
-  const powerBankHealersFiltered = powerBankHealers.filter(creep => (creep.ticksToLive || 1500) > (buffer + distance + creep.body.length * CREEP_SPAWN_TIME))
+  const powerBankHealersFiltered = powerBankHealers.filter(
+    (creep) => (creep.ticksToLive || 1500) > buffer + distance + creep.body.length * CREEP_SPAWN_TIME
+  )
   if (powerBankHealersFiltered.length === 0) {
     this.requestPowerBankHealer(powerBankRequest)
   }
@@ -212,7 +242,7 @@ Overlord.checkPowerBanks = function (targetRoomName) {
     return aDistance - bDistance
   })
 
-  const candidateRoom = roomsSorted.find(room => {
+  const candidateRoom = roomsSorted.find((room) => {
     if (room.controller.level < 8) {
       return false
     }
@@ -226,12 +256,16 @@ Overlord.checkPowerBanks = function (targetRoomName) {
     if (route === ERR_NO_PATH) {
       return false
     }
-    const length = route.map(segment => segment.length).reduce((acc, curr) => acc + curr, 0)
+    const length = route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0)
     if (length > POWERBANK_DISTANCE_THRESHOLD) {
       return false
     }
-    if (Object.values(powerBankTasks).map(task => task.roomNameInCharge).includes(room.name)) {
-      `${room.name} already has powerBank task`
+    if (
+      Object.values(powerBankTasks)
+        .map((task) => task.roomNameInCharge)
+        .includes(room.name)
+    ) {
+      ;`${room.name} already has powerBank task`
       return false
     }
     if (room.memory.militaryThreat) {
@@ -250,10 +284,9 @@ Overlord.checkPowerBanks = function (targetRoomName) {
     return
   }
 
-  const powerBanks = targetRoom.find(FIND_STRUCTURES).filter(structure => structure.structureType === 'powerBank')
+  const powerBanks = targetRoom.find(FIND_STRUCTURES).filter((structure) => structure.structureType === 'powerBank')
 
   for (const powerBank of powerBanks) {
-
     if (powerBankTasks[powerBank.id]) {
       continue
     }
@@ -268,7 +301,7 @@ Overlord.checkPowerBanks = function (targetRoomName) {
 
     const attackPower = powerBankRequest.boost ? POWER_BANK_DAMAGE_THRESHOLD_WITH_BOOSTED : POWER_BANK_DAMAGE_THRESHOLD
 
-    if (requiredAttackPower > (attackPower * 0.8)) {
+    if (requiredAttackPower > attackPower * 0.8) {
       continue
     }
 
@@ -283,17 +316,21 @@ const PowerBankRequest = function (room, powerBank) {
     return
   }
 
-  const search = PathFinder.search(powerBank.pos, { pos: terminal.pos, range: 1 }, {
-    plainCost: 1,
-    swampCost: 5,
-    roomCallback: function (roomName) {
-      if (Game.rooms[roomName]) {
-        return Game.rooms[roomName].basicCostmatrix
-      }
-      return
-    },
-    maxOps: 5000
-  })
+  const search = PathFinder.search(
+    powerBank.pos,
+    { pos: terminal.pos, range: 1 },
+    {
+      plainCost: 1,
+      swampCost: 5,
+      roomCallback: function (roomName) {
+        if (Game.rooms[roomName]) {
+          return Game.rooms[roomName].basicCostmatrix
+        }
+        return
+      },
+      maxOps: 5000,
+    }
+  )
 
   const pos = powerBank.pos
 
@@ -311,9 +348,8 @@ const PowerBankRequest = function (room, powerBank) {
   this.distance = search.cost
 
   this.roomNameInCharge = room.name
-  this.boost = (terminal.store['XUH2O'] > 16 * LAB_BOOST_MINERAL) && (terminal.store['XGHO2'] > 16 * LAB_BOOST_MINERAL)
+  this.boost = terminal.store['XUH2O'] > 16 * LAB_BOOST_MINERAL && terminal.store['XGHO2'] > 16 * LAB_BOOST_MINERAL
   this.haulerNeeded = Math.ceil(this.amount / HAULER_CARRY_CAPACITY)
-
 }
 
 Room.prototype.requestHighwayHauler = function (roomName, resourceType, numCarry = 25) {
@@ -333,7 +369,7 @@ Room.prototype.requestHighwayHauler = function (roomName, resourceType, numCarry
     role: 'highwayHauler',
     base: this.name,
     targetRoom: roomName,
-    resourceType: resourceType
+    resourceType: resourceType,
   }
 
   const options = { priority: SPAWN_PRIORITY['highwayHauler'] }
@@ -383,7 +419,7 @@ Room.prototype.requestPowerBankAttacker = function (powerBankRequest) {
     role: 'powerBankAttacker',
     base: this.name,
     boosted,
-    task: { category: powerBankRequest.category, id: powerBankRequest.id }
+    task: { category: powerBankRequest.category, id: powerBankRequest.id },
   }
 
   const options = { priority: SPAWN_PRIORITY['powerBankAttacker'] }
@@ -397,7 +433,6 @@ Room.prototype.requestPowerBankAttacker = function (powerBankRequest) {
 }
 
 Room.prototype.requestPowerBankHealer = function (powerBankRequest) {
-
   let body = []
 
   for (let i = 0; i < 15; i++) {
@@ -420,7 +455,7 @@ Room.prototype.requestPowerBankHealer = function (powerBankRequest) {
   const memory = {
     role: 'powerBankHealer',
     base: this.name,
-    task: { category: powerBankRequest.category, id: powerBankRequest.id }
+    task: { category: powerBankRequest.category, id: powerBankRequest.id },
   }
 
   const options = { priority: SPAWN_PRIORITY['powerBankHealer'] }
@@ -438,7 +473,11 @@ Creep.prototype.highwayHaul = function (powerBankRequest) {
     return
   }
 
-  if (!this.memory.supplying && powerBankRequest.destroyed && (this.store.getFreeCapacity() === 0 || powerBankRequest.nothingLeft)) {
+  if (
+    !this.memory.supplying &&
+    powerBankRequest.destroyed &&
+    (this.store.getFreeCapacity() === 0 || powerBankRequest.nothingLeft)
+  ) {
     this.memory.supplying = true
   }
 
@@ -456,8 +495,9 @@ Creep.prototype.highwayHaul = function (powerBankRequest) {
     }
   }
 
-  if (this.memory.recycle) {
-    this.getRecycled()
+  if (this.memory.complete) {
+    this.memory.assignedRoom = this.memory.base
+    this.memory.role = 'remoteHauler'
     return
   }
 
@@ -476,7 +516,7 @@ Creep.prototype.highwayHaul = function (powerBankRequest) {
     }
     powerBankRequest.amountReturned = powerBankRequest.amountReturned || 0
     powerBankRequest.amountReturned += this.memory.amount
-    this.memory.recycle = true
+    this.memory.complete = true
     return
   }
 
@@ -489,7 +529,7 @@ Creep.prototype.highwayHaul = function (powerBankRequest) {
 
   const resourceType = this.memory.resourceType
 
-  const tombstone = this.room.find(FIND_TOMBSTONES).find(tombstone => tombstone.store[resourceType] > 0)
+  const tombstone = this.room.find(FIND_TOMBSTONES).find((tombstone) => tombstone.store[resourceType] > 0)
 
   if (tombstone) {
     if (this.pos.getRangeTo(tombstone) > 1) {
@@ -500,7 +540,9 @@ Creep.prototype.highwayHaul = function (powerBankRequest) {
     return
   }
 
-  const droppedResource = this.room.find(FIND_DROPPED_RESOURCES).find(droppedResource => droppedResource.resourceType === resourceType)
+  const droppedResource = this.room
+    .find(FIND_DROPPED_RESOURCES)
+    .find((droppedResource) => droppedResource.resourceType === resourceType)
 
   if (droppedResource) {
     if (this.pos.getRangeTo(droppedResource) > 1) {
@@ -511,7 +553,7 @@ Creep.prototype.highwayHaul = function (powerBankRequest) {
     return
   }
 
-  const ruin = this.room.find(FIND_RUINS).find(ruin => ruin.store[resourceType] > 0)
+  const ruin = this.room.find(FIND_RUINS).find((ruin) => ruin.store[resourceType] > 0)
 
   if (ruin) {
     if (this.pos.getRangeTo(ruin) > 1) {
@@ -587,7 +629,7 @@ Creep.prototype.attackPowerBank = function (powerBankRequest) {
   healer.follow(this)
   healer.care(this)
 
-  if ((this.room.name === healer.room.name && this.pos.getRangeTo(healer) > 1 && Game.time % 2 === 0)) {
+  if (this.room.name === healer.room.name && this.pos.getRangeTo(healer) > 1 && Game.time % 2 === 0) {
     return
   }
 
@@ -614,7 +656,7 @@ Creep.prototype.attackPowerBank = function (powerBankRequest) {
     }
   }
 
-  if ((this.heap.enemyDetected && Game.time < this.heap.enemyDetected + 2)) {
+  if (this.heap.enemyDetected && Game.time < this.heap.enemyDetected + 2) {
     return
   }
 

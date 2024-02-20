@@ -190,8 +190,8 @@ Overlord.mapInfo = function () {
         }
       }
 
-      if (config.showTimeToClose) {
-        const status = this.getRoomStatus(roomName);
+      if (config.seasonNumber === 6) {
+        const status = Game.map.getRoomStatus(roomName);
         const timestampNow = new Date().getTime();
         const timestampClose = status.timestamp;
 
@@ -216,6 +216,22 @@ Overlord.mapInfo = function () {
       }
     }
   }
+};
+
+Overlord.getSecondsToClose = function (roomName) {
+  if (config.seasonNumber !== 6) {
+    return;
+  }
+  const status = Game.map.getRoomStatus(roomName);
+
+  const timestampNow = new Date().getTime();
+  const timestampClose = status.timestamp;
+
+  if (!timestampClose) {
+    return;
+  }
+
+  return Math.floor(new Date(timestampClose - timestampNow) / 1000);
 };
 
 Overlord.observeRoom = function (roomName) {

@@ -1,3 +1,5 @@
+const { config } = require('./config');
+
 Overlord.manageGuardTasks = function () {
   const tasks = Object.values(this.getTasksWithCategory('guard'));
 
@@ -75,6 +77,18 @@ Room.prototype.guardRoom = function (request) {
       guard.memory.targetRoomName = undefined;
     }
     return;
+  }
+
+  if (config.seasonNumber === 6) {
+    const secondsToClose = Overlord.getSecondsToClose(roomName);
+    if (secondsToClose < 600) {
+      request.result = 'closed';
+      request.completed = true;
+      for (const guard of guardGroups.total) {
+        guard.memory.targetRoomName = undefined;
+      }
+      return;
+    }
   }
 
   const targetRoom = Game.rooms[roomName];

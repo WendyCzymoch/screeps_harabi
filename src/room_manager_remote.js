@@ -36,6 +36,15 @@ Room.prototype.manageRemotes = function () {
   outer: for (const info of activeRemotes) {
     const targetRoomName = info.remoteName;
 
+    if (config.seasonNumber === 6) {
+      const secondsToClose = Overlord.getSecondsToClose(targetRoomName);
+      if (secondsToClose < 600) {
+        // less than 10 minutes left
+        this.deleteRemote(targetRoomName);
+        return;
+      }
+    }
+
     const memory = getRoomMemory(targetRoomName);
 
     const status = this.getRemoteStatus(targetRoomName);
