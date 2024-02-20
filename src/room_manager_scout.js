@@ -66,26 +66,24 @@ Room.prototype.manageScout = function () {
 
   outer: while (status.state === 'BFS') {
     if (status.adjacents && status.adjacents.length > 0) {
-      while (status.adjacents.length > 0) {
-        status.next = status.adjacents.shift();
-        status.state = 'scout';
-        break outer;
-      }
+      status.next = status.adjacents.shift();
+      status.state = 'scout';
+      break outer;
     }
 
     while (status.queue.length > 0) {
       const node = status.queue.shift();
-      const intel = Overlord.getIntel(node);
+
       const distance = Game.map.getRoomLinearDistance(this.name, node);
+
       if (distance > MAX_DISTANCE) {
         continue;
       }
 
-      if (intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
-        continue;
-      }
       const thisName = this.name;
+
       status.node = node;
+
       status.adjacents = Overlord.getAdjacentRoomNames(node).filter(function (roomName) {
         const adjacentDistance = Game.map.getRoomLinearDistance(thisName, roomName);
         if (adjacentDistance > MAX_DISTANCE) {
@@ -106,7 +104,7 @@ Room.prototype.manageScout = function () {
         return true;
       });
 
-      while (status.adjacents.length > 0) {
+      if (status.adjacents.length > 0) {
         status.next = status.adjacents.shift();
         status.state = 'scout';
         break outer;
@@ -153,14 +151,17 @@ Room.prototype.manageScout = function () {
       status.state = 'BFS';
       return;
     }
+
     const result = this.acquireVision(status.next);
 
     // failure
     if (result === ERR_NO_PATH) {
       data.recordLog(`SCOUT: ${this.name} failed to scout ${roomName}`);
-      status.depth[status.next] = true;
-      status.queue.push(status.next);
+
+      status.depth[roomName] = depth;
+      status.queue.push(roomName);
       delete status.next;
+
       status.state = 'BFS';
     }
     return;
