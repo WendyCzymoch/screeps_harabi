@@ -66,6 +66,17 @@ Room.prototype.guardRoom = function (request) {
     return;
   }
 
+  const intel = Overlord.getIntel(roomName);
+
+  if (intel && intel[scoutKeys.numTower] > 0) {
+    request.result = 'tower';
+    request.completed = true;
+    for (const guard of guardGroups.total) {
+      guard.memory.targetRoomName = undefined;
+    }
+    return;
+  }
+
   const targetRoom = Game.rooms[roomName];
 
   request.numGuards = guardGroups.total.length;
