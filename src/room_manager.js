@@ -421,6 +421,10 @@ Room.prototype.manageLab = function () {
 }
 
 Room.prototype.manageFactory = function () {
+  if (this.memory.nextFactoryCheck && Game.time < this.memory.nextFactoryCheck) {
+    return
+  }
+
   const factory = this.structures.factory[0]
 
   if (!factory || !this.terminal) {
@@ -433,6 +437,8 @@ Room.prototype.manageFactory = function () {
 
   if (this.memory.factoryTarget) {
     this.operateFactory()
+  } else {
+    this.memory.nextFactoryCheck = Game.time + CREEP_LIFE_TIME
   }
 }
 

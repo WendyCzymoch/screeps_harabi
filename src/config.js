@@ -1,17 +1,17 @@
-const config = {};
+const config = {}
 
-const shardName = Game.shard.name;
-config.shard = shardName;
+const shardName = Game.shard.name
+config.shard = shardName
 
 if (shardName === 'swc') {
-  config.allies = [];
+  config.allies = []
 
   config.task = {
     powerBank: false,
     deposit: true,
-  };
+  }
 
-  config.harass = true;
+  config.harass = true
 
   config.economyStandard = {
     1: 10000,
@@ -22,7 +22,7 @@ if (shardName === 'swc') {
     6: 80000,
     7: 160000,
     8: 320000,
-  };
+  }
 
   config.compoundGoal = {
     // for defense, ant
@@ -48,30 +48,30 @@ if (shardName === 'swc') {
     ZH: 1500,
     ZH2O: 1500,
     XZH2O: 1500,
-  };
+  }
 
-  config.notBuild = ['powerSpawn', 'nuker'];
+  config.notBuild = ['powerSpawn', 'nuker']
 
-  config.rampartLevel = 4;
+  config.rampartLevel = 4
 
-  config.alwaysShowMapInfo = true;
+  config.alwaysShowMapInfo = true
 
-  config.publicRamparts = true;
+  config.publicRamparts = true
 
-  config.rampartHitsPerRclSquare = 16000;
+  config.rampartHitsPerRclSquare = 16000
 
-  config.distanceToRemote = 2;
+  config.distanceToRemote = 2
 
-  config.alwaysShowDashboard = true;
+  config.alwaysShowDashboard = true
 } else if (shardName === 'shardSeason') {
-  config.allies = [];
+  config.allies = []
 
   config.task = {
     powerBank: true,
     deposit: false,
-  };
+  }
 
-  config.harass = false;
+  config.harass = false
 
   config.compoundGoal = {
     // for defense, ant
@@ -103,7 +103,7 @@ if (shardName === 'swc') {
 
     // nuker
     G: 1000,
-  };
+  }
 
   config.economyStandard = {
     1: 10000,
@@ -114,39 +114,39 @@ if (shardName === 'swc') {
     6: 80000,
     7: 160000,
     8: 320000,
-  };
+  }
 
-  config.rampartLevel = 4;
+  config.rampartLevel = 4
 
-  config.market = false;
+  config.market = false
 
-  config.notBuild = ['nuker'];
+  config.notBuild = ['nuker']
 
-  config.labConstructLevel = 7;
+  config.labConstructLevel = 7
 
-  config.alwaysShowMapInfo = false;
+  config.alwaysShowMapInfo = false
 
-  config.publicRamparts = false;
+  config.publicRamparts = false
 
-  config.seasonNumber = 6;
+  config.seasonNumber = 6
 
-  config.rampartHitsPerRclSquare = 5000;
+  config.rampartHitsPerRclSquare = 5000
 
-  config.blockUpragade = false;
+  config.blockUpragade = false
 
-  config.distanceToRemote = 2;
+  config.distanceToRemote = 2
 } else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) {
   // world
-  config.allies = [];
+  config.allies = []
 
   config.task = {
     powerBank: true,
     deposit: true,
-  };
+  }
 
-  config.harass = false;
+  config.harass = false
 
-  config.buyPixel = true;
+  config.buyPixel = true
 
   config.compoundGoal = {
     // for defense, ant
@@ -181,7 +181,7 @@ if (shardName === 'swc') {
 
     // nuker
     G: 5000,
-  };
+  }
 
   config.economyStandard = {
     1: 10000,
@@ -192,33 +192,33 @@ if (shardName === 'swc') {
     6: 80000,
     7: 160000,
     8: 320000,
-  };
+  }
 
-  config.rampartLevel = 4;
+  config.rampartLevel = 4
 
-  config.creditGoal = 3000000000;
+  config.creditGoal = 3000000000
 
-  config.alwaysShowMapInfo = false;
+  config.alwaysShowMapInfo = false
 
-  config.publicRamparts = false;
+  config.publicRamparts = false
 
-  config.rampartHitsPerRclSquare = 16000;
+  config.rampartHitsPerRclSquare = 16000
 
-  config.distanceToRemote = 2;
+  config.distanceToRemote = 2
 
-  config.shards = ['shard0', 'shard1', 'shard2', 'shard3'];
+  config.shards = ['shard0', 'shard1', 'shard2', 'shard3']
 } else {
   // local
-  config.allies = [];
+  config.allies = []
 
   config.task = {
     powerBank: false,
     deposit: false,
-  };
+  }
 
-  config.harass = false;
+  config.harass = false
 
-  config.buyPixel = false;
+  config.buyPixel = false
 
   config.compoundGoal = {
     // for defense, ant
@@ -253,7 +253,7 @@ if (shardName === 'swc') {
 
     // nuker
     G: 5000,
-  };
+  }
 
   config.economyStandard = {
     1: 6000,
@@ -264,37 +264,43 @@ if (shardName === 'swc') {
     6: 48000,
     7: 96000,
     8: 192000,
-  };
+  }
 
-  config.rampartLevel = 5;
+  config.rampartLevel = 5
 
-  config.alwaysShowMapInfo = true;
+  config.alwaysShowMapInfo = true
 
-  config.publicRamparts = false;
+  config.publicRamparts = false
 
-  config.showTicks = true;
+  config.showTicks = true
 
-  config.rampartHitsPerRclSquare = 16000;
+  config.rampartHitsPerRclSquare = 16000
 
-  config.distanceToRemote = 2;
+  config.distanceToRemote = 2
 }
 
 // quad and duo settings
-config.IMPORTANT_STRUCTURE_TYPES = [STRUCTURE_SPAWN, STRUCTURE_TOWER, STRUCTURE_INVADER_CORE];
+config.IMPORTANT_STRUCTURE_TYPES = [
+  STRUCTURE_SPAWN,
+  STRUCTURE_TOWER,
+  STRUCTURE_STORAGE,
+  STRUCTURE_TERMINAL,
+  STRUCTURE_INVADER_CORE,
+]
 
 config.duo = {
   IGNORE_TOWER_DAMAGE: true,
   IGNORE_DAMAGE: true,
-};
+}
 
 config.quad = {
   IGNORE_DAMAGE_WHEN_PATHING: true,
   QUAD_COST_VISUAL: false,
   BULLDOZE_COST_VISUAL: false,
   HEAL_BUFFER: 100,
-};
+}
 
-config.RCL_THRESHOLD_TO_SAFEMODE = 2;
+config.RCL_THRESHOLD_TO_SAFEMODE = 2
 
 // energy thresholds
 
@@ -334,8 +340,8 @@ config.energyLevel = {
   STOP_BALANCE: 250,
 
   BALANCE: 300,
-};
+}
 
 module.exports = {
   config,
-};
+}
