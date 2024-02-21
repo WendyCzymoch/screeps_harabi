@@ -6,6 +6,8 @@ This repository contains an autonomous bot developed for the game Screeps.
 
 * **Automated Base Planning**: The bot automatically build construction and maintain infrastructure.
 
+* **Automated Claiming** : The bot automatically claim new room when it's possible
+
 * **Defensive Strategy**: The bot defense its rooms by utilizing repairers and boosted melee creeps.
 
 * **Deposit Mining and Power Mining**: The bot includes support for deposit mining and power mining operations.
@@ -15,11 +17,6 @@ This repository contains an autonomous bot developed for the game Screeps.
 ## Limitations
 * **No Intersharding Support**: The bot does not support intersharding, focusing solely on single-shard operations.
 
-* **No Auto-Claiming Functionality**: The bot does not automatically claim new territory.
-
 * **No Auto-Attacking**: The bot does not attack others automatically
 
 * **No Code for Powercreeps**: Currently, there is no implementation for powercreeps within the bot.
-
-## Usage
-* **Claim Other Room**: Make a flag in a room you want to claim with name "claim".
