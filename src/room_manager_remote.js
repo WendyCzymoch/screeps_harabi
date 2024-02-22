@@ -453,7 +453,7 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
     if (Math.random() < 0.005) {
       const roadDecayInfo = this.getRemoteRoadDecayInfo()
       const score = roadDecayInfo.lostHits + roadDecayInfo.numLowHits * 10000
-      const criteria = REPAIR_POWER * CREEP_LIFE_TIME
+      const criteria = REPAIR_POWER * CREEP_LIFE_TIME * 3
       if (!this.memory.repairRemote && score > criteria) {
         this.memory.repairRemote = true
       } else if (this.memory.repairRemote && roadDecayInfo.numLowHits === 0) {
@@ -532,13 +532,10 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
 
       runRemoteBuilder(remoteBuilder)
 
-      remoteBuilderNumWork += remoteBuilder.getActiveBodyparts(WORK)
+      remoteBuilderNumWork += remoteBuilder.getNumParts(WORK)
     }
 
-    if (
-      remoteBuilderNumWork < 10 * resourceIdsToConstruct.length ||
-      remoteBuilders.length % resourceIdsToConstruct.length !== 0
-    ) {
+    if (remoteBuilderNumWork < 10 * resourceIdsToConstruct.length) {
       this.requestRemoteBuilder(10)
     }
   }
@@ -918,7 +915,7 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
   })
 
   for (const hauler of haulers) {
-    numCarry += hauler.getActiveBodyparts(CARRY)
+    numCarry += hauler.getNumParts(CARRY)
     numHauler++
   }
 
@@ -1055,7 +1052,7 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) {
     if (!sourceStat[sourceId]) {
       continue
     }
-    sourceStat[sourceId].work += miner.getActiveBodyparts(WORK)
+    sourceStat[sourceId].work += miner.getNumParts(WORK)
     sourceStat[sourceId].numMiner++
   }
 
@@ -1249,7 +1246,7 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
 
   for (const miner of miners) {
     const sourceId = miner.memory.sourceId
-    sourceStat[sourceId].work += miner.getActiveBodyparts(WORK)
+    sourceStat[sourceId].work += miner.getNumParts(WORK)
     sourceStat[sourceId].numMiner++
   }
 
@@ -1312,7 +1309,7 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
 
   if (canReserve && reservationTick < RESERVATION_TICK_THRESHOLD) {
     const reservers = Overlord.getCreepsByRole(targetRoomName, 'reserver')
-    const numClaimParts = reservers.map((creep) => creep.getActiveBodyparts('claim')).reduce((a, b) => a + b, 0)
+    const numClaimParts = reservers.map((creep) => creep.getNumParts('claim')).reduce((a, b) => a + b, 0)
 
     if (numClaimParts < 2 && reservers.length < (status.controllerAvailable || 2)) {
       this.requestReserver(targetRoomName)

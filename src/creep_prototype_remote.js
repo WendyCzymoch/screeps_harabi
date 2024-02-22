@@ -121,7 +121,7 @@ Creep.prototype.avoidSourceKeepers = function () {
   const sourceKeepers = this.room.getEnemyCombatants().filter((creep) => creep.owner.username === 'Source Keeper')
 
   if (this.pos.findInRange(sourceKeepers, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
-    this.fleeFrom(sourceKeepers, SOURCE_KEEPER_RANGE_TO_FLEE, 1)
+    this.fleeFrom(sourceKeepers, SOURCE_KEEPER_RANGE_TO_START_FLEE, 1)
     return OK
   }
 
@@ -142,7 +142,7 @@ Creep.prototype.avoidSourceKeepers = function () {
   })
 
   if (this.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
-    this.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_FLEE)
+    this.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE)
     return OK
   }
 
@@ -297,7 +297,9 @@ Creep.prototype.moveByRemotePath = function (path, options = {}) {
   const result = reverse ? this.moveByPathMyReverse(path) : this.moveByPathMy(path)
 
   if (result !== OK) {
-    const goals = path.map((pos) => {
+    let startPositions = reverse ? path.slice(path.length - 10) : path.slice(0, 10)
+
+    const goals = startPositions.map((pos) => {
       return { pos, range: 0 }
     })
     return this.moveMy(goals)

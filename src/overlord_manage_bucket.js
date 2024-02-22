@@ -1,177 +1,177 @@
-const CPU_THRESHOLD_UP = 0.95;
-const CPU_THRESHOLD_DOWN = 0.85;
-const BUCKET_THRESHOLD = 8000;
-const CPU_INTERVAL = CREEP_LIFE_TIME;
+const CPU_THRESHOLD_UP = 0.95
+const CPU_THRESHOLD_DOWN = 0.85
+const BUCKET_THRESHOLD = 8000
+const CPU_INTERVAL = CREEP_LIFE_TIME
 
 Overlord.getBlockedRemoteNames = function () {
-  const result = [];
+  const result = []
 
   for (const remote of this.myRooms) {
-    const remoteNames = remote.getRemoteNames();
+    const remoteNames = remote.getRemoteNames()
     for (const remoteName of remoteNames) {
-      const status = remote.getRemoteStatus(remoteName);
+      const status = remote.getRemoteStatus(remoteName)
       if (status.block) {
-        result.push(remoteName);
+        result.push(remoteName)
       }
     }
   }
 
   for (const remoteName of result) {
-    console.log(remoteName);
+    console.log(remoteName)
   }
 
-  return result;
-};
+  return result
+}
 
 Overlord.manageBucket = function () {
-  const averageCpu = this.getAverageCpu();
+  const averageCpu = this.getAverageCpu()
 
   if (Memory._manageBucketTime && Game.time < Memory._manageBucketTime + CPU_INTERVAL) {
-    return;
+    return
   }
 
   if (!averageCpu) {
-    return;
+    return
   }
 
-  Memory._manageBucketTime = Game.time;
+  Memory._manageBucketTime = Game.time
 
-  const limitCpu = Game.cpu.limit;
+  const limitCpu = Game.cpu.limit
 
-  const cpuThreshold = limitCpu * CPU_THRESHOLD_UP;
+  const cpuThreshold = limitCpu * CPU_THRESHOLD_UP
 
   if (averageCpu > cpuThreshold || Game.cpu.bucket < BUCKET_THRESHOLD) {
-    const diff = averageCpu - cpuThreshold;
-    const number = Math.clamp(Math.ceil(diff / 3), 1, Overlord.myRooms.length);
-    this.removeRemote(number);
-  } else if (averageCpu / limitCpu < CPU_THRESHOLD_DOWN) {
-    this.addRemote();
+    const diff = averageCpu - cpuThreshold
+    const number = Math.clamp(Math.ceil(diff / 3), 1, Overlord.myRooms.length)
+    this.removeRemote(number)
+  } else if (averageCpu / limitCpu < cpuThreshold - 3) {
+    this.addRemote()
   }
-};
+}
 
 Overlord.getAverageCpu = function () {
   if (Game._avgCPU) {
-    return Game._avgCPU;
+    return Game._avgCPU
   }
 
   if (!Memory.stats || !Memory.stats.cpu) {
-    return;
+    return
   }
 
   if (Memory.globalReset && Game.time < Memory.globalReset + 10) {
-    return;
+    return
   }
 
-  const lastCpu = Memory.stats.cpu.used;
+  const lastCpu = Memory.stats.cpu.used
 
   if (lastCpu === undefined) {
-    return;
+    return
   }
 
-  const alpha = 2 / (CPU_INTERVAL + 1);
+  const alpha = 2 / (CPU_INTERVAL + 1)
 
-  Memory.averageCpu = Memory.averageCpu === undefined ? lastCpu : Memory.averageCpu * (1 - alpha) + lastCpu * alpha;
+  Memory.averageCpu = Memory.averageCpu === undefined ? lastCpu : Memory.averageCpu * (1 - alpha) + lastCpu * alpha
 
-  return (Game._avgCPU = Memory.averageCpu);
-};
+  return (Game._avgCPU = Memory.averageCpu)
+}
 
 Overlord.removeRemote = function (number = 1) {
-  const worstRemotes = this.getWorstRemotes(number);
+  const worstRemotes = this.getWorstRemotes(number)
 
   for (const worstRemote of worstRemotes) {
-    const roomNameInCharge = worstRemote.roomNameInCharge;
+    const roomNameInCharge = worstRemote.roomNameInCharge
 
-    const remoteName = worstRemote.remoteName;
+    const remoteName = worstRemote.remoteName
 
-    const roomInCharge = Game.rooms[roomNameInCharge];
+    const roomInCharge = Game.rooms[roomNameInCharge]
 
     if (!roomInCharge) {
-      return;
+      return
     }
 
-    const remoteStatus = roomInCharge.getRemoteStatus(remoteName);
+    const remoteStatus = roomInCharge.getRemoteStatus(remoteName)
 
     if (!remoteStatus) {
-      return;
+      return
     }
 
-    data.recordLog(`BUCKET: block ${remoteName} from ${roomNameInCharge}`, remoteName);
+    data.recordLog(`BUCKET: block ${remoteName} from ${roomNameInCharge}`, remoteName)
 
-    remoteStatus.block = true;
+    remoteStatus.block = true
   }
-};
+}
 
 Overlord.getWorstRemotes = function (number = 1) {
-  const myRooms = this.myRooms;
+  const myRooms = this.myRooms
 
-  const candidates = [];
+  const candidates = []
   for (const room of myRooms) {
-    const activeRemotes = room.getActiveRemotes();
+    const activeRemotes = room.getActiveRemotes()
     for (const info of activeRemotes) {
-      const remoteName = info.remoteName;
-      const remoteStatus = room.getRemoteStatus(remoteName);
+      const remoteName = info.remoteName
+      const remoteStatus = room.getRemoteStatus(remoteName)
       if (remoteStatus.block) {
-        continue;
+        continue
       }
-      const score = info.value / info.weight;
-      const roomNameInCharge = room.name;
-      const candidate = { roomNameInCharge, remoteName, score };
-      candidates.push(candidate);
+      const score = info.value / info.weight
+      const roomNameInCharge = room.name
+      const candidate = { roomNameInCharge, remoteName, score }
+      candidates.push(candidate)
     }
   }
 
-  candidates.sort((a, b) => a.score - b.score);
+  candidates.sort((a, b) => a.score - b.score)
 
-  return candidates.slice(0, number);
-};
+  return candidates.slice(0, number)
+}
 
 Overlord.addRemote = function () {
-  const bestRemote = this.getBestRemote();
+  const bestRemote = this.getBestRemote()
   if (!bestRemote) {
-    return;
+    return
   }
 
-  const roomNameInCharge = bestRemote.roomNameInCharge;
-  const roomInCharge = Game.rooms[roomNameInCharge];
+  const roomNameInCharge = bestRemote.roomNameInCharge
+  const roomInCharge = Game.rooms[roomNameInCharge]
 
   if (!roomInCharge) {
-    return;
+    return
   }
 
-  const remoteName = bestRemote.remoteName;
+  const remoteName = bestRemote.remoteName
 
-  const remoteStatus = roomInCharge.getRemoteStatus(remoteName);
+  const remoteStatus = roomInCharge.getRemoteStatus(remoteName)
 
   if (!remoteStatus) {
-    return;
+    return
   }
 
-  data.recordLog(`BUCKET: add ${remoteName} from ${roomNameInCharge}`, remoteName);
-  delete remoteStatus.block;
-};
+  data.recordLog(`BUCKET: add ${remoteName} from ${roomNameInCharge}`, remoteName)
+  delete remoteStatus.block
+}
 
 Overlord.getBestRemote = function () {
-  const myRooms = this.myRooms;
-  let score = undefined;
-  let result = undefined;
-  let roomNameInCharge = undefined;
+  const myRooms = this.myRooms
+  let score = undefined
+  let result = undefined
+  let roomNameInCharge = undefined
   for (const room of myRooms) {
-    const remoteNames = room.getRemoteNames();
+    const remoteNames = room.getRemoteNames()
     for (const remoteName of remoteNames) {
-      const remoteStatus = room.getRemoteStatus(remoteName);
+      const remoteStatus = room.getRemoteStatus(remoteName)
       if (!remoteStatus.block) {
-        continue;
+        continue
       }
-      const value = room.getRemoteValue(remoteName).total;
-      const weight = room.getRemoteSpawnUsage(remoteName).total;
+      const value = room.getRemoteValue(remoteName).total
+      const weight = room.getRemoteSpawnUsage(remoteName).total
       if (!score || score < value / weight) {
-        score = value / weight;
-        result = remoteName;
-        roomNameInCharge = room.name;
+        score = value / weight
+        result = remoteName
+        roomNameInCharge = room.name
       }
     }
   }
   if (roomNameInCharge && result) {
-    return { roomNameInCharge, remoteName: result };
+    return { roomNameInCharge, remoteName: result }
   }
-};
+}

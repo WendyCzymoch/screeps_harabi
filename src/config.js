@@ -67,7 +67,7 @@ if (shardName === 'swc') {
   config.allies = []
 
   config.task = {
-    powerBank: true,
+    powerBank: false,
     deposit: false,
   }
 

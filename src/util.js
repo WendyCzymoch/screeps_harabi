@@ -2,6 +2,11 @@ Math.clamp = function (value, min, max) {
   return Math.min(Math.max(value, min), max)
 }
 
+Number.prototype.toFixedNumber = function (digit) {
+  const pow = Math.pow(10, digit)
+  return Math.round(this * pow) / pow
+}
+
 function getRoomMemory(roomName) {
   Memory.rooms[roomName] = Memory.rooms[roomName] || {}
   return Memory.rooms[roomName]
@@ -29,7 +34,7 @@ Overlord.getResourceAmountsTotal = function () {
   }
 
   this.heap.resourceAmountsTotalTime = Game.time
-  return this.heap.resourceAmountsTotal = result
+  return (this.heap.resourceAmountsTotal = result)
 }
 
 module.exports = {

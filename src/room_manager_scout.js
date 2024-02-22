@@ -1,5 +1,7 @@
 const { config } = require('./config')
 
+const { MapUtil } = require('./util_map')
+
 const SCOUT_INTERVAL_UNDER_RCL_8 = 6000 // scout 시작 후 얼마나 지나야 리셋할건지 1000보다 커야함.
 const SCOUT_INTERVAL_AT_RCL_8 = 1000
 
@@ -15,7 +17,6 @@ global.scoutKeys = {
   numTower: 8,
   isMyRemote: 9,
   reservationOwner: 10,
-  isAllyRemote: 11,
   isRemoteCandidate: 12,
   claimScore: 13,
   lastScout: 14,
@@ -199,15 +200,7 @@ Room.prototype.updateIntel = function (options = {}) {
       break
   }
 
-  const intel = this.analyzeIntel()
-
-  intel[scoutKeys.inaccessible] = intelBefore[scoutKeys.inaccessible]
-  intel[scoutKeys.lastHarassTick] = intelBefore[scoutKeys.lastHarassTick]
-  intel[scoutKeys.roomStatus] = intelBefore[scoutKeys.roomStatus]
-  intel[scoutKeys.roomStatusTime] = intelBefore[scoutKeys.roomStatusTime]
-  intel[scoutKeys.threat] = intelBefore[scoutKeys.threat]
-  intel[scoutKeys.notForRemote] = intelBefore[scoutKeys.notForRemote]
-  intel[scoutKeys.lastScout] = Game.time
+  const intel = { ...intelBefore, ...this.analyzeIntel() }
 
   this.memory.intel = intel
 }
@@ -262,6 +255,17 @@ Room.prototype.analyzeIntel = function () {
   result[scoutKeys.mineralType] = this.mineral ? this.mineral.mineralType : undefined
   result[scoutKeys.numTower] = this.structures.tower.filter((tower) => tower.RCLActionable).length
 
+  result[scoutKeys.isAccessibleToContorller] = undefined
+  result[scoutKeys.owner] = undefined
+  result[scoutKeys.RCL] = undefined
+  result[scoutKeys.isAlly] = undefined
+  result[scoutKeys.isMy] = undefined
+  result[scoutKeys.isEnemy] = undefined
+  result[scoutKeys.isMyRemote] = undefined
+  result[scoutKeys.reservationOwner] = undefined
+  result[scoutKeys.isRemoteCandidate] = undefined
+  result[scoutKeys.claimScore] = undefined
+
   const isController = this.controller !== undefined
   if (isController) {
     const owner = this.controller.owner
@@ -274,27 +278,30 @@ Room.prototype.analyzeIntel = function () {
       result[scoutKeys.isAlly] = allies.includes(username)
       result[scoutKeys.isMy] = username === MY_NAME
       result[scoutKeys.isEnemy] = !result[scoutKeys.isAlly] && !result[scoutKeys.isMy]
-    }
+    } else {
+      if (Overlord.remotes.includes(this.name)) {
+        result[scoutKeys.isMyRemote] = true
+      } else {
+        const reservation = this.controller.reservation
+        if (reservation && reservation.username !== 'Invader') {
+          result[scoutKeys.reservationOwner] = reservation.username
+        }
 
-    result[scoutKeys.isMyRemote] = Overlord.remotes.includes(this.name)
-
-    const reservation = this.controller.reservation
-    if (reservation) {
-      const username = reservation.username
-
-      result[scoutKeys.reservationOwner] = username
-      result[scoutKeys.isAllyRemote] = allies.includes(username)
-    }
-
-    if (result[scoutKeys.isAccessibleToContorller] && !result[scoutKeys.owner]) {
-      if (!result[scoutKeys.isAllyRemote] && result[scoutKeys.numSource] > 0) {
-        result[scoutKeys.isRemoteCandidate] = true
+        if (
+          result[scoutKeys.isAccessibleToContorller] &&
+          result[scoutKeys.numSource] > 0 &&
+          (!result[scoutKeys.reservationOwner] || !allies.includes(result[scoutKeys.reservationOwner]))
+        ) {
+          result[scoutKeys.isRemoteCandidate] = true
+          const claimScore = this.getClaimScore()
+          result[scoutKeys.claimScore] = claimScore
+        }
       }
-
-      const claimScore = this.getClaimScore()
-      result[scoutKeys.claimScore] = claimScore
     }
   }
+
+  result[scoutKeys.lastScout] = Game.time
+
   return result
 }
 
@@ -404,25 +411,50 @@ Room.prototype.getClaimScore = function () {
     mineralScore += mineralTypeScore
   }
 
-  const closestRangeToMyRoom = Math.min(
-    ...Overlord.myRooms.map((room) => Game.map.getRoomLinearDistance(room.name, this.name))
-  )
-
-  const rangeScore = Math.min(1, 0.5 * (closestRangeToMyRoom - 1))
-
   const adjacentRoomNames = Overlord.getAdjacentRoomNames(this.name)
 
+  const remoteCandidates = new Set(adjacentRoomNames)
+
+  for (const adjacent of adjacentRoomNames) {
+    const candidates = Overlord.getAdjacentRoomNames(adjacent)
+    for (const candidate of candidates) {
+      if (candidate === this.name) {
+        continue
+      }
+      remoteCandidates.add(candidate)
+    }
+  }
+
   let remoteSourceLength = 0
-  for (const roomName of adjacentRoomNames) {
+
+  for (const roomName of Array.from(remoteCandidates)) {
     const intel = Overlord.getIntel(roomName)
     if (intel && intel[scoutKeys.isRemoteCandidate]) {
       remoteSourceLength += intel[scoutKeys.numSource]
     }
   }
 
-  const remoteScore = Math.clamp(0.25 * (remoteSourceLength - 3), 0, 1)
+  const remoteScore = Math.clamp(0.25 * remoteSourceLength - 1, 0, 1)
 
-  return Math.floor((swampScore + sourceScore + mineralScore + rangeScore + remoteScore) * 20) / 100
+  let neighborScore = 1
+
+  const roomNamesInRange = MapUtil.getRoomNamesInRange(this.name, 4)
+
+  const myRoomNames = Overlord.myRooms.map((room) => room.name)
+
+  for (const roomName of roomNamesInRange) {
+    const intel = Overlord.getIntel(roomName)
+    if (intel[scoutKeys.isEnemy] || myRoomNames.includes(roomName)) {
+      neighborScore -= (5 - Game.map.getRoomLinearDistance(roomName, this.name)) * 0.25
+    }
+    if (intel[scoutKeys.reservationOwner]) {
+      neighborScore -= (5 - Game.map.getRoomLinearDistance(roomName, this.name)) * 0.1
+    }
+  }
+
+  neighborScore = Math.clamp(neighborScore, 0, 1)
+
+  return ((swampScore + sourceScore + mineralScore + neighborScore + remoteScore) / 5).toFixedNumber(2)
 }
 
 function getMineralCount() {

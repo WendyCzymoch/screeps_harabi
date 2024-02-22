@@ -663,7 +663,7 @@ Room.prototype.requestLaborer = function (options) {
 
   const bestFunnelRequest = Overlord.getBestFunnelRequest()
   if (!this.storage || isBuilder || (bestFunnelRequest && bestFunnelRequest.roomName === this.name)) {
-    priority -= 2
+    priority -= 10
   }
 
   const spawnOptions = { priority }

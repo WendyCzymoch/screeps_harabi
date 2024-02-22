@@ -89,6 +89,7 @@ require('util_distance_transform')
 require('util_flood_fill')
 require('util_heap')
 require('util_min-cut')
+require('util_roomPosition')
 require('util')
 
 // Any modules that you use that modify the game's prototypes should be require'd
