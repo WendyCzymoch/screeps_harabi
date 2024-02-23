@@ -79,16 +79,13 @@ Room.prototype.guardRoom = function (request) {
     return
   }
 
-  if (config.seasonNumber === 6) {
-    const secondsToClose = Overlord.getSecondsToClose(roomName)
-    if (secondsToClose < 600) {
-      request.result = 'closed'
-      request.completed = true
-      for (const guard of guardGroups.total) {
-        guard.memory.targetRoomName = undefined
-      }
-      return
+  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(roomName) < 600) {
+    request.result = 'closed'
+    request.completed = true
+    for (const guard of guardGroups.total) {
+      guard.memory.targetRoomName = undefined
     }
+    return
   }
 
   if (request.strength > this.getInvaderStrengthThreshold()) {

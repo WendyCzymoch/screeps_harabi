@@ -7,7 +7,7 @@ Room.prototype.manageTowerAttack = function (targets) {
   for (const creep of targets) {
     const packed = packCoord(creep.pos.x, creep.pos.y)
     const damage = damageArray[packed]
-    if (creep.getCanBeKilled(damage, creep.totalHealPower) || creep.owner.username === "Invader") {
+    if (creep.getCanBeKilled(damage, creep.totalHealPower) || creep.owner.username === 'Invader') {
       vulnerable.push(creep)
       continue
     }
@@ -18,13 +18,13 @@ Room.prototype.manageTowerAttack = function (targets) {
   }
 
   if (vulnerable.length) {
-    const target = getMinObject(vulnerable, creep => creep.hits)
+    const target = getMinObject(vulnerable, (creep) => creep.hits)
     this.towerAttack(target)
     return
   }
 
   if (possible.length > 0) {
-    const killable = targets.find(creep => {
+    const killable = targets.find((creep) => {
       return creep.getKillable(damageArray)
     })
 
@@ -49,7 +49,9 @@ Room.prototype.manageTowerAttack = function (targets) {
   }
 
   if (this.creeps.wounded.length) {
-    const safeWounded = this.creeps.wounded.filter(creep => this.defenseCostMatrix.get(creep.pos.x, creep.pos.y) < DANGER_TILE_COST)
+    const safeWounded = this.creeps.wounded.filter(
+      (creep) => this.defenseCostMatrix.get(creep.pos.x, creep.pos.y) < DANGER_TILE_COST
+    )
     for (const tower of this.structures.tower) {
       tower.heal(tower.pos.findClosestByRange(safeWounded))
     }
@@ -60,13 +62,13 @@ Room.prototype.manageTowerAttack = function (targets) {
 /**
  * attack target with towers until it gets enough damage to be killed,
  * considering totalHealPower and boosted tough parts
- * 
+ *
  * @param {Creep} target - hostile creep
  */
 Room.prototype.towerAttack = function (target) {
   const towers = this.structures.tower.sort((a, b) => a.pos.getRangeTo(target.pos) - b.pos.getRangeTo(target.pos))
 
-  const isEmptyTower = towers.some(tower => tower.store[RESOURCE_ENERGY] === 0)
+  const isEmptyTower = towers.some((tower) => tower.store[RESOURCE_ENERGY] === 0)
 
   if (isEmptyTower) {
     return
@@ -88,7 +90,7 @@ Room.prototype.towerAttack = function (target) {
 Room.prototype.towerAttackRandomly = function (targets) {
   const towers = this.structures.tower
 
-  const isEmptyTower = towers.some(tower => tower.store[RESOURCE_ENERGY] === 0)
+  const isEmptyTower = towers.some((tower) => tower.store[RESOURCE_ENERGY] === 0)
 
   if (isEmptyTower) {
     return
@@ -96,7 +98,6 @@ Room.prototype.towerAttackRandomly = function (targets) {
 
   const index = Math.floor(Math.random() * targets.length)
   const target = targets[index]
-
 
   for (const tower of towers) {
     tower.attack(target)

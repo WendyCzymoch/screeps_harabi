@@ -22,7 +22,7 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
       return false
     }
 
-    if (!getRoomMemory(targetRoomName).isCombatant && !this.room.isCombatant()) {
+    if (!getRoomMemory(targetRoomName).isCombatant && (!this.room.isCombatant() || this.room.isMy)) {
       if (Game.time < this.memory.timeToWait) {
         if (this.pos.getRangeToEdge() < 5) {
           this.moveToRoom(this.memory.base)
@@ -66,7 +66,7 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
     return false
   }
 
-  if (this.room.isCombatant()) {
+  if (this.room.isCombatant() && !this.room.isMy) {
     this.memory.runAway = true
     this.moveToRoom(this.memory.base)
     this.say('🏠', true)

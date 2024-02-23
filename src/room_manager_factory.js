@@ -57,18 +57,18 @@ Room.prototype.operateFactory = function () {
   if (!components) {
     return ERR_NOT_ENOUGH_RESOURCES
   }
-  for (const comptonent in components) {
+  for (const component in components) {
     //재료 다 있는지 확인
-    if (factory.store[comptonent] < components[comptonent]) {
+    if (factory.store[component] < components[component]) {
       //재료가 없는 상황
-      if (terminal.store[comptonent] >= components[comptonent] - factory.store[comptonent]) {
+      if (terminal.store[component] >= components[component] - factory.store[component]) {
         //터미널에 있으면 가져오자
         if (!researcher) {
           // researcher 없으면 생산
           this.heap.needResearcher = true
           return ERR_BUSY
         }
-        researcher.getDeliveryRequest(terminal, factory, comptonent)
+        researcher.getDeliveryRequest(terminal, factory, component)
         return ERR_NOT_ENOUGH_RESOURCES
       }
     }
@@ -118,14 +118,21 @@ Room.prototype.getFactoryTarget = function () {
     return undefined
   }
 
+  if (factory.store.getFreeCapacity() < 1000) {
+    return undefined
+  }
+
   if (this.memory.factoryTarget !== undefined) {
     return this.memory.factoryTarget
   }
 
   const targetCommodities = config.factoryObjectives || []
 
-  if (this.energyLevel >= config.energyLevel.BATTERY) {
+  if (this.energyLevel >= config.energyLevel.BATTERY_COOK) {
     const target = { commodity: RESOURCE_BATTERY, amount: 1000 }
+    targetCommodities.push(target)
+  } else if (this.energyLevel < config.energyLevel.BATTERY_EAT) {
+    const target = { commodity: RESOURCE_ENERGY, amount: 10000 }
     targetCommodities.push(target)
   }
 
@@ -138,7 +145,7 @@ Room.prototype.getFactoryTarget = function () {
           targetCommodities.push(target)
         }
       }
-    } else if (terminal.store[mineral] < 1000) {
+    } else if (terminal.store[mineral] < 2000) {
       const target = { commodity: mineral, amount: 500 }
       targetCommodities.push(target)
     }
@@ -150,20 +157,12 @@ Room.prototype.getFactoryTarget = function () {
     const commodity = target.commodity
     const amount = target.amount
 
-    if (factory.store[commodity] >= 5000) {
-      continue
-    }
-
     // commodity 부터 확인하자
-    const result = this.checkCommodity(commodity)
+    const result = this.checkCommodity(commodity, checked)
 
     // 만들 수 있으면 만들자
     if (result === OK) {
       return (this.memory.factoryTarget = { commodity, amount })
-    }
-
-    if (BASIC_MINERALS.includes(target.commodity)) {
-      continue
     }
 
     // 아니면 queue에 넣고 BFS 시작
@@ -181,7 +180,7 @@ Room.prototype.getFactoryTarget = function () {
         continue
       }
 
-      // 각 comptonent 확인
+      // 각 component 확인
       for (const component in components) {
         // 이미 확인한 녀석이면 넘어가자
         if (checked[component]) {
@@ -196,7 +195,7 @@ Room.prototype.getFactoryTarget = function () {
         }
 
         // 확인 진행하자
-        const result = this.checkCommodity(component)
+        const result = this.checkCommodity(component, checked)
 
         // 만들 수 있으면 요놈을 만들자
         if (result === OK) {
@@ -227,7 +226,7 @@ function getComponents(resourceType) {
   return COMMODITIES[resourceType].components
 }
 
-Room.prototype.checkCommodity = function (resourceType) {
+Room.prototype.checkCommodity = function (resourceType, checked) {
   const components = getComponents(resourceType)
 
   if (!components) {
@@ -235,6 +234,11 @@ Room.prototype.checkCommodity = function (resourceType) {
   }
 
   for (const component in components) {
+    // to avoid loop.(e.g. compress to make battery to decompress and make E)
+    if (checked && checked[component]) {
+      return ERR_INVALID_TARGET
+    }
+
     if (this.getResourceAmount(component) >= components[component]) {
       continue
     }

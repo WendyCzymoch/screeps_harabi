@@ -331,11 +331,13 @@ config.energyLevel = {
 
   POWERBANK: 160,
 
+  BATTERY_EAT: 170,
+
   STOP_FUNNEL: 200,
 
   RAMPART_HIGH: 210,
 
-  BATTERY: 220,
+  BATTERY_COOK: 240,
 
   STOP_BALANCE: 250,
 

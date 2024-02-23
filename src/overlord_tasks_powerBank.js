@@ -100,12 +100,9 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
     return
   }
 
-  if (config.seasonNumber === 6) {
-    const secondsToClose = Overlord.getSecondsToClose(targetRoomName)
-    if (secondsToClose < 60) {
-      powerBankRequest.completed = true
-      return
-    }
+  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < 1000) {
+    powerBankRequest.completed = true
+    return
   }
 
   // check noMoreSpawn
