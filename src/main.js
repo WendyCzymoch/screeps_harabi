@@ -35,9 +35,9 @@ require('grafana_stats')
 
 require('market_business')
 
-require('overlord_harass')
 require('overlord_manage_bucket')
 require('overlord_manage_claim')
+require('overlord_manage_diplomacy')
 require('overlord_manage_resources')
 require('overlord_metric')
 require('overlord_tasks_blinky')
@@ -45,6 +45,7 @@ require('overlord_tasks_claim')
 require('overlord_tasks_deposit')
 require('overlord_tasks_duo')
 require('overlord_tasks_guard')
+require('overlord_tasks_harass')
 require('overlord_tasks_mineral')
 require('overlord_tasks_occupy')
 require('overlord_tasks_powerBank')
@@ -228,7 +229,9 @@ module.exports.loop = () => {
     for (const creep of Overlord.classifyCreeps().independents) {
       try {
         const role = creep.memory.role
-        creepAction[role](creep)
+        if (creepAction[role]) {
+          creepAction[role](creep)
+        }
       } catch (err) {
         data.recordError(err, creep.name)
       }
@@ -306,6 +309,7 @@ module.exports.loop = () => {
       Overlord.visualizeRoomInfo()
       Overlord.mapInfo()
       Overlord.exportStats()
+      Overlord.manageDiplomacy()
     } catch (err) {
       data.recordError(err, 'overlord')
     }

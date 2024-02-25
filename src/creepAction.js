@@ -132,7 +132,7 @@ function colonyDefender(creep) {
 
   creep.activeHeal()
 
-  creep.harasserRangedAttack()
+  creep.activeRangedAttack()
 
   if (!creep.memory.flee && creep.hits / creep.hitsMax <= 0.7) {
     creep.memory.flee = true
@@ -415,7 +415,7 @@ function guard(creep) {
     }
   }
   creep.healWounded()
-  creep.harasserRangedAttack()
+  creep.activeRangedAttack()
 
   if (creep.room.name === creep.memory.base) {
     const enemyCombatants = creep.room.getEnemyCombatants()
@@ -876,6 +876,54 @@ function coreAttacker(creep) {
   }
 }
 
+function harasser(creep) {
+  if (creep.spawning) {
+    return
+  }
+
+  // no task. return to base
+  if (!creep.memory.task || !Overlord.getTask(creep.memory.task.category, creep.memory.task.id)) {
+    creep.activeHeal()
+    creep.activeRangedAttack({ attackNeutralStructures: false })
+    creep.moveToRoom(creep.memory.base)
+    return
+  }
+
+  const task = Overlord.getTask(creep.memory.task.category, creep.memory.task.id)
+
+  const leader = Game.creeps[creep.memory.leader]
+
+  // spawn phase. wait
+
+  if (!task.spawned) {
+    if (creep.room.name !== creep.memory.base || isEdgeCoord(creep.pos.x, creep.pos.y)) {
+      creep.moveToRoom(creep.memory.base)
+    }
+    return
+  }
+
+  // gather phase. move to the leader
+  if (!creep.memory.gathered || !task.gathered) {
+    creep.activeHeal()
+    creep.activeRangedAttack({ attackNeutralStructures: false })
+
+    if (leader && creep.pos.getRangeTo(leader.pos) <= 5) {
+      creep.memory.gathered = true
+    } else {
+      creep.memory.gathered = false
+      creep.moveMy({ pos: leader.pos, range: 1 })
+    }
+    return
+  }
+
+  // engage phase. fight!
+  if (task.engage) {
+    const options = { ignoreSourceKeepers: true, friendlies: task.members }
+
+    creep.blinkyFight(task.roomName, options)
+  }
+}
+
 module.exports = {
   miner,
   extractor,
@@ -890,4 +938,5 @@ module.exports = {
   sourceKeeperHandler,
   mineralHauler,
   coreAttacker,
+  harasser,
 }

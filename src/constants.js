@@ -1,23 +1,23 @@
-const { config } = require('./config');
+const { config } = require('./config')
 
 global.MY_NAME = (function () {
-  const rooms = Object.values(Game.rooms);
+  const rooms = Object.values(Game.rooms)
   for (const room of rooms) {
     if (!room.controller) {
-      continue;
+      continue
     }
     if (room.controller.my) {
-      return room.controller.owner.username;
+      return room.controller.owner.username
     }
   }
-})();
+})()
 
-global.SHARD = config.shard;
+global.SHARD = config.shard
 
-global.barrierCosts = new PathFinder.CostMatrix();
+global.barrierCosts = new PathFinder.CostMatrix()
 for (let x = 0; x < 50; x++) {
   for (let y = 0; y < 50; y++) {
-    barrierCosts.set(x, y, 255);
+    barrierCosts.set(x, y, 255)
   }
 }
 
@@ -43,7 +43,7 @@ global.STRUCTURE_TYPES = [
   STRUCTURE_NUKER,
   STRUCTURE_FACTORY,
   STRUCTURE_INVADER_CORE,
-];
+]
 
 global.BUILD_PRIORITY = {
   spawn: 0,
@@ -75,7 +75,7 @@ global.BUILD_PRIORITY = {
   powerSpawn: 13,
 
   nuker: 14,
-};
+}
 
 global.CREEP_ROELS = [
   'miner',
@@ -109,7 +109,8 @@ global.CREEP_ROELS = [
   'singleton',
   'idler',
   'mineralHauler',
-];
+  'harasser',
+]
 
 global.SELF_DIRECTED_CREEP_ROELS = [
   'miner',
@@ -125,14 +126,15 @@ global.SELF_DIRECTED_CREEP_ROELS = [
   'sourceKeeperHandler',
   'mineralHauler',
   'coreAttacker',
-];
+  'harasser',
+]
 
 global.CROSS = [
   { x: 1, y: 0 },
   { x: -1, y: 0 },
   { x: 0, y: 1 },
   { x: 0, y: -1 },
-];
+]
 
 global.NEAR = [
   { x: 0, y: 1 },
@@ -143,11 +145,11 @@ global.NEAR = [
   { x: 1, y: -1 },
   { x: -1, y: 1 },
   { x: -1, y: -1 },
-];
+]
 
-global.ECONOMY_STANDARD = config.economyStandard;
+global.ECONOMY_STANDARD = config.economyStandard
 
-global.BASIC_MINERALS = ['H', 'O', 'Z', 'K', 'U', 'L', 'X'];
+global.BASIC_MINERALS = ['H', 'O', 'Z', 'K', 'U', 'L', 'X']
 
 global.TIER1_COMPOUNDS = {
   UH: { ratio: 2, resourceType0: 'U', resourceType1: 'H' },
@@ -160,7 +162,7 @@ global.TIER1_COMPOUNDS = {
   ZO: { ratio: 2, resourceType0: 'Z', resourceType1: 'O' },
   GH: { ratio: 2, resourceType0: 'G', resourceType1: 'H' },
   GO: { ratio: 2, resourceType0: 'G', resourceType1: 'O' },
-};
+}
 
 global.TIER2_COMPOUNDS = {
   UH2O: { ratio: 2, resourceType0: 'UH', resourceType1: 'OH' },
@@ -173,7 +175,7 @@ global.TIER2_COMPOUNDS = {
   ZHO2: { ratio: 2, resourceType0: 'ZO', resourceType1: 'OH' },
   GH2O: { ratio: 2, resourceType0: 'GH', resourceType1: 'OH' },
   GHO2: { ratio: 2, resourceType0: 'GO', resourceType1: 'OH' },
-};
+}
 
 global.TIER3_COMPOUNDS = {
   XUH2O: { ratio: 2, resourceType0: 'UH2O', resourceType1: 'X' },
@@ -186,7 +188,7 @@ global.TIER3_COMPOUNDS = {
   XZHO2: { ratio: 2, resourceType0: 'ZHO2', resourceType1: 'X' },
   XGH2O: { ratio: 2, resourceType0: 'GH2O', resourceType1: 'X' },
   XGHO2: { ratio: 2, resourceType0: 'GHO2', resourceType1: 'X' },
-};
+}
 
 global.COMPOUNDS_FORMULA = {
   OH: { ratio: 10, resourceType0: 'O', resourceType1: 'H' },
@@ -226,7 +228,7 @@ global.COMPOUNDS_FORMULA = {
   XZHO2: { ratio: 2, resourceType0: 'ZHO2', resourceType1: 'X' },
   XGH2O: { ratio: 2, resourceType0: 'GH2O', resourceType1: 'X' },
   XGHO2: { ratio: 2, resourceType0: 'GHO2', resourceType1: 'X' },
-};
+}
 
 global.BOOSTS_EFFECT = {
   UH: { type: ATTACK },
@@ -261,7 +263,7 @@ global.BOOSTS_EFFECT = {
   XZHO2: { type: MOVE },
   XGH2O: { type: WORK },
   XGHO2: { type: TOUGH },
-};
+}
 
 global.CONTROLLER_PROGRESS_TO_LEVELS = {
   1: 0,
@@ -272,16 +274,16 @@ global.CONTROLLER_PROGRESS_TO_LEVELS = {
   6: 1800200,
   7: 5445200,
   8: 16380200,
-};
+}
 
-global.RAW_RESOURCES = ['metal', 'biomass', 'silicon', 'mist'];
+global.RAW_RESOURCES = ['metal', 'biomass', 'silicon', 'mist']
 
 global.BASIC_REGIONAL_COMMODITIES = {
   wire: { utrium_bar: 20, silicon: 100, energy: 40 },
   cell: { lemergium_bar: 20, biomass: 100, energy: 40 },
   alloy: { zynthium_bar: 20, metal: 100, energy: 40 },
   condensate: { keanium_bar: 20, mist: 100, energy: 40 },
-};
+}
 
 global.FACTORY_COMPONENTS = {
   wire: { silicon: 100, utrium_bar: 20, energy: 40 },
@@ -296,7 +298,7 @@ global.FACTORY_COMPONENTS = {
   zynthium_bar: { Z: 500, energy: 200 },
   keanium_bar: { K: 500, energy: 200 },
   oxidant: { O: 500, energy: 200 },
-};
+}
 
 global.COMMODITIES_TO_SELL = [
   'biomass',
@@ -327,7 +329,7 @@ global.COMMODITIES_TO_SELL = [
   'microchip',
   'circuit',
   'device',
-];
+]
 
 global.RESOURCES_TO_FACTORY = {
   RESOURCE_SILICON: 'silicon',
@@ -376,7 +378,7 @@ global.RESOURCES_TO_FACTORY = {
   RESOURCE_SPIRIT: 'spirit',
   RESOURCE_EMANATION: 'emanation',
   RESOURCE_ESSENCE: 'essence',
-};
+}
 
 global.RESOURCES_TO_TERMINAL = {
   RESOURCE_POWER: 'power',
@@ -426,16 +428,16 @@ global.RESOURCES_TO_TERMINAL = {
   RESOURCE_CATALYZED_ZYNTHIUM_ALKALIDE: 'XZHO2',
   RESOURCE_CATALYZED_GHODIUM_ACID: 'XGH2O',
   RESOURCE_CATALYZED_GHODIUM_ALKALIDE: 'XGHO2',
-};
+}
 
-global.INVADER_BODY_PARTS = ['attack', 'ranged_attack', 'heal', 'work', 'claim'];
+global.INVADER_BODY_PARTS = ['attack', 'ranged_attack', 'heal', 'work', 'claim']
 
-global.COLOR_NEON_CYAN = '#4deeea';
-global.COLOR_NEON_GREEN = '#74ee15';
-global.COLOR_NEON_YELLOW = '#ffe700';
-global.COLOR_NEON_PURPLE = '#f000ff';
-global.COLOR_NEON_BLUE = '#001eff';
-global.COLOR_NEON_RED = '#fe0000';
+global.COLOR_NEON_CYAN = '#4deeea'
+global.COLOR_NEON_GREEN = '#74ee15'
+global.COLOR_NEON_YELLOW = '#ffe700'
+global.COLOR_NEON_PURPLE = '#f000ff'
+global.COLOR_NEON_BLUE = '#001eff'
+global.COLOR_NEON_RED = '#fe0000'
 
 global.resourceColor = {
   power: '#ec3b3d',
@@ -443,4 +445,4 @@ global.resourceColor = {
   biomass: '#6d8e18',
   silicon: '#448dc0',
   mist: '#ca65e3',
-};
+}

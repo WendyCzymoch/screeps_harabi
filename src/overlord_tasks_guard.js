@@ -97,6 +97,12 @@ Room.prototype.guardRoom = function (request) {
     return
   }
 
+  if (request.usernames) {
+    for (const username of request.usernames) {
+      Overlord.addUserHateLevel(username, config.hateLevel.harass)
+    }
+  }
+
   const targetRoom = Game.rooms[roomName]
 
   request.numGuards = guardGroups.total.length
@@ -180,7 +186,7 @@ function doCleanUp(guards, roomName) {
     guard.healWounded()
     if (guard.room.name !== roomName || isEdgeCoord(guard.pos.x, guard.pos.y)) {
       guard.activeHeal()
-      guard.harasserRangedAttack()
+      guard.activeRangedAttack()
       guard.moveToRoom(roomName, 2)
       continue
     }
@@ -188,18 +194,21 @@ function doCleanUp(guards, roomName) {
 }
 
 function doCombat(guards, roomName) {
+  const friendlies = guards.map((guard) => guard.name)
   for (const guard of guards) {
-    if (guard.room.name !== roomName || isEdgeCoord(guard.pos.x, guard.pos.y)) {
-      guard.activeHeal()
-      guard.harasserRangedAttack()
-      guard.moveToRoom(roomName, 2)
-      continue
-    }
-    const tagets = guard.room.findHostileCreeps().filter((creep) => creep.owner.username !== 'Source Keeper')
-    if (tagets.length > 0) {
-      guard.handleCombatants(tagets)
-      continue
-    }
+    guard.blinkyFight(roomName, { ignoreSourceKeepers: true, friendlies })
+
+    // if (guard.room.name !== roomName || isEdgeCoord(guard.pos.x, guard.pos.y)) {
+    //   guard.activeHeal()
+    //   guard.activeRangedAttack()
+    //   guard.moveToRoom(roomName, 2)
+    //   continue
+    // }
+    // const tagets = guard.room.findHostileCreeps().filter((creep) => creep.owner.username !== 'Source Keeper')
+    // if (tagets.length > 0) {
+    //   guard.handleCombatants(tagets)
+    //   continue
+    // }
   }
 }
 
@@ -213,14 +222,12 @@ Room.prototype.rallyGuards = function (guards, roomName) {
     }
 
     const targets = guard.room.findHostileCreeps()
-    const closeTargets = guard.pos.findInRange(targets, 5)
 
-    if (closeTargets.length > 0) {
-      guard.handleCombatants(targets)
-      continue
+    if (targets.length > 0) {
+      guard.activeHeal()
+      const isFriendlyRoom = Overlord.getIsFriendlyRoom(guard.room.name)
+      guard.activeRangedAttack({ attackNeutralStructures: !isFriendlyRoom })
     }
-
-    guard.activeHeal()
 
     if (guard.pos.getRangeTo(captain) > 2) {
       guard.setWorkingInfo(captain.pos, 2)
@@ -228,6 +235,7 @@ Room.prototype.rallyGuards = function (guards, roomName) {
       result = false
       continue
     }
+
     if (guard.room.name !== this.name || isEdgeCoord(guard.pos.x, guard.pos.y)) {
       guard.moveToRoom(this.name, 2)
       continue
@@ -349,7 +357,7 @@ Room.prototype.requestGuard = function (targetRoomName, options) {
   this.spawnQueue.push(request)
 }
 
-function getStrength(body) {
+global.getStrength = function (body) {
   let result = 0
   for (const part of body) {
     if ([RANGED_ATTACK, ATTACK].includes(part)) {

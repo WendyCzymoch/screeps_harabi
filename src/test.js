@@ -1,10 +1,9 @@
-const checkIntent = function (fn) {
-  return function () {
-    Game._intent = Game._intent || 0;
-    if (fn.apply(this, arguments) === OK) {
-      Game._intent++;
-    }
-  };
-};
+label: if (true) {
+  console.log(1)
 
-Creep.prototype.moveAndCheckIntent = checkIntent(Creep.prototype.move);
+  if (3 === 3) {
+    // break label
+  }
+
+  console.log(2)
+}

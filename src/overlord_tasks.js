@@ -10,6 +10,7 @@ const METHODS_BY_CATEGORY = {
   singleton: 'manageSingletonTasks',
   mineral: 'manageMineralTasks',
   claim: 'manageClaimTasks',
+  harass: 'manageHarassTasks',
 }
 
 Overlord.runTasks = function () {
@@ -56,6 +57,14 @@ Overlord.getTasksByRoomInCharge = function (roomName) {
 
 Overlord.getTaskCategories = function () {
   return Object.keys(METHODS_BY_CATEGORY)
+}
+
+Overlord.getTask = function (category, id) {
+  if (!Overlord.tasks[category]) {
+    return undefined
+  }
+
+  return Overlord.tasks[category][id]
 }
 
 Overlord.getTasksWithCategory = function (category) {

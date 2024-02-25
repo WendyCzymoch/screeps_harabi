@@ -1,5 +1,5 @@
-const { config } = require("./config")
-const { moreImportantTarget } = require("./quad_prototype")
+const { config } = require('./config')
+const { moreImportantTarget } = require('./quad_prototype')
 
 const IMPORTANT_STRUCTURE_TYPES = config.IMPORTANT_STRUCTURE_TYPES
 
@@ -48,9 +48,11 @@ Room.prototype.runSingletonTask = function (request) {
 
   const number = request.number
 
-  const singletons = Overlord.getCreepsByRole(roomName, 'singleton').filter(creep => creep.memory.task && creep.memory.task.id === request.id)
+  const singletons = Overlord.getCreepsByRole(roomName, 'singleton').filter(
+    (creep) => creep.memory.task && creep.memory.task.id === request.id
+  )
 
-  const ticksToLiveMin = Math.min(Math.min(...singletons.map(creep => creep.ticksToLive || 1500)), 1500)
+  const ticksToLiveMin = Math.min(Math.min(...singletons.map((creep) => creep.ticksToLive || 1500)), 1500)
 
   request.ticksToLive = ticksToLiveMin
 
@@ -60,7 +62,7 @@ Room.prototype.runSingletonTask = function (request) {
       return
     }
 
-    if (singletons.some(creep => creep.spawning || creep.memory.boosted === false)) {
+    if (singletons.some((creep) => creep.spawning || creep.memory.boosted === false)) {
       return
     }
     request.status = 'engage'
@@ -103,13 +105,13 @@ const SingletonRequest = function (room, targetRoomName, options) {
 function runSingletonAttackRoom(creep, targetRoomName) {
   creep.heal(creep)
   if (creep.memory.return) {
-    creep.harasserRangedAttack()
+    creep.activeRangedAttack()
     creep.moveToRoom(creep.memory.base, 2)
     return
   }
 
   if (creep.room.name !== targetRoomName) {
-    creep.harasserRangedAttack()
+    creep.activeRangedAttack()
     creep.moveToRoom(targetRoomName, 2)
     return
   }
@@ -156,7 +158,7 @@ function runSingletonAttackRoom(creep, targetRoomName) {
 }
 
 Creep.prototype.singletonRangedAttack = function () {
-  const allies = this.room.find(FIND_CREEPS).filter(creep => creep.isAlly())
+  const allies = this.room.find(FIND_CREEPS).filter((creep) => creep.isAlly())
   const isAlly = this.pos.findInRange(allies, 3).length > 0
   let rangedMassAttackTotalDamage = 0
 
@@ -207,7 +209,7 @@ Creep.prototype.singletonRangedAttack = function () {
 function retreat(creep) {
   const damageArray = creep.room.getDamageArray()
   const adjacents = creep.pos.getAtRange(1)
-  const posToRetreat = getMinObject(adjacents, pos => damageArray[packCoord(pos.x, pos.y)] + (pos.isSwamp ? 100 : 0))
+  const posToRetreat = getMinObject(adjacents, (pos) => damageArray[packCoord(pos.x, pos.y)] + (pos.isSwamp ? 100 : 0))
   if (posToRetreat) {
     const direction = creep.pos.getDirectionTo(posToRetreat)
     creep.move(direction)
@@ -226,7 +228,7 @@ function isDanger(creep) {
 function getSingletonPathForAttackRoom(creep, costArray) {
   const hostileCreeps = creep.room.findHostileCreeps()
   const hostileStructures = creep.room.find(FIND_HOSTILE_STRUCTURES)
-  const importantStructures = hostileStructures.filter(structure => {
+  const importantStructures = hostileStructures.filter((structure) => {
     if (!IMPORTANT_STRUCTURE_TYPES.includes(structure.structureType)) {
       return false
     }
@@ -288,7 +290,7 @@ function getSingletonCostArrayForAttackRoom(creep) {
   }
 
   const myCreeps = creep.room.find(FIND_MY_CREEPS)
-  const allyCreeps = creep.room.find(FIND_HOSTILE_CREEPS).filter(creep => creep.isAlly())
+  const allyCreeps = creep.room.find(FIND_HOSTILE_CREEPS).filter((creep) => creep.isAlly())
 
   for (const otherCreep of [...myCreeps, ...allyCreeps]) {
     if (creep.name !== otherCreep.name) {
@@ -318,7 +320,7 @@ function getSingletonCostArrayForBulldoze(creep) {
   const costArray = creep.room.getCostArrayForBulldoze(power)
 
   creep.heap._costArrayForBulldozeTime = Game.time
-  return creep.heap._costArrayForBulldoze = costArray
+  return (creep.heap._costArrayForBulldoze = costArray)
 }
 
 Room.prototype.requestSingleton = function (roomName, options) {
@@ -335,7 +337,7 @@ Room.prototype.requestSingleton = function (roomName, options) {
   const memory = {
     role: 'singleton',
     base: this.name,
-    roomName
+    roomName,
   }
 
   const spawnOptions = { priority: 4 }

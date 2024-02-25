@@ -10,6 +10,10 @@ global.MANAGER_MAX_CARRY = 16
 global.EMERGENCY_WORK_MAX = 100
 
 const SPAWN_ORDER = [
+  'miner',
+
+  'managerUrgent',
+
   'hauler',
 
   'roomDefender',
@@ -20,6 +24,8 @@ const SPAWN_ORDER = [
   'manager',
   'distributor',
   'scouter',
+
+  'minerNotUrgent',
 
   'colonyDefender',
 
@@ -36,6 +42,8 @@ const SPAWN_ORDER = [
   'sourceKeeperHandler',
   'coreAttacker',
 
+  'laborerUrgent',
+
   'reserver',
   'remoteMiner',
   'remoteBuilder',
@@ -46,6 +54,7 @@ const SPAWN_ORDER = [
   'laborer',
   'wallMaker',
 
+  'harasser',
   'researcher',
 
   'dismantler',
@@ -115,9 +124,11 @@ Room.prototype.manageSpawn = function () {
     .map((creep) => creep.body.filter((part) => part.type === WORK).length)
     .reduce((acc, curr) => acc + curr, 0)
 
+  const canBoost = this.terminal && this.structures.lab.length > 0
+
   if (repairingForNuke) {
     if (numWorkBuild < EMERGENCY_WORK_MAX) {
-      const boost = this.hasEnoughCompounds('XLH2O') ? 'XLH2O' : undefined
+      const boost = canBoost && this.hasEnoughCompounds('XLH2O') ? 'XLH2O' : undefined
       this.requestLaborer({ maxWork: 16, boost, isBuilder: true })
     }
   } else if (this.constructionSites.length > 0) {
@@ -142,11 +153,15 @@ Room.prototype.manageSpawn = function () {
   } else if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
     let doBoost = undefined
 
-    const funnelRequest = Overlord.getBestFunnelRequest()
+    if (canBoost) {
+      const funnelRequest = Overlord.getBestFunnelRequest()
 
-    if (!funnelRequest || funnelRequest.roomName === this.name) {
-      const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
-      doBoost = resourceAmountsTotal && (resourceAmountsTotal['XGH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL
+      if (config.isWorld || this.controller.level < 8) {
+        if (!funnelRequest || funnelRequest.roomName === this.name) {
+          const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
+          doBoost = resourceAmountsTotal && (resourceAmountsTotal['XGH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL
+        }
+      }
     }
 
     if (doBoost) {
@@ -450,14 +465,13 @@ Room.prototype.requestDistributor = function () {
   this.spawnQueue.push(request)
 }
 
-Room.prototype.requestMiner = function (source, priority) {
+Room.prototype.requestMiner = function (source) {
   if (!this.hasAvailableSpawn()) {
     return
   }
 
-  if (this.memory.militaryThreat) {
-    priority = 6
-  }
+  let priority = this.memory.militaryThreat ? SPAWN_PRIORITY['minerNotUrgent'] : SPAWN_PRIORITY['miner']
+
   const maxEnergy = this.heap.sourceUtilizationRate > 0 ? this.energyCapacityAvailable : this.energyAvailable
   let body = []
   if (source.linked) {
@@ -486,7 +500,7 @@ Room.prototype.requestMiner = function (source, priority) {
 
   const name = `${this.name} miner ${Game.time}${this.spawnQueue.length}`
   const memory = { role: 'miner', sourceId: source.id }
-  const request = new RequestSpawn(body, name, memory, { priority: priority })
+  const request = new RequestSpawn(body, name, memory, { priority })
 
   this.spawnQueue.push(request)
 }
@@ -507,10 +521,7 @@ Room.prototype.requestManager = function (numCarry, option = { isUrgent: false }
 
   const memory = { role: 'manager' }
 
-  let priority = SPAWN_PRIORITY['manager']
-  if (isUrgent) {
-    priority -= 2
-  }
+  const priority = isUrgent ? SPAWN_PRIORITY['managerUrgent'] : SPAWN_PRIORITY['manager']
 
   const request = new RequestSpawn(body, name, memory, { priority: priority })
 
@@ -540,9 +551,6 @@ Room.prototype.requestHauler = function (numCarry, option = { isUrgent: false, o
   const memory = { role: 'hauler', sourceId: office.id }
 
   let priority = SPAWN_PRIORITY['hauler']
-  if (isUrgent) {
-    priority -= 1
-  }
 
   const request = new RequestSpawn(body, name, memory, { priority: priority })
 
@@ -659,11 +667,18 @@ Room.prototype.requestLaborer = function (options) {
     isBuilder,
   }
 
-  let priority = SPAWN_PRIORITY['laborer']
+  let priority = undefined
 
   const bestFunnelRequest = Overlord.getBestFunnelRequest()
-  if (!this.storage || isBuilder || (bestFunnelRequest && bestFunnelRequest.roomName === this.name)) {
-    priority -= 10
+  if (
+    !this.storage ||
+    isBuilder ||
+    (bestFunnelRequest && bestFunnelRequest.roomName === this.name) ||
+    this.energyLevel > config.energyLevel.STOP_FUNNEL
+  ) {
+    priority = SPAWN_PRIORITY['laborerUrgent']
+  } else {
+    priority = SPAWN_PRIORITY['laborer']
   }
 
   const spawnOptions = { priority }

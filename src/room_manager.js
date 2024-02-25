@@ -124,10 +124,11 @@ Room.prototype.checkTombstone = function () {
     const owner = attacker ? attacker.owner : undefined
     const username = owner ? owner.username : undefined
 
-    if (!checked[deadCreep.name] && username !== 'Invader') {
+    if (!checked[deadCreep.name] && !['Invader', 'Souce Keeper'].includes(username)) {
       const memory = Memory.creeps[deadCreep.name]
       if (!memory || memory.role !== 'scouter') {
         data.recordLog(`KILLED: ${deadCreep.name} by ${username}`, this.name)
+        Overlord.addUserHateLevel(username, config.hateLevel.murder)
       }
 
       if (memory.task) {
@@ -183,7 +184,6 @@ Room.prototype.checkTombstone = function () {
       if (!hostRoom) {
         continue
       }
-      const cost = deadCreep.getCost()
       return
     }
   }
@@ -206,7 +206,7 @@ Room.prototype.manageSource = function () {
     sourceUtilizationRate += Math.min(minerRatio, haulerRatio)
 
     if (minerRatio === 0) {
-      this.requestMiner(source, 1)
+      this.requestMiner(source)
       return
     }
 
@@ -216,7 +216,7 @@ Room.prototype.manageSource = function () {
     }
 
     if (minerRatio < 1 && source.info.numMiner < source.available) {
-      this.requestMiner(source, 2)
+      this.requestMiner(source)
       return
     }
 
@@ -279,8 +279,12 @@ Room.prototype.vacate = function () {
 
   if (terminal && factory && factory.store.getUsedCapacity() > 0 && terminal.store.getFreeCapacity() > 1000) {
     const researcher = this.creeps.researcher[0]
-    for (const resourceType in factory.store) {
-      researcher.getDeliveryRequest(factory, terminal, resourceType)
+    if (researcher) {
+      for (const resourceType in factory.store) {
+        researcher.getDeliveryRequest(factory, terminal, resourceType)
+      }
+    } else {
+      this.heap.needResearcher = true
     }
   }
 
@@ -403,18 +407,14 @@ Room.prototype.manageLink = function () {
 }
 
 Room.prototype.manageLab = function () {
-  const terminal = this.terminal
-  if (!terminal) {
-    return
-  }
-
-  if (this.structures.lab.length === 0) {
-    return
-  }
-
   const boostRequests = Object.values(this.boostQueue)
   if (boostRequests.length > 0) {
     this.manageBoost(boostRequests)
+    return
+  }
+
+  const terminal = this.terminal
+  if (!terminal) {
     return
   }
 

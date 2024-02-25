@@ -120,7 +120,7 @@ if (shardName === 'swc') {
 
   config.market = false
 
-  config.notBuild = ['nuker']
+  config.notBuild = ['nuker', 'powerSpawn']
 
   config.labConstructLevel = 7
 
@@ -137,6 +137,8 @@ if (shardName === 'swc') {
   config.distanceToRemote = 2
 } else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) {
   // world
+  config.isWorld = true
+
   config.allies = []
 
   config.task = {
@@ -277,6 +279,8 @@ if (shardName === 'swc') {
   config.rampartHitsPerRclSquare = 16000
 
   config.distanceToRemote = 2
+
+  config.diplomacy = true
 }
 
 // quad and duo settings
@@ -342,6 +346,16 @@ config.energyLevel = {
   STOP_BALANCE: 250,
 
   BALANCE: 300,
+}
+
+// diplomacy
+
+config.hateLevel = {
+  harass: 1,
+  invasion: 30,
+  murder: 500,
+  toHarass: 500,
+  toInvade: 20000,
 }
 
 module.exports = {

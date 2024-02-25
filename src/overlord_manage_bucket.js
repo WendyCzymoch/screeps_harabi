@@ -1,7 +1,7 @@
 const CPU_THRESHOLD_UP = 0.95
 const CPU_THRESHOLD_DOWN = 0.85
 const BUCKET_THRESHOLD = 8000
-const CPU_INTERVAL = CREEP_LIFE_TIME
+const CPU_INTERVAL = CREEP_LIFE_TIME / 20
 
 Overlord.getBlockedRemoteNames = function () {
   const result = []
@@ -26,15 +26,13 @@ Overlord.getBlockedRemoteNames = function () {
 Overlord.manageBucket = function () {
   const averageCpu = this.getAverageCpu()
 
-  if (Memory._manageBucketTime && Game.time < Memory._manageBucketTime + CPU_INTERVAL) {
+  if (Memory._manageBucketTime && Game.time < Memory._nextManageBucketTime) {
     return
   }
 
   if (!averageCpu) {
     return
   }
-
-  Memory._manageBucketTime = Game.time
 
   const limitCpu = Game.cpu.limit
 
@@ -44,9 +42,15 @@ Overlord.manageBucket = function () {
     const diff = averageCpu - cpuThreshold
     const number = Math.clamp(Math.ceil(diff / 3), 1, Overlord.myRooms.length)
     this.removeRemote(number)
-  } else if (averageCpu / limitCpu < cpuThreshold - 3) {
+    Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
+    return
+  } else if (averageCpu / limitCpu < cpuThreshold - 5) {
     this.addRemote()
+    Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
+    return
   }
+
+  Memory._nextManageBucketTime = Game.time + CPU_INTERVAL
 }
 
 Overlord.getAverageCpu = function () {
@@ -58,7 +62,7 @@ Overlord.getAverageCpu = function () {
     return
   }
 
-  if (Memory.globalReset && Game.time < Memory.globalReset + 10) {
+  if (Memory.globalReset && Game.time < Memory.globalReset + 20) {
     return
   }
 

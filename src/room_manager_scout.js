@@ -17,6 +17,9 @@ global.scoutKeys = {
   numTower: 8,
   isMyRemote: 9,
   reservationOwner: 10,
+
+  closestMyRoom: 11,
+
   isRemoteCandidate: 12,
   claimScore: 13,
   lastScout: 14,
@@ -27,6 +30,11 @@ global.scoutKeys = {
   roomStatusTime: 18,
   threat: 19,
   notForRemote: 20,
+
+  depth: 21,
+
+  enemyStrength: 22,
+  enemyStrengthEffectiveTime: 23,
 }
 
 Room.prototype.manageScout = function () {
@@ -145,6 +153,11 @@ Room.prototype.manageScout = function () {
 
     // success
     if (intel[scoutKeys.lastScout] && Game.time < intel[scoutKeys.lastScout] + scoutInterval) {
+      if (!intel[scoutKeys.depth] || !intel[scoutKeys.closestMyRoom] || depth < intel[scoutKeys.depth]) {
+        intel[scoutKeys.closestMyRoom] = this.name
+        intel[scoutKeys.depth] = depth
+      }
+
       status.depth[roomName] = depth
       status.queue.push(roomName)
       delete status.next
@@ -157,10 +170,9 @@ Room.prototype.manageScout = function () {
 
     // failure
     if (result === ERR_NO_PATH) {
-      data.recordLog(`SCOUT: ${this.name} failed to scout ${roomName}`)
+      data.recordLog(`SCOUT: ${this.name} failed to scout ${roomName}`, roomName)
 
       status.depth[roomName] = depth
-      status.queue.push(roomName)
       delete status.next
 
       status.state = 'BFS'
@@ -241,7 +253,7 @@ Room.prototype.tryRemote = function (roomName) {
 
   const valueBefore = roomBefore.getRemoteValue(roomName)
 
-  if (value.total > valueBefore.total) {
+  if (value.pathLength < valueBefore.pathLength) {
     roomBefore.deleteRemote(roomName)
     this.addRemote(roomName)
     return
@@ -249,19 +261,22 @@ Room.prototype.tryRemote = function (roomName) {
 }
 
 Room.prototype.analyzeIntel = function () {
+  const intelBefore = Overlord.getIntel(this.name)
+
   const result = {}
 
-  result[scoutKeys.numSource] = this.find(FIND_SOURCES).length
-  result[scoutKeys.mineralType] = this.mineral ? this.mineral.mineralType : undefined
+  result[scoutKeys.numSource] = intelBefore[scoutKeys.numSource] || this.find(FIND_SOURCES).length
+  result[scoutKeys.mineralType] =
+    intelBefore[scoutKeys.mineralType] || (this.mineral ? this.mineral.mineralType : undefined)
   result[scoutKeys.numTower] = this.structures.tower.filter((tower) => tower.RCLActionable).length
+  result[scoutKeys.isMyRemote] = Overlord.getAllRemoteNames().includes(this.name)
+  result[scoutKeys.isMy] = this.isMy
 
   result[scoutKeys.isAccessibleToContorller] = undefined
   result[scoutKeys.owner] = undefined
   result[scoutKeys.RCL] = undefined
   result[scoutKeys.isAlly] = undefined
-  result[scoutKeys.isMy] = undefined
   result[scoutKeys.isEnemy] = undefined
-  result[scoutKeys.isMyRemote] = undefined
   result[scoutKeys.reservationOwner] = undefined
   result[scoutKeys.isRemoteCandidate] = undefined
   result[scoutKeys.claimScore] = undefined
@@ -278,24 +293,27 @@ Room.prototype.analyzeIntel = function () {
       result[scoutKeys.isAlly] = allies.includes(username)
       result[scoutKeys.isMy] = username === MY_NAME
       result[scoutKeys.isEnemy] = !result[scoutKeys.isAlly] && !result[scoutKeys.isMy]
-    } else {
-      if (Overlord.remotes.includes(this.name)) {
-        result[scoutKeys.isMyRemote] = true
-      } else {
-        const reservation = this.controller.reservation
-        if (reservation && reservation.username !== 'Invader') {
-          result[scoutKeys.reservationOwner] = reservation.username
+      if (result[scoutKeys.isEnemy]) {
+        const userIntel = Overlord.getUserIntel(username)
+        userIntel.roomNames = userIntel.roomNames || []
+        if (!userIntel.roomNames.includes(this.name)) {
+          userIntel.roomNames.push(this.name)
         }
+      }
+    } else if (!result[scoutKeys.isMyRemote]) {
+      const reservation = this.controller.reservation
+      if (reservation && reservation.username !== 'Invader') {
+        result[scoutKeys.reservationOwner] = reservation.username
+      }
 
-        if (
-          result[scoutKeys.isAccessibleToContorller] &&
-          result[scoutKeys.numSource] > 0 &&
-          (!result[scoutKeys.reservationOwner] || !allies.includes(result[scoutKeys.reservationOwner]))
-        ) {
-          result[scoutKeys.isRemoteCandidate] = true
-          const claimScore = this.getClaimScore()
-          result[scoutKeys.claimScore] = claimScore
-        }
+      if (
+        result[scoutKeys.isAccessibleToContorller] &&
+        result[scoutKeys.numSource] > 0 &&
+        (!result[scoutKeys.reservationOwner] || !allies.includes(result[scoutKeys.reservationOwner]))
+      ) {
+        result[scoutKeys.isRemoteCandidate] = true
+        const claimScore = this.getClaimScore()
+        result[scoutKeys.claimScore] = claimScore
       }
     }
   }

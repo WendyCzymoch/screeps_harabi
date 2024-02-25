@@ -20,7 +20,7 @@ Overlord.findClosestRoom = function (fromRoomName, roomNames, ignoreMap = 1, max
     if (!Array.isArray(route)) {
       return false
     }
-    const length = route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0)
+    const length = this.findRouteLength(route)
     if (length > maxRooms) {
       return false
     }
@@ -57,7 +57,7 @@ Overlord.findClosestMyRoom = function (fromRoomName, level = 0, ignoreMap = 1, m
       return false
     }
 
-    const length = route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0)
+    const length = this.findRouteLength(route)
     if (length > maxRooms) {
       return false
     }
@@ -71,6 +71,10 @@ Overlord.findClosestMyRoom = function (fromRoomName, level = 0, ignoreMap = 1, m
     return lengthA - lengthB
   })
   return myRoomsSorted[0]
+}
+
+Overlord.findRouteLength = function (route) {
+  return route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0)
 }
 
 Overlord.findPath = function (startPos, goals, options = {}) {
@@ -270,7 +274,7 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
 
     const currentCost = costs[current]
 
-    if (currentCost > 15) {
+    if (currentCost > 20) {
       return ERR_NO_PATH
     }
 
