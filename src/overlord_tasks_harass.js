@@ -8,10 +8,6 @@ Overlord.manageHarassTasks = function () {
     const roomInCharge = Game.rooms[request.roomNameInCharge]
 
     if (request.complete) {
-      data.recordLog(
-        `HARASS: ${request.roomNameInCharge} completed harass ${request.roomName}. result ${request.result}`,
-        request.roomName
-      )
       this.deleteTask(request)
       continue
     }
@@ -91,6 +87,7 @@ Room.prototype.harassRoom = function (request) {
     }
 
     if (friendlyInfo.strength < 1.1 * enemyInfo.strength) {
+      data.recordLog(`enemies in ${request.current} is too strong. go to next room`, request.current)
       delete request.current
       currentTargetRoomIntel[scoutKeys.lastHarassTick] = Game.time
       break check
@@ -98,6 +95,7 @@ Room.prototype.harassRoom = function (request) {
 
     const isStructure = currentTargetRoom.find(FIND_STRUCTURES).some((structure) => structure.hits)
     if (!isStructure) {
+      data.recordLog(`harass in ${request.current} completed. go to next room`, request.current)
       delete request.current
       currentTargetRoomIntel[scoutKeys.lastHarassTick] = Game.time
       break check
@@ -114,29 +112,21 @@ Room.prototype.harassRoom = function (request) {
 
       const reservationOwner = intel[scoutKeys.reservationOwner]
 
-      console.log(`${roomName} ${reservationOwner} ${request.username}`)
-
       if (!reservationOwner || reservationOwner !== request.username) {
-        console.log(`not owner`)
         return false
       }
 
       const ticksAfterHarass = Math.clamp(Game.time - (intel[scoutKeys.lastHarassTick] || 0), 1, 3000)
 
       if (ticksAfterHarass < CREEP_LIFE_TIME / 3) {
-        console.log(`recently harassed`)
         return false
       }
 
       const route = Overlord.findRoutesWithPortal(currentRoomName, roomName)
 
-      console.log(route)
-
       const routeLength = Overlord.findRouteLength(route)
 
       if (routeLength > 10) {
-        console.log(`${currentRoomName} ${roomName} ${routeLength}`)
-        console.log('too far')
         return false
       }
 
@@ -162,8 +152,6 @@ Room.prototype.harassRoom = function (request) {
   if (!request.spawned) {
     const strengthTarget = 1.1 * (currentIntel[scoutKeys.enemyStrength] || 0)
 
-    console.log(`${this.name} ${friendlyInfo.strength} ${strengthTarget}`)
-
     if (friendlyInfo.strength <= strengthTarget) {
       this.requestHarasser(request.roomName, { neededStrength: strengthTarget, task: request })
       return
@@ -172,6 +160,12 @@ Room.prototype.harassRoom = function (request) {
       return
     }
     request.spawned = true
+  }
+
+  if (harasserBlinkies.length === 0) {
+    request.complete = true
+    request.result = 'harassers all dead'
+    return
   }
 
   if (!request.gathered) {
