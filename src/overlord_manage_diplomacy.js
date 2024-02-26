@@ -16,13 +16,18 @@ Overlord.manageDiplomacy = function () {
   }
 
   if (Math.random() < 0.01) {
-    user: for (const username in Memory.username) {
+    const tasks = Object.values(Overlord.getTasksWithCategory('harass'))
+
+    user: for (const username in Memory.users) {
       const userIntel = this.getUserIntel(username)
       if (userIntel.hateLevel > config.hateLevel.toHarass) {
+        if (!userIntel.roomNames) {
+          continue
+        }
         const roomNames = [...userIntel.roomNames].sort((a, b) => getDepth(a) - getDepth(b))
 
         function getDepth(roomName) {
-          const roomIntel = this.getIntel(roomName)
+          const roomIntel = Overlord.getIntel(roomName)
           if (!roomIntel) {
             return Infinity
           }
@@ -31,8 +36,18 @@ Overlord.manageDiplomacy = function () {
 
         const maxNum = Math.floor(userIntel.hateLevel / config.hateLevel.toHarass)
 
-        let num = 0
+        let num = tasks.filter((task) => task.username === username).length
+
         room: for (const roomName of roomNames) {
+          if (Overlord.getTask('harass', roomName)) {
+            num++
+            if (num >= maxNum) {
+              continue user
+            } else {
+              continue room
+            }
+          }
+
           const roomIntel = this.getIntel(roomName)
           if (Game.time < roomIntel[scoutKeys.lastHarassTick] + 1000) {
             continue room
@@ -42,7 +57,8 @@ Overlord.manageDiplomacy = function () {
             if (!closestMyRoom || !closestMyRoom.isMy || closestMyRoom.controller.level < 3) {
               continue room
             }
-            const request = new HarassRequest(closestMyRoom, roomName)
+
+            const request = new HarassRequest(closestMyRoom, username, roomName)
             Overlord.registerTask(request)
             num++
             if (num >= maxNum) {

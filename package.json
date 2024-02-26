@@ -1,8 +1,8 @@
 {
   "name": "harabi_bot",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "screeps bot written by Harabi",
-  "main": "main.js",
+  "main": "src/main.js",
   "screeps_bot": true,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

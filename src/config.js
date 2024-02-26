@@ -208,6 +208,8 @@ if (shardName === 'swc') {
 
   config.distanceToRemote = 2
 
+  config.diplomacy = true
+
   config.shards = ['shard0', 'shard1', 'shard2', 'shard3']
 } else {
   // local

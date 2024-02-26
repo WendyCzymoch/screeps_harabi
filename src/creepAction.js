@@ -920,7 +920,7 @@ function harasser(creep) {
   if (task.engage) {
     const options = { ignoreSourceKeepers: true, friendlies: task.members }
 
-    creep.blinkyFight(task.roomName, options)
+    creep.blinkyFight(task.current, options)
   }
 }
 

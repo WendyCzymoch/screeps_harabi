@@ -74,6 +74,9 @@ Overlord.findClosestMyRoom = function (fromRoomName, level = 0, ignoreMap = 1, m
 }
 
 Overlord.findRouteLength = function (route) {
+  if (!Array.isArray(route)) {
+    return Infinity
+  }
   return route.map((segment) => segment.length).reduce((acc, curr) => acc + curr, 0)
 }
 
