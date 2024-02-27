@@ -110,6 +110,7 @@ global.CREEP_ROELS = [
   'idler',
   'mineralHauler',
   'harasser',
+  'transporter',
 ]
 
 global.SELF_DIRECTED_CREEP_ROELS = [
@@ -127,6 +128,7 @@ global.SELF_DIRECTED_CREEP_ROELS = [
   'mineralHauler',
   'coreAttacker',
   'harasser',
+  'transporter',
 ]
 
 global.CROSS = [

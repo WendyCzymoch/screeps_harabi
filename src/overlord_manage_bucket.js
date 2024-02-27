@@ -1,4 +1,4 @@
-const CPU_THRESHOLD_UP = 0.95
+const CPU_THRESHOLD_UP = 1
 const CPU_THRESHOLD_DOWN = 0.85
 const BUCKET_THRESHOLD = 8000
 const CPU_INTERVAL = CREEP_LIFE_TIME / 20
@@ -44,7 +44,7 @@ Overlord.manageBucket = function () {
     this.removeRemote(number)
     Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
     return
-  } else if (averageCpu / limitCpu < cpuThreshold - 5) {
+  } else if (averageCpu / limitCpu < cpuThreshold - 10) {
     this.addRemote()
     Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
     return

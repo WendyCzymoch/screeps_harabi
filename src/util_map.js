@@ -1,3 +1,5 @@
+const MinHeap = require('./util_min_heap')
+
 class MapUtil {
   constructor() {}
 
@@ -33,6 +35,79 @@ class MapUtil {
     }
 
     return result
+  }
+
+  /**
+   *
+   * @param {string} roomName
+   * @param {Function} roomCallback function that checks if a room is we are looking for.
+   *                                only one argument (roomName) is accepted
+   */
+  findClosestBySafeRoute(roomName, roomCallback, maxDepth = 10) {
+    const depthCache = {}
+    depthCache[roomName] = 0
+    const queue = [roomName]
+
+    while (queue.length > 0) {
+      const current = queue.shift()
+      const depthCurrent = depthCache[current]
+      const adjacents = Object.values(Game.map.describeExits(current))
+
+      for (const adjacent of adjacents) {
+        if (depthCache[adjacent] !== undefined) {
+          continue
+        }
+
+        depthCache[adjacent] = depthCurrent + 1
+
+        const status = Game.map.getRoomStatus(roomName)
+
+        if (status && status.status !== 'normal') {
+          continue
+        }
+
+        if (roomCallback(adjacent)) {
+          console.log(`found ${adjacent}`)
+          return adjacent
+        }
+
+        if (depthCache[adjacent] >= maxDepth) {
+          continue
+        }
+
+        if (!this.isSafe(adjacent)) {
+          continue
+        }
+
+        queue.push(adjacent)
+      }
+    }
+
+    return undefined
+  }
+
+  isSafe(roomName) {
+    const roomIntel = Overlord.getIntel(roomName)
+
+    if (roomIntel[scoutKeys.isMy] || roomIntel[scoutKeys.isMyRemote]) {
+      return true
+    }
+
+    const owner = roomIntel[scoutKeys.owner]
+    if (owner && allies.includes(owner)) {
+      return true
+    }
+
+    const reservationOwner = roomIntel[scoutKeys.reservationOwner]
+    if (reservationOwner && allies.includes(reservationOwner)) {
+      return true
+    }
+
+    if (roomIntel[scoutKeys.numTower] > 0) {
+      return false
+    }
+
+    return true
   }
 }
 

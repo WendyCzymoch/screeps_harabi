@@ -1,9 +1,3 @@
-label: if (true) {
-  console.log(1)
+const array = [3]
 
-  if (3 === 3) {
-    // break label
-  }
-
-  console.log(2)
-}
+console.log(array[array.length - 1])

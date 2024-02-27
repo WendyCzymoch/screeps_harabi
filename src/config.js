@@ -11,8 +11,6 @@ if (shardName === 'swc') {
     deposit: true,
   }
 
-  config.harass = true
-
   config.economyStandard = {
     1: 10000,
     2: 10000,
@@ -63,6 +61,8 @@ if (shardName === 'swc') {
   config.distanceToRemote = 2
 
   config.alwaysShowDashboard = true
+
+  config.diplomacy = true
 } else if (shardName === 'shardSeason') {
   config.allies = []
 
@@ -70,8 +70,6 @@ if (shardName === 'swc') {
     powerBank: false,
     deposit: false,
   }
-
-  config.harass = false
 
   config.compoundGoal = {
     // for defense, ant
@@ -122,7 +120,7 @@ if (shardName === 'swc') {
 
   config.notBuild = ['nuker', 'powerSpawn']
 
-  config.labConstructLevel = 7
+  config.labConstructLevel = 6
 
   config.alwaysShowMapInfo = false
 
@@ -135,6 +133,8 @@ if (shardName === 'swc') {
   config.blockUpragade = false
 
   config.distanceToRemote = 2
+
+  config.diplomacy = false
 } else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) {
   // world
   config.isWorld = true
@@ -145,8 +145,6 @@ if (shardName === 'swc') {
     powerBank: true,
     deposit: true,
   }
-
-  config.harass = false
 
   config.buyPixel = true
 
@@ -219,8 +217,6 @@ if (shardName === 'swc') {
     powerBank: false,
     deposit: false,
   }
-
-  config.harass = false
 
   config.buyPixel = false
 

@@ -34,7 +34,6 @@ global.scoutKeys = {
   depth: 21,
 
   enemyStrength: 22,
-  enemyStrengthEffectiveTime: 23,
 }
 
 Room.prototype.manageScout = function () {

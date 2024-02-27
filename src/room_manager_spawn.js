@@ -51,13 +51,19 @@ const SPAWN_ORDER = [
   'mineralHauler',
 
   'extractor',
+
   'laborer',
+
+  'transporter',
+
   'wallMaker',
 
   'harasser',
+
   'researcher',
 
   'dismantler',
+
   'looter',
 ]
 

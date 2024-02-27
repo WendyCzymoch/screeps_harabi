@@ -11,6 +11,7 @@ const METHODS_BY_CATEGORY = {
   mineral: 'manageMineralTasks',
   claim: 'manageClaimTasks',
   harass: 'manageHarassTasks',
+  transport: 'manageTransportTasks',
 }
 
 Overlord.runTasks = function () {

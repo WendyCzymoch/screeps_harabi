@@ -4,70 +4,76 @@ const { HarassRequest } = require('./overlord_tasks_harass')
 Memory.users = Memory.users || {}
 
 Overlord.manageDiplomacy = function () {
-  if (Math.random() < 0.001) {
-    for (const username in Memory.username) {
-      const userIntel = this.getUserIntel(username)
-      userIntel.hateLevel = Math.floor(userIntel.hateLevel * 0.9)
-    }
+  if (Math.random() < 0.999) {
+    return
+  }
+
+  for (const username in Memory.username) {
+    const userIntel = this.getUserIntel(username)
+    userIntel.hateLevel = Math.floor(userIntel.hateLevel * 0.9)
   }
 
   if (!config.diplomacy) {
     return
   }
 
-  if (Math.random() < 0.01) {
-    const tasks = Object.values(Overlord.getTasksWithCategory('harass'))
+  const tasks = Object.values(Overlord.getTasksWithCategory('harass'))
 
-    user: for (const username in Memory.users) {
-      const userIntel = this.getUserIntel(username)
-      if (userIntel.hateLevel > config.hateLevel.toHarass) {
-        if (!userIntel.roomNames) {
-          continue
+  user: for (const username in Memory.users) {
+    const userIntel = this.getUserIntel(username)
+    if (userIntel.hateLevel > config.hateLevel.toHarass) {
+      if (!userIntel.roomNames) {
+        continue
+      }
+      const roomNames = [...userIntel.roomNames].sort((a, b) => getDepth(a) - getDepth(b))
+
+      function getDepth(roomName) {
+        const roomIntel = Overlord.getIntel(roomName)
+        if (!roomIntel) {
+          return Infinity
         }
-        const roomNames = [...userIntel.roomNames].sort((a, b) => getDepth(a) - getDepth(b))
+        return roomIntel[scoutKeys.depth] || Infinity
+      }
 
-        function getDepth(roomName) {
-          const roomIntel = Overlord.getIntel(roomName)
-          if (!roomIntel) {
-            return Infinity
-          }
-          return roomIntel[scoutKeys.depth] || Infinity
+      const maxNum = Math.floor(userIntel.hateLevel / config.hateLevel.toHarass)
+
+      let num = tasks.filter((task) => task.username === username).length
+
+      room: for (const roomName of roomNames) {
+        if (num >= maxNum) {
+          continue user
         }
 
-        const maxNum = Math.floor(userIntel.hateLevel / config.hateLevel.toHarass)
-
-        let num = tasks.filter((task) => task.username === username).length
-
-        room: for (const roomName of roomNames) {
-          if (Overlord.getTask('harass', roomName)) {
-            num++
-            if (num >= maxNum) {
-              continue user
-            } else {
-              continue room
-            }
-          }
-
-          const roomIntel = this.getIntel(roomName)
-          if (Game.time < roomIntel[scoutKeys.lastHarassTick] + 1000) {
-            continue room
-          }
-          if (roomIntel[scoutKeys.closestMyRoom] && roomIntel[scoutKeys.depth] < 10) {
-            const closestMyRoom = Game.rooms[roomIntel[scoutKeys.closestMyRoom]]
-            if (!closestMyRoom || !closestMyRoom.isMy || closestMyRoom.controller.level < 3) {
-              continue room
-            }
-
-            const request = new HarassRequest(closestMyRoom, username, roomName)
-            Overlord.registerTask(request)
-            num++
-            if (num >= maxNum) {
-              continue user
-            } else {
-              continue room
-            }
-          }
+        if (Overlord.getTask('harass', roomName)) {
+          num++
+          continue room
         }
+
+        const roomIntel = this.getIntel(roomName)
+        if (Game.time < roomIntel[scoutKeys.lastHarassTick] + 1000) {
+          continue room
+        }
+
+        if (roomIntel[scoutKeys.depth] > 10) {
+          continue room
+        }
+
+        const closestMyRoom = Game.rooms[roomIntel[scoutKeys.closestMyRoom]]
+        if (!closestMyRoom || !closestMyRoom.isMy || closestMyRoom.controller.level < roomIntel[scoutKeys.RCL]) {
+          continue room
+        }
+
+        if (tasks.some((task) => task.roomNameInCharge === closestMyRoom.name)) {
+          continue room
+        }
+
+        const request = new HarassRequest(closestMyRoom, username, roomName)
+
+        Overlord.registerTask(request)
+        tasks.push(request)
+
+        num++
+        continue room
       }
     }
   }

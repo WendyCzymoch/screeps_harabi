@@ -11,7 +11,7 @@ Overlord.manageGuardTasks = function () {
       if (request.usernames && request.usernames.length > 0) {
         const usernames = request.usernames.join(', ')
         data.recordLog(
-          `GUARD: gaurd room ${request.roomName} from ${usernames} ended. result ${request.result}`,
+          `GUARD: guard room ${request.roomName} from ${usernames} ended. result ${request.result}`,
           request.roomName
         )
       }

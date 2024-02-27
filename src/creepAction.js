@@ -404,25 +404,14 @@ function guard(creep) {
   if (creep.memory.targetRoomName) {
     return
   }
-  if (config.harass && !creep.memory.harass && creep.ticksToLive < 500) {
-    creep.memory.harass = true
-  }
-  if (creep.memory.harass) {
-    if (creep.harass() === OK) {
-      return
-    } else {
-      creep.memory.harass = false
-    }
-  }
-  creep.healWounded()
-  creep.activeRangedAttack()
 
-  if (creep.room.name === creep.memory.base) {
-    const enemyCombatants = creep.room.getEnemyCombatants()
-    if (enemyCombatants.length > 0) {
-      creep.handleCombatants(enemyCombatants)
-      return
-    }
+  const enemyCombatants = creep.room.getEnemyCombatants()
+
+  if (enemyCombatants.length > 0) {
+    creep.healWounded()
+    creep.activeRangedAttack()
+    creep.handleCombatants(enemyCombatants)
+    return
   }
 
   creep.moveToRoom(creep.memory.base, 2)
@@ -728,7 +717,7 @@ function mineralHauler(creep) {
     }
 
     for (const resourceType in creep.store) {
-      creep.giveCompoundTo(terminal, resourceType)
+      creep.giveResourceTo(terminal, { resourceType })
       return
     }
 
@@ -924,6 +913,78 @@ function harasser(creep) {
   }
 }
 
+function transporter(creep) {
+  const base = Game.rooms[creep.memory.base]
+
+  if (!base) {
+    return
+  }
+
+  if (creep.spawning) {
+    return
+  }
+
+  const targetRoomName = creep.memory.targetRoomName
+
+  if (!creep.readyToWork(targetRoomName, { wait: true })) {
+    return
+  }
+
+  const targetRoom = Game.rooms[targetRoomName]
+
+  if (!targetRoom) {
+    creep.memory.getRecycled = true
+    return
+  }
+
+  // 논리회로
+  if (creep.memory.supplying && creep.store.getUsedCapacity() === 0) {
+    creep.memory.supplying = false
+  } else if (!creep.memory.supplying && creep.store.getFreeCapacity() === 0) {
+    creep.memory.supplying = true
+  }
+
+  // supply
+  if (creep.memory.supplying) {
+    const targetStorage = targetRoom.storage
+
+    if (!targetStorage) {
+      creep.memory.getRecycled = true
+      return
+    }
+
+    if (creep.pos.getRangeTo(targetStorage) > 1) {
+      creep.moveMy({ pos: targetStorage.pos, range: 1 })
+      return
+    }
+
+    for (const resourceType in creep.store) {
+      creep.giveResourceTo(targetStorage, { resourceType })
+      return
+    }
+
+    return
+  }
+
+  if (creep.ticksToLive < 1.1 * (creep.memory.pathLength || 0)) {
+    creep.memory.getRecycled = true
+    return
+  }
+
+  const storage = base.storage
+  if (!storage) {
+    creep.memory.getRecycled = true
+    return
+  }
+
+  if (creep.pos.getRangeTo(storage) > 1) {
+    creep.moveMy({ pos: storage.pos, range: 1 })
+    return
+  }
+
+  creep.getResourceFrom(storage, { resourceType: creep.memory.resourceType })
+}
+
 module.exports = {
   miner,
   extractor,
@@ -939,4 +1000,5 @@ module.exports = {
   mineralHauler,
   coreAttacker,
   harasser,
+  transporter,
 }

@@ -52,6 +52,7 @@ require('overlord_tasks_powerBank')
 require('overlord_tasks_quad')
 require('overlord_tasks_siege')
 require('overlord_tasks_singleton')
+require('overlord_tasks_transport')
 require('overlord_tasks')
 
 require('quad_prototype')
@@ -98,7 +99,10 @@ require('util')
 const profiler = require('screeps-profiler')
 
 // This line monkey patches the global prototypes.
-profiler.enable()
+const PROFILE = true
+if (PROFILE) {
+  profiler.enable()
+}
 
 delete Memory.globalReset
 

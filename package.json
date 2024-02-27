@@ -1,6 +1,6 @@
 {
   "name": "harabi_bot",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "screeps bot written by Harabi",
   "main": "src/main.js",
   "screeps_bot": true,

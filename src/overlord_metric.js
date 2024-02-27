@@ -357,25 +357,18 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
 
   Overlord.heap.roomCost = Overlord.heap.roomCost || {}
 
-  if (Overlord.heap.roomCost[roomName] && Math.random() < 0.9) {
+  if (Overlord.heap.roomCost[roomName] && Math.random() < 0.99) {
     return Overlord.heap.roomCost[roomName]
-  }
-
-  const room = Game.rooms[roomName]
-
-  if (room && (room.isMy || room.isMyRemote)) {
-    return (Overlord.heap.roomCost[roomName] = 1)
   }
 
   const intel = Overlord.getIntel(roomName)
 
-  if (allies.includes(intel[scoutKeys.owner])) {
+  if (intel[scoutKeys.isMy] || intel[scoutKeys.isMyRemote]) {
     return (Overlord.heap.roomCost[roomName] = 1)
   }
 
-  const inaccessible = intel[scoutKeys.inaccessible]
-  if (ignoreMap < 2 && inaccessible && inaccessible > Game.time) {
-    return (Overlord.heap.roomCost[roomName] = Infinity)
+  if (allies.includes(intel[scoutKeys.owner])) {
+    return (Overlord.heap.roomCost[roomName] = 1)
   }
 
   if (intel[scoutKeys.numTower] > 0) {
@@ -383,7 +376,6 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
   }
 
   const status = Game.map.getRoomStatus(roomName)
-
   if (status && status.status !== 'normal') {
     return (Overlord.heap.roomCost[roomName] = Infinity)
   }
@@ -394,7 +386,7 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
     return (Overlord.heap.roomCost[roomName] = 1)
   }
 
-  return (Overlord.heap.roomCost[roomName] = 1.5)
+  return (Overlord.heap.roomCost[roomName] = 1.1)
 }
 
 Overlord.getIntel = function (roomName) {
