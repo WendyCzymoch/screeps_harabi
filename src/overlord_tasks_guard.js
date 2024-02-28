@@ -37,7 +37,7 @@ const GuardRequest = function (room, targetRoomName, enemyInfo, options = {}) {
   this.roomName = targetRoomName
   this.roomNameInCharge = room.name
 
-  this.enemyStrength = enemyInfo.strength
+  this.enemyStrength = Math.max(enemyInfo.strength, enemyInfo.hits / 100)
   this.moveFirst = enemyInfo.attack === enemyInfo.rangedAttack
 
   if (options.ignoreSourceKeepers) {
@@ -223,8 +223,11 @@ Room.prototype.rallyGuards = function (guards, roomName) {
 
     const targets = guard.room.findHostileCreeps()
 
-    if (targets.length > 0) {
+    if (targets.length > 0 || guard.hits < guard.hitMax) {
       guard.activeHeal()
+    }
+
+    if (targets.length > 0) {
       const isFriendlyRoom = Overlord.getIsFriendlyRoom(guard.room.name)
       guard.activeRangedAttack({ attackNeutralStructures: !isFriendlyRoom })
     }

@@ -8,7 +8,7 @@ const {
 const { getRoomMemory } = require('./util')
 
 Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
-  const { wait } = options
+  const { wait, ignoreSourceKeepers } = options
 
   if (wait) {
     if (this.memory.getRecycled) {
@@ -30,7 +30,7 @@ Creep.prototype.readyToWork = function (targetRoomName, options = {}) {
         return false
       }
 
-      if (this.avoidSourceKeepers() === OK) {
+      if (!ignoreSourceKeepers && this.avoidSourceKeepers() === OK) {
         return false
       }
       return true
@@ -294,6 +294,12 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
 Creep.prototype.moveByRemotePath = function (path, options = {}) {
   const { reverse } = options
 
+  if (this.heap.useMoveMy && Game.time < this.heap.useMoveMy) {
+    const goalPos = reverse ? path[0] : path[path.length - 1]
+    this.moveMy({ pos: goalPos, range: 1 }, { ignoreCreeps: false })
+    return
+  }
+
   const result = reverse ? this.moveByPathMyReverse(path) : this.moveByPathMy(path)
 
   if (result !== OK) {
@@ -302,7 +308,23 @@ Creep.prototype.moveByRemotePath = function (path, options = {}) {
     const goals = startPositions.map((pos) => {
       return { pos, range: 0 }
     })
+
     return this.moveMy(goals)
+  }
+
+  if (this.checkStuck()) {
+    this.heap.stuck = this.heap.stuck || 0
+    this.heap.stuck++
+  } else {
+    this.heap.stuck = 0
+  }
+
+  this.heap.lastPos = this.pos
+  this.heap.lastPosTick = Game.time
+
+  if (this.heap.stuck > 2) {
+    this.say('😣', true)
+    this.heap.useMoveMy = Game.time + 20
   }
 
   return OK

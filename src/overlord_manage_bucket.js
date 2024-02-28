@@ -44,7 +44,7 @@ Overlord.manageBucket = function () {
     this.removeRemote(number)
     Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
     return
-  } else if (averageCpu / limitCpu < cpuThreshold - 10) {
+  } else if (averageCpu < cpuThreshold - 10) {
     this.addRemote()
     Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
     return

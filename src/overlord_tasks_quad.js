@@ -1,4 +1,4 @@
-const { Quad } = require("./quad_prototype")
+const { Quad } = require('./quad_prototype')
 
 global.sendQuad = function (targetRoomName, modelNumber) {
   const level = Math.floor(modelNumber / 10) || 7
@@ -68,7 +68,6 @@ Overlord.manageQuadTasks = function () {
 }
 
 Room.prototype.runQuadTask = function (request) {
-
   const isDismantle = request.species === 'dismantle'
 
   const quad = new Quad(request.quadName)
@@ -170,7 +169,9 @@ Room.prototype.runQuadTask = function (request) {
     }
 
     const exitPositions = quad.room.find(rallyExit.exit)
-    const goals = exitPositions.map(pos => { return { pos, range: 4 } })
+    const goals = exitPositions.map((pos) => {
+      return { pos, range: 4 }
+    })
 
     if (quad.snakeTravel(goals) !== 'finished') {
       return
@@ -200,6 +201,8 @@ Room.prototype.runQuadTask = function (request) {
       return
     }
     if (quad.pos.roomName !== targetRoomName) {
+      quad.quadRangedAttack({})
+
       quad.leader.say('🎺', true)
       const targetRoomCenterPos = new RoomPosition(24, 24, targetRoomName)
       quad.moveInFormation({ pos: targetRoomCenterPos, range: 24 })
@@ -277,5 +280,5 @@ Overlord.manageClearAreaTasks = function () {
 }
 
 module.exports = {
-  QuadRequest
+  QuadRequest,
 }

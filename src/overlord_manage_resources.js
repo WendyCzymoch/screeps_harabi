@@ -67,7 +67,7 @@ function getMyFunnelRequest() {
     }
 
     if (room.energyLevel >= config.energyLevel.STOP_FUNNEL) {
-      request.enough = true
+      continue
     }
 
     return request

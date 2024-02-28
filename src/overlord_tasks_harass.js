@@ -9,7 +9,13 @@ Overlord.manageHarassTasks = function () {
     const roomInCharge = Game.rooms[request.roomNameInCharge]
 
     if (request.complete) {
+      console.log(`${roomInCharge.name} complete harss ${request.roomName} of ${request.username}. ${request.result}`)
+
+      const roomIntel = this.getIntel(request.roomName)
+      roomIntel[scoutKeys.lastHarassTick] = Game.time
+
       this.deleteTask(request)
+
       continue
     }
 
@@ -126,10 +132,10 @@ Room.prototype.harassRoom = function (request) {
       const ticksAfterHarass = Math.clamp(Game.time - (intel[scoutKeys.lastHarassTick] || 0), 1, 3000)
 
       if (ticksAfterHarass < CREEP_LIFE_TIME / 3) {
-        console.log(`Already harassed ${roomName} ${ticksAfterHarass} ticks ago`)
         return false
       }
 
+      console.log(`Harass ${roomName} of ${request.username}`)
       return true
     })
 

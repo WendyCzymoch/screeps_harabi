@@ -37,20 +37,19 @@ StructureTerminal.prototype.run = function () {
   this.manageMinerals()
 
   const bestFunnelRequest = Overlord.getBestFunnelRequest()
-  if (
-    bestFunnelRequest &&
-    Game.rooms[bestFunnelRequest.roomName] &&
-    Game.rooms[bestFunnelRequest.roomName].isMy &&
-    Game.rooms[bestFunnelRequest.roomName].energyLevel < config.energyLevel.STOP_FUNNEL
-  ) {
+  if (bestFunnelRequest && Game.rooms[bestFunnelRequest.roomName] && Game.rooms[bestFunnelRequest.roomName].isMy) {
     simpleAllies.requestFunnel(bestFunnelRequest)
   }
 
-  if (this.room.controller.level >= 6 && this.room.energyLevel > ENERGY_LEVEL_TO_FUNNEL) {
-    if (bestFunnelRequest && bestFunnelRequest.roomName !== roomName && !bestFunnelRequest.enough) {
-      this.send(RESOURCE_ENERGY, ENERGY_AMOUNT_TO_FUNNEL, bestFunnelRequest.roomName)
-      simpleAllies.endRun()
-      return
+  if (this.room.energyLevel > ENERGY_LEVEL_TO_FUNNEL) {
+    if (bestFunnelRequest && bestFunnelRequest.roomName !== roomName) {
+      const myFunnelList = Overlord.getMyFunnelList()
+      const thisRoomFunnelInfo = myFunnelList.find((info) => info.roomName === this.name)
+      if (!thisRoomFunnelInfo || thisRoomFunnelInfo.priority > bestFunnelRequest.priority) {
+        this.send(RESOURCE_ENERGY, ENERGY_AMOUNT_TO_FUNNEL, bestFunnelRequest.roomName)
+        simpleAllies.endRun()
+        return
+      }
     }
   }
 

@@ -19,10 +19,11 @@ const ENERGY_PRIORITY = {
 }
 
 global.ENERGY_DEPOT_PRIORITY = {
-  link: 3,
   container: 2,
-  storage: 4,
+  link: 3,
   terminal: 3,
+  factory: 3,
+  storage: 4,
 }
 
 function EnergyRequest(creep) {
@@ -586,6 +587,12 @@ Room.prototype.getEnergyDepots = function () {
   if (this.storage && this.heap.storageUse > 0) {
     energyDepots[this.storage.id] = new EnergyDepot(this.storage)
     energyDepots[this.storage.id].forManager = true
+  }
+
+  const factory = this.structures.factory[0]
+  if (factory && factory.store[RESOURCE_ENERGY] > 4000) {
+    energyDepots[factory.id] = new EnergyDepot(factory)
+    energyDepots[factory.id].forManager = true
   }
 
   if (this.heap.isEnemy && this.isWalledUp && !this.controller.safeMode) {

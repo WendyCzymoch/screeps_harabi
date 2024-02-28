@@ -264,8 +264,10 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
 
   queue.insert(startRoomName)
 
+  const cpuBefore = Game.cpu.getUsed()
+
   while (queue.getSize() > 0) {
-    if (Game.cpu.getUsed() > 500) {
+    if (Game.cpu.getUsed() - cpuBefore > 10) {
       return ERR_NO_PATH
     }
 
@@ -361,6 +363,11 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
     return Overlord.heap.roomCost[roomName]
   }
 
+  const status = Game.map.getRoomStatus(roomName)
+  if (status && status.status !== 'normal') {
+    return (Overlord.heap.roomCost[roomName] = Infinity)
+  }
+
   const intel = Overlord.getIntel(roomName)
 
   if (intel[scoutKeys.isMy] || intel[scoutKeys.isMyRemote]) {
@@ -372,11 +379,6 @@ function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
   }
 
   if (intel[scoutKeys.numTower] > 0) {
-    return (Overlord.heap.roomCost[roomName] = Infinity)
-  }
-
-  const status = Game.map.getRoomStatus(roomName)
-  if (status && status.status !== 'normal') {
     return (Overlord.heap.roomCost[roomName] = Infinity)
   }
 

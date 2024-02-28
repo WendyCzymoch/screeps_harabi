@@ -104,13 +104,18 @@ Room.prototype.manageRemotes = function () {
         .find((structure) => structure.structureType === STRUCTURE_INVADER_CORE)
 
       if (!memory.invader && isEnemy) {
-        if (enemyInfo.strength <= invaderStrengthThreshold) {
-          const request = new GuardRequest(this, targetRoomName, enemyInfo)
-          Overlord.registerTask(request)
-        }
         memory.invader = true
       } else if (memory.invader && !isEnemy) {
         memory.invader = false
+      }
+
+      if (
+        memory.invader &&
+        enemyInfo.strength <= invaderStrengthThreshold &&
+        !Overlord.getTask('guard', targetRoomName)
+      ) {
+        const request = new GuardRequest(this, targetRoomName, enemyInfo)
+        Overlord.registerTask(request)
       }
 
       if (!memory.isCombatant && enemyInfo.strength > 0) {
@@ -248,11 +253,6 @@ Room.prototype.manageRemoteHaulers = function () {
     const capacity = hauler.store.getCapacity()
 
     source: for (const sourceId in sourceStats) {
-      const memory = getRoomMemory(targetRoomName)
-      if (memory.isCombatant) {
-        continue
-      }
-
       const stat = sourceStats[sourceId]
       if (stat.intermediates) {
         for (const intermediate of stat.intermediates) {
@@ -551,6 +551,52 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
 
       remoteBuilder.memory.targetRoomName = roomNameToConstruct
 
+      remoteBuilder.memory.sourceRoomName = roomNameToConstruct
+
+      remoteBuilder.memory.sourceId = resourceIdToConstruct
+
+      runRemoteBuilder(remoteBuilder)
+
+      remoteBuilderNumWork += remoteBuilder.getNumParts(WORK)
+    }
+
+    if (remoteBuilderNumWork < 10 * resourceIdsToConstruct.length) {
+      const laborers = Overlord.getCreepsByRole(this.name, 'laborer')
+      const wallMakers = Overlord.getCreepsByRole(this.name, 'wallMaker')
+
+      const remoteBuilder = [...laborers, ...wallMakers].find(
+        (creep) => creep.originalRole === 'remoteBuilder' && creep.ticksToLive > CREEP_LIFE_TIME / 3
+      )
+
+      if (remoteBuilder) {
+        remoteBuilder.memory.role = remoteBuilder.originalRole
+        remoteBuilder.say('🔄', true)
+      } else {
+        this.requestRemoteBuilder(10)
+      }
+    }
+  } else if (roomNameToConstruct === this.name) {
+    const constructBlueprints = this.getRemoteBlueprints(targetRoomName)
+    const resourceIdsToConstruct = [...remoteInfo.resourceIds].filter((id) => !constructBlueprints[id].isMineral)
+
+    const remoteBuilders = Overlord.getCreepsByRole(this.name, 'remoteBuilder').filter((creep) => {
+      if (creep.spawning) {
+        return true
+      }
+      return creep.ticksToLive > creep.body.length * CREEP_SPAWN_TIME
+    })
+
+    let remoteBuilderNumWork = 0
+
+    for (let i = 0; i < remoteBuilders.length; i++) {
+      const remoteBuilder = remoteBuilders[i]
+
+      const resourceIdToConstruct = resourceIdsToConstruct[i % resourceIdsToConstruct.length]
+
+      remoteBuilder.memory.targetRoomName = roomNameToConstruct
+
+      remoteBuilder.memory.sourceRoomName = targetRoomName
+
       remoteBuilder.memory.sourceId = resourceIdToConstruct
 
       runRemoteBuilder(remoteBuilder)
@@ -598,15 +644,10 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
     }
     const packedStructures = info.structures
     let numConstructionSites = 0
-    let currentRoomName = undefined
+
     for (const packedStructure of packedStructures) {
       const parsed = unpackInfraPos(packedStructure)
       const pos = parsed.pos
-
-      if (currentRoomName !== pos.roomName) {
-        currentRoomName = pos.roomName
-        numConstructionSites = 0
-      }
 
       if (numConstructionSites >= 5) {
         complete = false
@@ -619,12 +660,10 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
       }
 
       if (pos.lookFor(LOOK_CONSTRUCTION_SITES).length > 0) {
-        if (!remoteStatus.roomNameToConstruct && pos.roomName !== this.name) {
+        if (!remoteStatus.roomNameToConstruct) {
           remoteStatus.roomNameToConstruct = pos.roomName
         }
-        if (pos.roomName !== this.name) {
-          complete = false
-        }
+        complete = false
         numConstructionSites++
         continue
       }
@@ -826,7 +865,9 @@ function runRemoteBuilder(creep) {
   }
   const targetRoomName = creep.memory.targetRoomName
 
-  if (!creep.readyToWork(targetRoomName, { wait: true })) {
+  const sourceRoomName = creep.memory.sourceRoomName
+
+  if (!creep.readyToWork(sourceRoomName, { wait: true })) {
     return
   }
 
@@ -840,7 +881,7 @@ function runRemoteBuilder(creep) {
 
   // 행동
 
-  const path = base.getRemotePath(targetRoomName, creep.memory.sourceId)
+  const path = base.getRemotePath(sourceRoomName, creep.memory.sourceId)
 
   if (creep.memory.working) {
     if (creep.room.name !== targetRoomName) {
@@ -874,7 +915,7 @@ function runRemoteBuilder(creep) {
 
   if (
     [ERR_NOT_ENOUGH_RESOURCES, ERR_NOT_FOUND].includes(
-      creep.getResourceFromRemote(targetRoomName, creep.memory.sourceId, path, { resourceType: RESOURCE_ENERGY })
+      creep.getResourceFromRemote(sourceRoomName, creep.memory.sourceId, path, { resourceType: RESOURCE_ENERGY })
     )
   ) {
     const resource = Game.getObjectById(creep.memory.sourceId)
@@ -1631,6 +1672,13 @@ Room.prototype.getActiveRemotes = function () {
   const remoteInfos = []
 
   for (const remoteName of this.getRemoteNames()) {
+    const intel = Overlord.getIntel(remoteName)
+
+    if (!intel || intel[scoutKeys.owner]) {
+      this.deleteRemote(remoteName)
+      continue
+    }
+
     const roomType = getRoomType(remoteName)
     if (roomType === 'sourceKeeper' && isStronghold(remoteName)) {
       continue

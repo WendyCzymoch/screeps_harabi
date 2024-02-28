@@ -1,4 +1,3 @@
-const { config } = require('./config')
 const { runAway } = require('./room_manager_remote')
 const { getRoomMemory } = require('./util')
 
@@ -263,13 +262,6 @@ function colonyDefender(creep) {
 
 function claimer(creep) {
   //스폰을 대입하는 함수 (이름 아님)
-  const hostileCreeps = creep.room.getEnemyCombatants()
-
-  if (creep.pos.findInRange(hostileCreeps, 5).length > 0) {
-    creep.fleeFrom(hostileCreeps, 15)
-    return
-  }
-
   if (creep.room.name !== creep.memory.targetRoom) {
     const flag = creep.room.find(FIND_FLAGS)[0]
     if (flag) {
@@ -434,7 +426,7 @@ function reserver(creep) {
 
   const targetRoomName = creep.memory.targetRoomName
 
-  if (!creep.readyToWork(targetRoomName, { wait: true })) {
+  if (!creep.readyToWork(targetRoomName, { wait: true, ignoreSourceKeepers: true })) {
     return
   }
 
@@ -499,7 +491,7 @@ function remoteMiner(creep) {
   const source = Game.getObjectById(creep.memory.sourceId)
 
   if (path) {
-    if (!source || creep.pos.getRangeTo(source) > 3) {
+    if (!source || creep.pos.getRangeTo(source) > 5) {
       creep.moveByRemotePath(path, { reverse: true })
       return
     }

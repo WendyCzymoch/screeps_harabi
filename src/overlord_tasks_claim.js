@@ -87,6 +87,9 @@ Room.prototype.runClaimTask = function (request) {
       if (coreAttackers.length === 0) {
         this.requestCoreAttacker(roomName)
       }
+    }
+
+    if (targetRoom.controller.reservation && targetRoom.controller.reservation.username !== MY_NAME) {
       const reservers = Overlord.getCreepsByRole(roomName, 'reserver')
       if (reservers.length === 0) {
         this.requestReserver(roomName)

@@ -107,14 +107,12 @@ Creep.prototype.moveMy = function (goals, options = {}) {
   if (this.checkStuck()) {
     this.heap.stuck = this.heap.stuck || 0
     this.heap.stuck++
-    this.heap.lastPos = this.pos
-    this.heap.lastPosTick = Game.time
   } else {
     this.heap.stuck = 0
   }
 
   if (this.heap.stuck >= 5) {
-    this.say(`🚧`, true)
+    this.say(`😣`, true)
     const doIgnoreCreeps = Math.random() < 0.5
     const result = this.searchPath(goals, { staySafe, ignoreMap, ignoreCreeps: doIgnoreCreeps, moveCost })
     if (result === ERR_NO_PATH) {

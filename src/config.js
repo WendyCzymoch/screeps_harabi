@@ -351,8 +351,8 @@ config.energyLevel = {
 config.hateLevel = {
   harass: 1,
   invasion: 30,
-  murder: 500,
-  toHarass: 500,
+  murder: 300,
+  toHarass: 1000,
   toInvade: 20000,
 }
 
