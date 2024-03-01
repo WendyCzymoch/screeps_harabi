@@ -18,7 +18,6 @@ Overlord.manageDuoTasks = function () {
 }
 
 Room.prototype.runDuoTask = function (request) {
-
   const boost = request.boost
 
   const mainName = request.mainName
@@ -57,10 +56,10 @@ Room.prototype.runDuoTask = function (request) {
     return
   }
 
-  request.ticksToLive = (attacker && healer) ? Math.min(attacker.ticksToLive || 1500, healer.ticksToLive || 1500) : 1500
+  request.ticksToLive = attacker && healer ? Math.min(attacker.ticksToLive || 1500, healer.ticksToLive || 1500) : 1500
 
   if (boost > 0 && !request.boosted) {
-    request.boosted = (attacker.memory.boosted !== false) && (healer.memory.boosted !== false)
+    request.boosted = attacker.memory.boosted !== false && healer.memory.boosted !== false
     return
   }
 
@@ -94,7 +93,7 @@ const DuoRequest = function (room, targetRoomName, options) {
 
 global.sendDuo = function (targetRoomName, species, boost = undefined) {
   targetRoomName = targetRoomName.toUpperCase()
-  const base = Overlord.findClosestMyRoom(targetRoomName, 7, 2)
+  const base = Overlord.findClosestMyRoom(targetRoomName, 7)
 
   if (!base) {
     return `there is no adequate base`
@@ -195,26 +194,26 @@ Overlord.getNumAvailableDuo = function () {
     let maxHealer = Infinity
     for (const resourceType of healerResourceTypes) {
       const resourceAmount = resources[resourceType] || 0
-      maxHealer = Math.min(maxHealer, Math.floor(resourceAmount / (healerRequiredResources[resourceType])))
+      maxHealer = Math.min(maxHealer, Math.floor(resourceAmount / healerRequiredResources[resourceType]))
     }
 
     let maxAnt = Infinity
     for (const resourceType of antResourceTypes) {
       const resourceAmount = resources[resourceType] || 0
-      maxAnt = Math.min(maxAnt, Math.floor(resourceAmount / (antRequiredResources[resourceType])))
+      maxAnt = Math.min(maxAnt, Math.floor(resourceAmount / antRequiredResources[resourceType]))
     }
 
     let maxWorm = Infinity
     for (const resourceType of wormResourceTypes) {
       const resourceAmount = resources[resourceType] || 0
-      maxWorm = Math.min(maxWorm, Math.floor(resourceAmount / (wormRequiredResources[resourceType])))
+      maxWorm = Math.min(maxWorm, Math.floor(resourceAmount / wormRequiredResources[resourceType]))
     }
 
     result.ant[i] = Math.min(maxAnt, maxHealer)
     result.worm[i] = Math.min(maxWorm, maxHealer)
   }
 
-  return Game._numAvailableDuo = result
+  return (Game._numAvailableDuo = result)
 }
 
 Room.prototype.requestAttacker = function (request, species, boost = 0) {
@@ -231,7 +230,7 @@ Room.prototype.requestAttacker = function (request, species, boost = 0) {
   const memory = {
     role: 'attacker',
     healer: request.healerName,
-    base: this.name
+    base: this.name,
   }
 
   const options = { priority: SPAWN_PRIORITY['attacker'] }
@@ -240,7 +239,6 @@ Room.prototype.requestAttacker = function (request, species, boost = 0) {
     options.boostResources = boostResources
     memory.boosted = false
   }
-
 
   this.spawnQueue.push(new RequestSpawn(body, name, memory, options))
 }
@@ -257,7 +255,7 @@ Room.prototype.requestHealer = function (request, boost = 0) {
   const memory = {
     role: 'healer',
     healer: request.mainName,
-    base: this.name
+    base: this.name,
   }
 
   const options = { priority: SPAWN_PRIORITY['healer'] }

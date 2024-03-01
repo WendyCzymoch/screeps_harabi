@@ -16,7 +16,7 @@ Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
  * @param {Object} goals - Either goal {pos, range} or array of goals.
  * @param {Object} options - Object containing following options
  * @param {boolean} options.staySafe - if true, don't go outside of protected area.
- * @param {number} options.ignoreMap - at 0, don't pass through inassessible roons. at 1, ignore assessibility of target room. at 2, totally ignore assessibility.
+ * @param {number} options.ignoreMap - at 0, don't pass through inassessible roons. at 1, ignore assessibility of target room.
  * @param {boolean} ignoreCreeps - if true, ignore creeps
  * @param {boolean} ignoreOrder - if true, ignore scheduled move
  * @returns {Constant} OK - The creep is arrived to target or move action is scheduled
@@ -58,12 +58,6 @@ Creep.prototype.moveMy = function (goals, options = {}) {
   }
 
   const mainTargetPos = goals[0].pos
-
-  //도착했으면 기억 지우고 return
-  if (this.pos.isInGoal(goals)) {
-    this.resetPath()
-    return OK
-  }
 
   if (!ignoreOrder && this._moved) {
     this.say(`❌`, true)
@@ -128,19 +122,22 @@ Creep.prototype.moveMy = function (goals, options = {}) {
     this.heap.stuck = 0
     this.heap.path = result
   }
+
   this.heap.lastPos = this.pos
   this.heap.lastPosTick = Game.time
 
   const path = this.heap.path
-  const goal = path[path.length - 1]
 
   if (visualize) {
     visualizePath(path, this.pos)
   }
 
   //같은 방에 있으면 목적지 표시. 다른 방에 있으면 지도에 표시
-  if (VISUALIZE_GOAL && goal && this.pos.roomName === goal.roomName) {
-    this.room.visual.line(this.pos, goal, { color: 'yellow', lineStyle: 'dashed' })
+  if (VISUALIZE_GOAL) {
+    const goal = path[path.length - 1]
+    if (goal && this.pos.roomName === goal.roomName) {
+      this.room.visual.line(this.pos, goal, { color: 'yellow', lineStyle: 'dashed' })
+    }
   }
 
   const result = this.moveByPathMy(path)
@@ -163,7 +160,7 @@ global.normalizeGoals = function (goals) {
     }
 
     const pos = goal.pos || goal
-    if (!RoomPosition.prototype.isPrototypeOf(pos)) {
+    if ((!pos) instanceof RoomPosition) {
       continue
     }
 
@@ -178,7 +175,22 @@ global.normalizeGoals = function (goals) {
 }
 
 Creep.prototype.moveByPathMy = function (path) {
-  let index = _.findIndex(path, (i) => i.isEqualTo(this.pos))
+  let index = undefined
+
+  const cachedIndex = this.heap._pathIndex
+  if (cachedIndex !== undefined) {
+    for (const i of [cachedIndex, cachedIndex - 1, cachedIndex + 1]) {
+      const pos = path[i]
+      if (pos && this.pos.isEqualTo(pos)) {
+        index = i
+        break
+      }
+    }
+  }
+
+  if (index === undefined) {
+    index = _.findIndex(path, (i) => i.isEqualTo(this.pos))
+  }
 
   if (index === -1) {
     if (!this.pos.isNearTo(path[0])) {
@@ -196,13 +208,29 @@ Creep.prototype.moveByPathMy = function (path) {
 
   this.setNextPos(nextPos)
 
+  this.heap._pathIndex = index
   this._moved = true
 
   return OK
 }
 
 Creep.prototype.moveByPathMyReverse = function (path) {
-  let index = _.findIndex(path, (i) => i.isEqualTo(this.pos))
+  let index = undefined
+
+  const cachedIndex = this.heap._pathIndex
+  if (cachedIndex !== undefined) {
+    for (const i of [cachedIndex, cachedIndex + 1, cachedIndex - 1]) {
+      const pos = path[i]
+      if (pos && this.pos.isEqualTo(pos)) {
+        index = i
+        break
+      }
+    }
+  }
+
+  if (index === undefined) {
+    index = _.findIndex(path, (i) => i.isEqualTo(this.pos))
+  }
 
   if (index === -1) {
     if (!this.pos.isNearTo(path[path.length - 1])) {
@@ -221,6 +249,7 @@ Creep.prototype.moveByPathMyReverse = function (path) {
 
   this.setNextPos(nextPos)
 
+  this.heap._pathIndex = index
   this._moved = true
 
   return OK
@@ -350,8 +379,6 @@ Creep.prototype.resetPath = function () {
   delete this.heap.path
   delete this.heap.stuck
   delete this.heap.lastPos
-  delete this.heap.stay
-  delete this.heap.noPath
 }
 
 /**
@@ -392,6 +419,9 @@ RoomPosition.prototype.isInGoal = function (goals) {
 }
 
 Creep.prototype.checkStuck = function () {
+  if (this.fatigue) {
+    return false
+  }
   if (!this.heap.lastPos) {
     return false
   }

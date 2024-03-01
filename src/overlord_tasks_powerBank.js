@@ -520,7 +520,7 @@ Creep.prototype.highwayHaul = function (powerBankRequest) {
   if (this.room.name !== powerBankRequest.roomName) {
     const parsed = parseCoord(powerBankRequest.packedCoord)
     const targetPos = new RoomPosition(parsed.x, parsed.y, powerBankRequest.roomName)
-    this.moveMy({ pos: targetPos, range: 1 }, { ignoreMap: 2 })
+    this.moveMy({ pos: targetPos, range: 1 })
     return
   }
 

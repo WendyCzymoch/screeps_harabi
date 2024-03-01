@@ -301,7 +301,7 @@ Creep.prototype.setTargetId = function (targetId) {
 }
 
 Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
-  const requests = this.getEnergyRequests(arrayOfCreeps.length)
+  const requests = this.getEnergyRequests()
   if (requests.size === 0) {
     const spawn = this.structures.spawn[0]
     if (!spawn) {
@@ -412,9 +412,12 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
       bestApplicant.married = false
     }
   }
+
   const spawn = this.structures.spawn[0]
+
   for (const applicant of applicants) {
     const creep = applicant.creep
+
     if (applicant.engaged) {
       if (applicant.giveEnergy && applicant.pos.getRangeTo(applicant.engaged.pos) === 1) {
         creep.heap.engaged = applicant.engaged
@@ -426,6 +429,7 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
       }
       continue
     }
+
     if (spawn) {
       creep.setWorkingInfo(spawn.pos, 3)
       creep.moveMy({ pos: spawn.pos, range: 3 })
@@ -433,7 +437,7 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
   }
 }
 
-Room.prototype.getEnergyRequests = function (numApplicants) {
+Room.prototype.getEnergyRequests = function () {
   const controllerContainer = this.controller.container
   const storage = this.storage
   const factory = this.structures.factory[0]
@@ -514,14 +518,8 @@ Room.prototype.getEnergyRequests = function (numApplicants) {
       this.heap.refillControllerContainer = true
     }
 
-    const request = new Request(controllerContainer)
-
-    if (this.constructionSites.length > 0) {
-      request.priority = 4
-    }
-
     if (this.heap.refillControllerContainer) {
-      requests.set(controllerContainer.id, request)
+      requests.set(controllerContainer.id, new Request(controllerContainer))
     }
   }
 

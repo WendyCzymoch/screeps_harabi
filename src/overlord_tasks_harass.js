@@ -1,5 +1,6 @@
 const { config } = require('./config')
 const { getCombatInfo } = require('./overlord_tasks_guard')
+const { Util } = require('./util')
 const { MapUtil } = require('./util_map')
 
 Overlord.manageHarassTasks = function () {
@@ -52,7 +53,7 @@ const HarassRequest = function (room, username, targetRoomName, options) {
 
 Room.prototype.harassRoom = function (request) {
   const harasserBlinkies = Overlord.getCreepsByRole(request.roomName, 'harasser')
-  const leader = getMinObject(harasserBlinkies, (creep) => creep.ticksToLive || 1500)
+  const leader = Util.getMinObject(harasserBlinkies, (creep) => creep.ticksToLive || 1500)
 
   request.members = harasserBlinkies.map((creep) => creep.name)
 
@@ -135,7 +136,6 @@ Room.prototype.harassRoom = function (request) {
         return false
       }
 
-      console.log(`Harass ${roomName} of ${request.username}`)
       return true
     })
 
@@ -234,50 +234,6 @@ Room.prototype.requestHarasser = function (targetRoomName, options) {
 
   const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['harasser'] })
   this.spawnQueue.push(request)
-}
-
-Overlord.getHarassTargetRoomNames = function () {
-  if (Game._harassTargets) {
-    return Game._harassTargets
-  }
-
-  if (Math.random() < 0.01) {
-    delete this.heap._harassTargets
-  }
-
-  if (this.heap._harassTargets) {
-    return (Game._harassTargets = this.heap._harassTargets)
-  }
-
-  const roomNamesFiltered = []
-
-  for (const roomName in Memory.rooms) {
-    const intel = Overlord.getIntel(roomName)
-    const reservationOwner = intel[scoutKeys.reservationOwner]
-    if (!reservationOwner || reservationOwner === 'Invader') {
-      continue
-    }
-
-    const hateLevel = Overlord.getUserIntel(reservationOwner).hateLevel
-
-    if (hateLevel < config.hateLevel.toHarass) {
-      continue
-    }
-
-    if (allies.includes(intel[scoutKeys.reservationOwner])) {
-      continue
-    }
-    if (Overlord.getAllRemoteNames().includes(roomName)) {
-      continue
-    }
-    roomNamesFiltered.push(roomName)
-  }
-
-  return (Game._harassTargets = this.heap._harassTargets = roomNamesFiltered)
-}
-
-Overlord.resetHarassTargetRooms = function () {
-  delete this.heap._harassTargets
 }
 
 module.exports = {

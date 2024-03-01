@@ -795,9 +795,11 @@ Object.defineProperties(Room.prototype, {
       if (this._isWalledUp !== undefined) {
         return this._isWalledUp
       }
+
       if (Game.time % 10 === 0) {
         delete this.heap._isWalledUp
       }
+
       if (this.heap._isWalledUp !== undefined) {
         return this.heap._isWalledUp
       }

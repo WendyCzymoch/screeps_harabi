@@ -436,11 +436,11 @@ class CombatInfo {
 function canWin(attack1, heal1, hits1, attack2, heal2, hits2) {
   const myAttack = Math.max(0, attack1 - heal2)
   const enemyAttack = Math.max(0, attack2 - heal1)
-  if (myAttack === 0) {
-    return false
-  }
   if (enemyAttack === 0) {
     return true
+  }
+  if (myAttack === 0) {
+    return false
   }
   return hits1 / enemyAttack > hits2 / myAttack
 }

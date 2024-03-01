@@ -1,5 +1,6 @@
 const { config } = require('./config')
 const { simpleAllies } = require('./simpleAllies')
+const { Util } = require('./util')
 
 const MINERAL_AMOUNT_TO_KEEP = 3600
 const MINERAL_AMOUNT_TO_SELL = 50000
@@ -54,7 +55,7 @@ StructureTerminal.prototype.run = function () {
   }
 
   if (this.room.controller.level === 8 && this.room.energyLevel > ENERGY_LEVEL_TO_BALANCE) {
-    const balanceTarget = getMinObject(Overlord.structures.terminal, (terminal) => terminal.room.energyLevel)
+    const balanceTarget = Util.getMinObject(Overlord.structures.terminal, (terminal) => terminal.room.energyLevel)
     if (balanceTarget && balanceTarget.room.energyLevel < config.energyLevel.STOP_BALANCE) {
       if (config.seasonNumber === 6 && Overlord.getSecondsToClose(balanceTarget.room.name) < 5000) {
         return

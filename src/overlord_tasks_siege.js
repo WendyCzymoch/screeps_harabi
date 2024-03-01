@@ -1,17 +1,14 @@
-const { config } = require("./config")
-const { QuadRequest } = require("./overlord_tasks_quad")
+const { config } = require('./config')
+const { QuadRequest } = require('./overlord_tasks_quad')
 
-const squadTaskNames = [
-  'duo',
-  'quad'
-]
+const squadTaskNames = ['duo', 'quad']
 
 global.siege = function (targetRoomName, modelNumber, duration) {
   const level = Math.floor(modelNumber / 10) || 7
 
   targetRoomName = targetRoomName.toUpperCase()
 
-  const base = Overlord.findClosestMyRoom(targetRoomName, level, 2)
+  const base = Overlord.findClosestMyRoom(targetRoomName, level)
 
   if (!base) {
     return `there is no adequate base`
@@ -121,7 +118,9 @@ Room.prototype.runSiegeTask = function (request) {
   }
 
   const quadTasks = Overlord.getTasksWithCategory('quad')
-  const activeQuadTask = Object.values(quadTasks).find(task => task.roomName === targetRoomName && task.ticksToLive > 1000)
+  const activeQuadTask = Object.values(quadTasks).find(
+    (task) => task.roomName === targetRoomName && task.ticksToLive > 1000
+  )
 
   if (!activeQuadTask && this.canProduceSquad()) {
     const quadRequest = new QuadRequest(this, targetRoomName, { modelNumber: request.modelNumber })
@@ -156,7 +155,7 @@ Room.prototype.canProduceSquad = function () {
       continue
     }
     const squadTasksArray = Object.values(squadTasks)
-    if (squadTasksArray.some(task => task.status === 'produce')) {
+    if (squadTasksArray.some((task) => task.status === 'produce')) {
       return false
     }
   }

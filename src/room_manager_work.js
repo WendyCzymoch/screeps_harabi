@@ -1,3 +1,5 @@
+const { Util } = require('./util')
+
 Room.prototype.manageWork = function () {
   let usingBuilders = false
 
@@ -50,7 +52,7 @@ Room.prototype.manageReinforce = function () {
     if (rampartsInRange.length === 0) {
       rampartsInRange = this.structures.rampart.filter((rampart) => rampart.pos.getRangeTo(status.pos) <= REPAIR_RANGE)
     }
-    const rampartLowest = rampartsInRange.sort((a, b) => a.hits - b.hits)[0]
+    const rampartLowest = Util.getMinObject(rampartsInRange, (rampart) => rampart.hits)
     if (!rampartLowest) {
       continue
     }
@@ -101,7 +103,7 @@ Room.prototype.manageBuild = function () {
     laborer.needDelivery = true
     // energy 없으면 energy 받아라
     if (!laborer.working) {
-      const energySource = this.storage || this.terminal
+      const energySource = this.storage || this.terminal || this.controller.container
       if (energySource) {
         laborer.getEnergyFrom(energySource.id)
       }
@@ -185,7 +187,7 @@ Room.prototype.manageUpgrade = function (usingBuilders) {
       controllerLink &&
       controllerLink.store[RESOURCE_ENERGY] > 0 &&
       (laborer.pos.getRangeTo(controllerLink) <= 1 ||
-        laborer.store[RESOURCE_ENERGY] / laborer.store.getCapacity() <= 0.3)
+        laborer.store[RESOURCE_ENERGY] < laborer.getActiveBodyparts(WORK) * 2)
     ) {
       laborer.getEnergyFrom(controllerLink.id)
     }

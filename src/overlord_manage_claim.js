@@ -33,7 +33,7 @@ Overlord.getClaimTargetInfo = function () {
     const nextRoom = Game.rooms[next]
 
     if (!nextRoom || !nextRoom.isMy) {
-      const base = Overlord.findClosestMyRoom(next, 4, 1, 12)
+      const base = Overlord.findClosestMyRoom(next, 4, 12)
 
       if (base) {
         return { targetRoomName: next, baseName: base.name }
@@ -74,7 +74,7 @@ Overlord.getBestClaimInfo = function () {
       }
 
       if (intel[scoutKeys.claimScore] > bestScore) {
-        const base = Overlord.findClosestMyRoom(roomName, 4, 1, 12)
+        const base = Overlord.findClosestMyRoom(roomName, 4, 12)
 
         if (!base) {
           continue

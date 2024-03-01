@@ -1,3 +1,4 @@
+const { MapUtil } = require('./util_map')
 const MinHeap = require('./util_min_heap')
 
 const AVOID_SOURCE_KEEPER_RANGE = 6
@@ -13,64 +14,23 @@ Overlord.findMyRoomsInRange = function (fromRoomName, range) {
   return myRoomsFiltered
 }
 
-Overlord.findClosestRoom = function (fromRoomName, roomNames, ignoreMap = 1, maxRooms = 16) {
-  const routeLenthCache = {}
-  const roomNamesFiltered = roomNames.filter((roomName) => {
-    const route = this.findRoutesWithPortal(fromRoomName, roomName, ignoreMap)
-    if (!Array.isArray(route)) {
-      return false
-    }
-    const length = this.findRouteLength(route)
-    if (length > maxRooms) {
-      return false
-    }
-    routeLenthCache[roomName] = length
-    return true
-  })
-
-  if (roomNamesFiltered.length === 0) {
-    return undefined
-  }
-
-  const roomNamesSorted = roomNamesFiltered.sort((a, b) => {
-    const lengthA = routeLenthCache[a]
-    const lengthB = routeLenthCache[b]
-    return lengthA - lengthB
-  })
-  return roomNamesSorted[0]
+Overlord.findClosestRoom = function (fromRoomName, roomNames, maxRooms = 16) {
+  return MapUtil.findClosestBySafeRoute(fromRoomName, (roomName) => roomNames.includes(roomName), maxRooms)
 }
 
-Overlord.findClosestMyRoom = function (fromRoomName, level = 0, ignoreMap = 1, maxRooms = 16) {
-  const myRooms = Overlord.myRooms
-  const routeLenthCache = {}
-  const myRoomsFiltered = myRooms.filter((room) => {
-    if (room.controller.level < level) {
-      return false
-    }
-
-    if (Game.map.getRoomLinearDistance(room.name, fromRoomName) > maxRooms) {
-      return false
-    }
-
-    const route = this.findRoutesWithPortal(fromRoomName, room.name, ignoreMap)
-    if (!Array.isArray(route)) {
-      return false
-    }
-
-    const length = this.findRouteLength(route)
-    if (length > maxRooms) {
-      return false
-    }
-
-    routeLenthCache[room.name] = length
-    return true
-  })
-  const myRoomsSorted = myRoomsFiltered.sort((a, b) => {
-    const lengthA = routeLenthCache[a.name]
-    const lengthB = routeLenthCache[b.name]
-    return lengthA - lengthB
-  })
-  return myRoomsSorted[0]
+Overlord.findClosestMyRoom = function (fromRoomName, level = 0, maxRooms = 16) {
+  const closestMyRoomName = MapUtil.findClosestBySafeRoute(
+    fromRoomName,
+    (roomName) => {
+      const room = Game.rooms[roomName]
+      if (!room || !room.isMy || room.controller.level < level) {
+        return false
+      }
+      return true
+    },
+    maxRooms
+  )
+  return Game.rooms[closestMyRoomName]
 }
 
 Overlord.findRouteLength = function (route) {
@@ -172,7 +132,6 @@ Overlord.findPath = function (startPos, goals, options = {}) {
                   const maxY = Math.clamp(y + AVOID_SOURCE_KEEPER_RANGE, 0, 49)
                   for (let i = minX; i <= maxX; i++) {
                     for (let j = minY; j <= maxY; j++) {
-                      new RoomVisual(roomName).circle(i, j, { color: COLOR_RED })
                       costs.set(i, j, 254)
                     }
                   }
@@ -267,7 +226,8 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
   const cpuBefore = Game.cpu.getUsed()
 
   while (queue.getSize() > 0) {
-    if (Game.cpu.getUsed() - cpuBefore > 10) {
+    if (Game.cpu.getUsed() - cpuBefore > 30) {
+      console.log(`used too much cpu`)
       return ERR_NO_PATH
     }
 
@@ -278,10 +238,6 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
     }
 
     const currentCost = costs[current]
-
-    if (currentCost > 20) {
-      return ERR_NO_PATH
-    }
 
     const neighbors = Object.values(Game.map.describeExits(current))
     const portalInfo = Memory.rooms[current] ? Memory.rooms[current].portalInfo : undefined
@@ -349,46 +305,45 @@ Overlord.getAdjacentRoomNames = function (roomName) {
   return adjacents
 }
 
-function getRoomCost(startRoomName, goalRoomName, roomName, ignoreMap = 1) {
+function getRoomCost(startRoomName, goalRoomName, roomName) {
   if (roomName === startRoomName) {
     return 1
   }
-  if (ignoreMap >= 1 && roomName === goalRoomName) {
+
+  if (roomName === goalRoomName) {
     return 1
-  }
-
-  Overlord.heap.roomCost = Overlord.heap.roomCost || {}
-
-  if (Overlord.heap.roomCost[roomName] && Math.random() < 0.99) {
-    return Overlord.heap.roomCost[roomName]
   }
 
   const status = Game.map.getRoomStatus(roomName)
   if (status && status.status !== 'normal') {
-    return (Overlord.heap.roomCost[roomName] = Infinity)
+    return Infinity
   }
 
   const intel = Overlord.getIntel(roomName)
 
+  if (intel[scoutKeys.numTower] > 0) {
+    return Infinity
+  }
+
+  if (Game.time < intel[scoutKeys.inaccessible]) {
+    return 3.1
+  }
+
   if (intel[scoutKeys.isMy] || intel[scoutKeys.isMyRemote]) {
-    return (Overlord.heap.roomCost[roomName] = 1)
+    return 1
   }
 
   if (allies.includes(intel[scoutKeys.owner])) {
-    return (Overlord.heap.roomCost[roomName] = 1)
-  }
-
-  if (intel[scoutKeys.numTower] > 0) {
-    return (Overlord.heap.roomCost[roomName] = Infinity)
+    return 1
   }
 
   const roomType = getRoomType(roomName)
 
   if (roomType === 'highway') {
-    return (Overlord.heap.roomCost[roomName] = 1)
+    return 1
   }
 
-  return (Overlord.heap.roomCost[roomName] = 1.1)
+  return 1.1
 }
 
 Overlord.getIntel = function (roomName) {

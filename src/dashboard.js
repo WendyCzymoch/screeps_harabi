@@ -9,13 +9,13 @@ Overlord.visualizeRoomInfo = function () {
 
   if (!config.alwaysShowDashboard) {
     // turn off the showMapInfo after 50 ticks
-    if (Memory.showDashboard === 1 && Memory.dashboardTime && Game.time > Memory.dashboardTime + 50) {
+    if (Memory.showDashboard === 1 && Game.time > (Memory.dashboardTime || 0) + 50) {
       Memory.showDashboard = 0
     }
 
     // even if Memory.shoaMapInfo === 0, do mapInfo for every 1000 ticks
     // this is for deleting outdated memories
-    if (Memory.showDashboard === 0) {
+    if (!Memory.showDashboard) {
       visualizeBasicInfo(startPos, numMyRoom)
       return
     }

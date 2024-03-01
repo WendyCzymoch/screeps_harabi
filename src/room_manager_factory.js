@@ -46,6 +46,8 @@ Room.prototype.operateFactory = function () {
   const factory = this.structures.factory[0]
   const terminal = this.terminal
 
+  const storage = this.storage
+
   const researcher = this.creeps.researcher[0]
   const components = getComponents(commodity)
 
@@ -57,20 +59,47 @@ Room.prototype.operateFactory = function () {
   if (!components) {
     return ERR_NOT_ENOUGH_RESOURCES
   }
-  for (const component in components) {
-    //재료 다 있는지 확인
+
+  const componentNames = Object.keys(components)
+
+  for (const component of componentNames) {
+    // check for components
     if (factory.store[component] < components[component]) {
       //재료가 없는 상황
-      if (terminal.store[component] >= components[component] - factory.store[component]) {
-        //터미널에 있으면 가져오자
+      if (terminal && terminal.store[component] >= components[component] - factory.store[component]) {
+        // get from terminal
         if (!researcher) {
-          // researcher 없으면 생산
           this.heap.needResearcher = true
           return ERR_BUSY
         }
         researcher.getDeliveryRequest(terminal, factory, component)
         return ERR_NOT_ENOUGH_RESOURCES
+      } else if (storage && storage.store[component] >= components[component] - storage.store[component]) {
+        //get from storage
+        if (!researcher) {
+          this.heap.needResearcher = true
+          return ERR_BUSY
+        }
+        researcher.getDeliveryRequest(storage, factory, component)
+        return ERR_NOT_ENOUGH_RESOURCES
       }
+    }
+  }
+
+  if (factory.store.getFreeCapacity() < 1000) {
+    const notNecessaryResource = Object.keys(factory.store).find(
+      (resourceType) => !components[resourceType] || factory.store[resourceType] > components[resourceType] + 1000
+    )
+
+    const targetStorage = [terminal, storage].find((structure) => structure && structure.store.getFreeCapacity() > 5000)
+
+    if (notNecessaryResource && targetStorage) {
+      if (!researcher) {
+        this.heap.needResearcher = true
+        return ERR_BUSY
+      }
+      researcher.getDeliveryRequest(factory, targetStorage, notNecessaryResource)
+      return ERR_FULL
     }
   }
 
@@ -115,10 +144,6 @@ Room.prototype.getFactoryTarget = function () {
   // factory 없으면 오류
   const factory = this.structures.factory[0]
   if (!factory) {
-    return undefined
-  }
-
-  if (factory.store.getFreeCapacity() < 1000) {
     return undefined
   }
 

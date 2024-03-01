@@ -1,5 +1,5 @@
 const { runAway } = require('./room_manager_remote')
-const { getRoomMemory } = require('./util')
+const { getRoomMemory, Util } = require('./util')
 
 function miner(creep) {
   // 캐러 갈 곳
@@ -93,7 +93,7 @@ function wallMaker(creep) {
     return
   }
 
-  target = getMinObject(creep.pos.findInRange(creep.room.structures.rampart, 3), (rampart) => rampart.hits)
+  target = Util.getMinObject(creep.pos.findInRange(creep.room.structures.rampart, 3), (rampart) => rampart.hits)
   creep.repair(target)
 }
 
@@ -195,7 +195,7 @@ function colonyDefender(creep) {
   if (wounded.length) {
     const target = creep.pos.findClosestByRange(wounded)
     if (creep.pos.getRangeTo(target) > 1) {
-      creep.moveMy({ pos: target.pos, range: 1 }, { staySafe: false, ignoreMap: 1 })
+      creep.moveMy({ pos: target.pos, range: 1 }, { staySafe: false })
     }
     creep.heal(target)
     return
@@ -203,7 +203,7 @@ function colonyDefender(creep) {
 
   if (creep.room.isMy) {
     creep.setWorkingInfo(creep.room.controller.pos, 5)
-    creep.moveMy({ pos: creep.room.controller.pos, range: 5 }, { staySafe: false, ignoreMap: 1 })
+    creep.moveMy({ pos: creep.room.controller.pos, range: 5 }, { staySafe: false })
     return
   }
 
@@ -239,7 +239,7 @@ function colonyDefender(creep) {
   )
   if (hostileStructure) {
     if (creep.pos.getRangeTo(hostileStructure) > 1) {
-      creep.moveMy({ pos: hostileStructure.pos, range: 1 }, { staySafe: false, ignoreMap: 1 })
+      creep.moveMy({ pos: hostileStructure.pos, range: 1 }, { staySafe: false })
       return
     }
     creep.rangedAttack(hostileStructure)
@@ -256,7 +256,7 @@ function colonyDefender(creep) {
   if (creep.pos.x < 3 || creep.pos.x > 46 || creep.pos.y < 3 || creep.pos.y > 46) {
     const center = new RoomPosition(25, 25, creep.memory.colony)
     creep.setWorkingInfo(center, 20)
-    creep.moveMy({ pos: center, range: 20 }, { staySafe: false, ignoreMap: 1 })
+    creep.moveMy({ pos: center, range: 20 }, { staySafe: false })
   }
 }
 
@@ -330,9 +330,11 @@ function pioneer(creep) {
 
       if (!Game.getObjectById(creep.memory.targetId)) {
         if (creep.room.constructionSites.length) {
-          creep.memory.targetId = creep.room.constructionSites.sort((a, b) => {
-            return BUILD_PRIORITY[a.structureType] - BUILD_PRIORITY[b.structureType]
-          })[0].id
+          const constructionSites = creep.room.constructionSites
+
+          const priorityTarget = Util.getMinObject(constructionSites, (site) => BUILD_PRIORITY[site.structureType])
+
+          creep.memory.targetId = priorityTarget.id
         } else {
           creep.memory.targetId = false
         }
@@ -918,7 +920,7 @@ function transporter(creep) {
 
   const targetRoomName = creep.memory.targetRoomName
 
-  if (!creep.readyToWork(targetRoomName, { wait: true })) {
+  if (!creep.readyToWork(targetRoomName, { wait: true, ignoreSourceKeepers: true })) {
     return
   }
 
@@ -938,7 +940,7 @@ function transporter(creep) {
 
   // supply
   if (creep.memory.supplying) {
-    const targetStorage = targetRoom.storage
+    const targetStorage = targetRoom.storage || targetRoom.controller.container
 
     if (!targetStorage) {
       creep.memory.getRecycled = true

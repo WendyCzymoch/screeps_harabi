@@ -15,7 +15,7 @@ Object.defineProperties(RoomPosition.prototype, {
   terrain: {
     get() {
       if (!this._terrain) {
-        this._terrain = Game.rooms[this.roomName].terrain.get(this.x, this.y)
+        this._terrain = new Room.Terrain(this.roomName).get(this.x, this.y)
       }
       return this._terrain
     },

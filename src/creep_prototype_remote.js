@@ -121,7 +121,7 @@ Creep.prototype.avoidSourceKeepers = function () {
   const sourceKeepers = this.room.getEnemyCombatants().filter((creep) => creep.owner.username === 'Source Keeper')
 
   if (this.pos.findInRange(sourceKeepers, SOURCE_KEEPER_RANGE_TO_START_FLEE).length > 0) {
-    this.fleeFrom(sourceKeepers, SOURCE_KEEPER_RANGE_TO_START_FLEE, 1)
+    this.fleeFrom(sourceKeepers, SOURCE_KEEPER_RANGE_TO_START_FLEE + 1, 1)
     return OK
   }
 
@@ -142,7 +142,7 @@ Creep.prototype.avoidSourceKeepers = function () {
   })
 
   if (this.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
-    this.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE)
+    this.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE + 1)
     return OK
   }
 

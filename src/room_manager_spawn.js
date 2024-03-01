@@ -1,5 +1,6 @@
 const { config } = require('./config')
 const { blinkyBodyMaker } = require('./creep_prototype_blinky')
+const { Util } = require('./util')
 
 const RAMPART_HITS_THRESHOLD = 50000000 //50M
 
@@ -191,7 +192,7 @@ Room.prototype.manageSpawn = function () {
   if (this.heap.needResearcher) {
     if (this.creeps.researcher.filter((creep) => (creep.ticksToLive || 1500 > 3) * creep.body.length).length < 1) {
       if (this.enoughManager === true) {
-        const candidate = this.creeps.manager.sort((a, b) => (b.ticksToLive || 0) - (a.ticksToLive || 0))[0]
+        const candidate = Util.getMaxObject(this.creeps.manager, (creep) => creep.ticksToLive || 0)
         candidate.say(`📤➡️🧪`, true)
         candidate.memory.role = 'researcher'
       } else {

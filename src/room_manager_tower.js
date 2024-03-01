@@ -1,3 +1,5 @@
+const { Util } = require('./util')
+
 Room.prototype.manageTowerAttack = function (targets) {
   const vulnerable = []
   const possible = []
@@ -18,7 +20,7 @@ Room.prototype.manageTowerAttack = function (targets) {
   }
 
   if (vulnerable.length) {
-    const target = getMinObject(vulnerable, (creep) => creep.hits)
+    const target = Util.getMinObject(vulnerable, (creep) => creep.hits)
     this.towerAttack(target)
     return
   }

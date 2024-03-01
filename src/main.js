@@ -99,9 +99,10 @@ require('util')
 const profiler = require('screeps-profiler')
 
 // This line monkey patches the global prototypes.
-const PROFILE = true
-if (PROFILE) {
+if (Memory.profile) {
   profiler.enable()
+  profiler.registerObject(Business, 'Business')
+  profiler.registerObject(Overlord, 'Overlord')
 }
 
 delete Memory.globalReset

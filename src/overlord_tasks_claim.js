@@ -7,7 +7,7 @@ global.claimRoom = function (targetRoomName, baseName = undefined) {
     return ERR_FULL
   }
 
-  const base = baseName ? Game.rooms[baseName.toUpperCase()] : Overlord.findClosestMyRoom(targetRoomName, 4, 1, 12)
+  const base = baseName ? Game.rooms[baseName.toUpperCase()] : Overlord.findClosestMyRoom(targetRoomName, 4, 12)
 
   if (!base) {
     return ERR_NOT_IN_RANGE

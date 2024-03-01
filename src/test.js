@@ -1,3 +1,11 @@
-const array = [3]
+const { Util } = require('./util')
 
-console.log(array[array.length - 1])
+const array = []
+
+for (let i = 0; i < 10; i++) {
+  array.push({ power: Math.random() })
+}
+
+console.log(JSON.stringify(array))
+
+console.log(Util.getMinObject(array, (element) => element.power))

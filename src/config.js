@@ -268,11 +268,11 @@ if (shardName === 'swc') {
 
   config.rampartLevel = 5
 
-  config.alwaysShowMapInfo = true
+  config.alwaysShowMapInfo = false
 
   config.publicRamparts = false
 
-  config.showTicks = true
+  config.showTicks = false
 
   config.rampartHitsPerRclSquare = 16000
 
@@ -335,13 +335,13 @@ config.energyLevel = {
 
   BATTERY_EAT: 170,
 
-  STOP_FUNNEL: 200,
+  STOP_FUNNEL: 240,
 
-  RAMPART_HIGH: 210,
+  RAMPART_HIGH: 250,
 
-  BATTERY_COOK: 240,
+  BATTERY_COOK: 260,
 
-  STOP_BALANCE: 250,
+  STOP_BALANCE: 270,
 
   BALANCE: 300,
 }

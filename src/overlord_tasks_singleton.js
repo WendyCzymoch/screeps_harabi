@@ -1,5 +1,6 @@
 const { config } = require('./config')
 const { moreImportantTarget } = require('./quad_prototype')
+const { Util } = require('./util')
 
 const IMPORTANT_STRUCTURE_TYPES = config.IMPORTANT_STRUCTURE_TYPES
 
@@ -7,7 +8,7 @@ global.sendSingleton = function (targetRoomName, number = 1) {
   const level = 8
 
   targetRoomName = targetRoomName.toUpperCase()
-  const base = Overlord.findClosestMyRoom(targetRoomName, level, 2)
+  const base = Overlord.findClosestMyRoom(targetRoomName, level)
 
   if (!base) {
     return `there is no adequate base`
@@ -209,7 +210,10 @@ Creep.prototype.singletonRangedAttack = function () {
 function retreat(creep) {
   const damageArray = creep.room.getDamageArray()
   const adjacents = creep.pos.getAtRange(1)
-  const posToRetreat = getMinObject(adjacents, (pos) => damageArray[packCoord(pos.x, pos.y)] + (pos.isSwamp ? 100 : 0))
+  const posToRetreat = Util.getMinObject(
+    adjacents,
+    (pos) => damageArray[packCoord(pos.x, pos.y)] + (pos.isSwamp ? 100 : 0)
+  )
   if (posToRetreat) {
     const direction = creep.pos.getDirectionTo(posToRetreat)
     creep.move(direction)

@@ -6,7 +6,7 @@ Creep.prototype.healWounded = function () {
   if (wounded.length) {
     const target = this.pos.findClosestByRange(wounded)
     if (this.pos.getRangeTo(target) > 1) {
-      this.moveMy({ pos: target.pos, range: 1 }, { staySafe: false, ignoreMap: 1 })
+      this.moveMy({ pos: target.pos, range: 1 }, { staySafe: false })
     }
     this.heal(target)
     return OK
@@ -57,7 +57,7 @@ Creep.prototype.handleCombatants = function (targets) {
   if (!idealRange) {
     this.say('😱', true)
     if (range > 5 && this.pos.getRangeTo(captain.pos) > 3) {
-      this.moveMy({ pos: captain.pos, range: 3 }, { ignoreCreeps: false, staySafe: false, ignoreMap: 2 })
+      this.moveMy({ pos: captain.pos, range: 3 }, { ignoreCreeps: false, staySafe: false })
       return
     }
     this.fleeFrom(closestTarget, 20, 2)
@@ -71,7 +71,7 @@ Creep.prototype.handleCombatants = function (targets) {
   }
 
   if (range > idealRange) {
-    this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: false, staySafe: false, ignoreMap: 2 })
+    this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: false, staySafe: false })
     return
   }
 

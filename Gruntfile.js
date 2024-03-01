@@ -1,12 +1,12 @@
 module.exports = function (grunt) {
-  const config = require('./.screeps.json');
-  const branch = grunt.option('branch') || config.branch;
-  const email = grunt.option('email') || config.email;
-  const ptr = grunt.option('ptr') ? true : config.ptr;
-  const token = grunt.option('token') ? true : config.token;
-  const password = grunt.option('password') ? true : config.password;
+  const config = require('./.screeps.json')
+  const branch = grunt.option('branch') || config.branch
+  const email = grunt.option('email') || config.email
+  const ptr = grunt.option('ptr') ? true : config.ptr
+  const token = grunt.option('token') ? true : config.token
+  const password = grunt.option('password') ? true : config.password
 
-  grunt.loadNpmTasks('grunt-screeps');
+  grunt.loadNpmTasks('grunt-screeps')
 
   grunt.initConfig({
     screeps: {
@@ -48,10 +48,10 @@ module.exports = function (grunt) {
         src: ['src/*.js'],
       },
     },
-  });
+  })
 
-  grunt.registerTask('default', ['screeps:mmo']);
-  grunt.registerTask('season', ['screeps:season']);
-  grunt.registerTask('private', ['screeps:private']);
-  grunt.registerTask('all', ['screeps:mmo', 'screeps:season', 'screeps:private']);
-};
+  grunt.registerTask('default', ['screeps:mmo'])
+  grunt.registerTask('season', ['screeps:season'])
+  grunt.registerTask('private', ['screeps:private'])
+  grunt.registerTask('all', ['screeps:mmo', 'screeps:season'])
+}

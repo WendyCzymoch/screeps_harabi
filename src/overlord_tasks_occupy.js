@@ -1,10 +1,10 @@
-const { config } = require("./config")
-const { BlinkyRequest } = require("./overlord_tasks_blinky")
+const { config } = require('./config')
+const { BlinkyRequest } = require('./overlord_tasks_blinky')
 
 global.occupy = function (targetRoomName, duration) {
   targetRoomName = targetRoomName.toUpperCase()
 
-  const base = Overlord.findClosestMyRoom(targetRoomName, 6, 2)
+  const base = Overlord.findClosestMyRoom(targetRoomName, 6)
 
   if (!base) {
     return `there is no adequate base`
@@ -83,11 +83,13 @@ Room.prototype.runOccupyTask = function (request) {
       return
     }
 
-    if (!targetRoom.controller.owner) { // controller unowned
+    if (!targetRoom.controller.owner) {
+      // controller unowned
       // claim(targetRoomName)
       // request.result = `claim ${targetRoomName} start. stop to occupy ${targetRoomName}`
       request.complete = true
-    } else if (targetRoom.controller.owner.username !== MY_NAME) { // controller owned by other -> attack!
+    } else if (targetRoom.controller.owner.username !== MY_NAME) {
+      // controller owned by other -> attack!
       const upgradeBlocked = targetRoom.controller.upgradeBlocked || 0
       const disclaimers = Overlord.getCreepsByRole(targetRoomName, 'claimer')
 
@@ -100,11 +102,10 @@ Room.prototype.runOccupyTask = function (request) {
   const tasks = Overlord.getTasksByRoomInCharge(this.name)
   const blinkyTasks = Object.values(tasks['blinky'])
 
-  if (!blinkyTasks.some(request => request.ticksToLive > 600)) {
+  if (!blinkyTasks.some((request) => request.ticksToLive > 600)) {
     const request = new BlinkyRequest(this, targetRoomName, { number: 1, boost: 0 })
     Overlord.registerTask(request)
   }
-
 }
 
 const OccupyRequest = function (room, targetRoomName, options) {

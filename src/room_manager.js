@@ -1,4 +1,5 @@
 const { config } = require('./config')
+const { Util } = require('./util')
 
 global.SPAWN_CAPACITY_THRESHOLD = 0.9
 
@@ -306,7 +307,7 @@ Room.prototype.vacate = function () {
 
           return true
         })
-        const targetTerminal = getMinObject(terminals, (structure) => structure.store[resourceType])
+        const targetTerminal = Util.getMinObject(terminals, (structure) => structure.store[resourceType])
         const amount = Math.min(terminal.store[resourceType], Math.floor(terminal.store[RESOURCE_ENERGY] / 2))
         if (targetTerminal) {
           terminal.send(resourceType, amount, targetTerminal.room.name)
@@ -318,7 +319,7 @@ Room.prototype.vacate = function () {
     if (terminal.store[RESOURCE_ENERGY] > 2000) {
       const otherRooms = Overlord.myRooms.filter((room) => room.terminal && room.name !== this.name)
 
-      const targetRoom = getMinObject(otherRooms, (room) => room.energyLevel)
+      const targetRoom = Util.getMinObject(otherRooms, (room) => room.energyLevel)
 
       const amount = Math.floor(terminal.store[RESOURCE_ENERGY] / 2)
 

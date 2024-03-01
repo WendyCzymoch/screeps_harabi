@@ -1,3 +1,5 @@
+const { Util } = require('./util')
+
 const CPU_THRESHOLD_UP = 1
 const CPU_THRESHOLD_DOWN = 0.85
 const BUCKET_THRESHOLD = 8000
@@ -124,9 +126,7 @@ Overlord.getWorstRemotes = function (number = 1) {
     }
   }
 
-  candidates.sort((a, b) => a.score - b.score)
-
-  return candidates.slice(0, number)
+  return Util.getMinObjects(candidates, (element) => element.score, number)
 }
 
 Overlord.addRemote = function () {

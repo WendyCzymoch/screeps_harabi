@@ -24,10 +24,11 @@ Creep.prototype.blinkyFight = function (targetRoomName, options = {}) {
       if (Overlord.getIsDangerousRoom(exitRoomName)) {
         continue
       }
-      findExits.push(exitDirection)
+      findExits.push(Number(exitDirection))
     }
 
     this.flee({ findExits })
+    this.say('😱', true)
     return
   } else {
     delete this.memory.fleeTime
@@ -84,7 +85,7 @@ Creep.prototype.blinkyFight = function (targetRoomName, options = {}) {
     }
 
     if (range > idealRange) {
-      this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: false, staySafe: false, ignoreMap: 2 })
+      this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: false, staySafe: false })
       return
     }
 
@@ -109,7 +110,7 @@ Creep.prototype.blinkyFight = function (targetRoomName, options = {}) {
     const range = this.pos.getRangeTo(closestTarget)
 
     if (range > idealRange) {
-      this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: false, staySafe: false, ignoreMap: 2 })
+      this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: false, staySafe: false })
       return
     }
 
@@ -134,7 +135,7 @@ Creep.prototype.blinkyFight = function (targetRoomName, options = {}) {
 
     if (targetStructure) {
       if (this.pos.getRangeTo(targetStructure) > 3) {
-        this.moveMy({ pos: targetStructure.pos, range: 3 }, { staySafe: false, ignoreMap: 1 })
+        this.moveMy({ pos: targetStructure.pos, range: 3 }, { staySafe: false })
         return
       }
 
@@ -279,7 +280,8 @@ Creep.prototype.flee = function (options = {}) {
   })
 
   const path = search.path
-  if (!path) {
+
+  if (search.incomplete) {
     this.say(`⚠️`, true)
     return
   }

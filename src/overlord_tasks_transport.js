@@ -50,7 +50,7 @@ Room.prototype.runTransportTask = function (request) {
     request.result = 'No target room'
   }
 
-  const targetStorage = targetRoom.storage
+  const targetStorage = targetRoom.storage || targetRoom.controller.container
   if (!targetStorage) {
     request.complete = true
     request.result = 'Target room has no storage'
@@ -81,12 +81,23 @@ Room.prototype.runTransportTask = function (request) {
     request.pathLength = path.length
   }
 
+  if (!request.numTransporterTarget) {
+    request.numTransporterTarget = Math.ceil((10 * request.pathLength) / 125) // 50e/tick
+  }
+
   const transporters = Overlord.getCreepsByRole(this.name, 'transporter').filter(
     (creep) => (creep.ticksToLive || 1500) > creep.body.length * CREEP_SPAWN_TIME
   )
 
-  if (transporters.length < 5) {
+  if (transporters.length < request.numTransporterTarget) {
     this.requestTransporter(targetRoom.name, request.resourceType, request.pathLength)
+  }
+
+  if (
+    !targetRoom.storage &&
+    targetRoom.laborer.numWork < targetRoom.maxWork + (transporters.length * 1250) / request.pathLength / 2
+  ) {
+    targetRoom.requestLaborer()
   }
 }
 

@@ -177,10 +177,6 @@ Room.prototype.manageRemoteHaulers = function () {
   const sourceStats = {}
 
   for (const remoteName in remoteInfos) {
-    if (this.heap.remoteNameToConstruct && this.heap.remoteNameToConstruct === remoteName) {
-      continue
-    }
-
     const memory = getRoomMemory(remoteName)
 
     if (memory.isCombatant) {
@@ -507,6 +503,8 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
     return
   }
 
+  const numWorkPerSource = 4
+
   const targetRoom = Game.rooms[targetRoomName]
   if (!targetRoom) {
     const remoteBuilders = Overlord.getCreepsByRole(this.name, 'remoteBuilder')
@@ -560,7 +558,7 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
       remoteBuilderNumWork += remoteBuilder.getNumParts(WORK)
     }
 
-    if (remoteBuilderNumWork < 10 * resourceIdsToConstruct.length) {
+    if (remoteBuilderNumWork < numWorkPerSource * resourceIdsToConstruct.length) {
       const laborers = Overlord.getCreepsByRole(this.name, 'laborer')
       const wallMakers = Overlord.getCreepsByRole(this.name, 'wallMaker')
 
@@ -572,7 +570,7 @@ Room.prototype.constructRemote = function (targetRoomName, constructionComplete)
         remoteBuilder.memory.role = remoteBuilder.originalRole
         remoteBuilder.say('🔄', true)
       } else {
-        this.requestRemoteBuilder(10)
+        this.requestRemoteBuilder(numWorkPerSource)
       }
     }
   } else if (roomNameToConstruct === this.name) {
@@ -955,17 +953,17 @@ Room.prototype.requestRemoteBuilder = function (maxWork = 10) {
 }
 
 Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComplete) {
-  const fontSize = 4
-  const opacity = 1
-  const black = '#000000'
-
-  this.memory.currentRemoteIncome = 0
-
   let requested = !this.hasAvailableSpawn()
 
-  if (requested && !Memory.showMapInfo) {
+  if (requested) {
     return
   }
+
+  if (this.heap._nextCheckRemoteSpawnTime && Game.time < this.heap._nextCheckRemoteSpawnTime) {
+    return
+  }
+
+  this.memory.currentRemoteIncome = 0
 
   const needBigMiner = this.getNeedBigMiner()
 
@@ -981,13 +979,13 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
     : Math.min(Math.floor(energyCapacity / 100), 25) // without road
 
   const haulers = Overlord.getCreepsByRole(this.name, 'remoteHauler').filter((creep) => {
-    if (creep.spawning) {
-      return true
-    }
     if (creep.memory.getRecycled) {
       return false
     }
-    return creep.ticksToLive > creep.body.length * CREEP_SPAWN_TIME
+
+    const ticksToSpawn = creep.ticksToLive || 1500 - creep.body.length * CREEP_SPAWN_TIME
+
+    return ticksToSpawn > 0
   })
 
   for (const hauler of haulers) {
@@ -1024,29 +1022,15 @@ Room.prototype.spawnRemoteWorkers = function (remotesToSpawn, constructionComple
       requested = result.requested
       maxCarry = result.maxCarry
     }
+
+    if (requested) {
+      return
+    }
   }
 
-  maxCarry = Math.ceil(maxCarry)
-
-  Game.map.visual.text(`🚚${numCarry}/${maxCarry} `, new RoomPosition(25, 35, this.name), {
-    fontSize,
-    backgroundColor: numCarry >= maxCarry ? black : COLOR_NEON_RED,
-    opacity,
-  })
-
-  if (this.heap.numIdlingRemoteHaulerCarryParts > 0) {
-    const idlingPercentage = Math.floor((this.heap.numIdlingRemoteHaulerCarryParts / numCarry) * 10000) / 100
-    Game.map.visual.text(`😴${idlingPercentage}%`, new RoomPosition(25, 40, this.name), {
-      fontSize,
-      backgroundColor: COLOR_NEON_RED,
-      opacity: 1,
-    })
+  if (!requested) {
+    this.heap._nextCheckRemoteSpawnTime = Game.time + 10
   }
-  Game.map.visual.text(`🚚${numCarry}/${maxCarry} `, new RoomPosition(25, 35, this.name), {
-    fontSize,
-    backgroundColor: numCarry >= maxCarry ? black : COLOR_NEON_RED,
-    opacity,
-  })
 }
 
 Room.prototype.getNeedBigMiner = function () {
@@ -1270,10 +1254,6 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
   const canReserve = this.energyCapacityAvailable >= 650
 
   const reservationTick = getReservationTick(targetRoomName)
-  Game.map.visual.text(`⏰${reservationTick}`, new RoomPosition(49, 45, targetRoomName), {
-    fontSize: 5,
-    align: 'right',
-  })
 
   const status = this.getRemoteStatus(targetRoomName)
 
@@ -1311,15 +1291,15 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
   const targetRoom = Game.rooms[targetRoomName]
 
   const miners = Overlord.getCreepsByRole(targetRoomName, 'remoteMiner').filter((creep) => {
-    if (creep.spawning) {
-      return true
-    }
     const stat = sourceStat[creep.memory.sourceId]
     if (!stat) {
       return false
     }
     const pathLength = sourceStat[creep.memory.sourceId].pathLength
-    return creep.ticksToLive > creep.body.length * CREEP_SPAWN_TIME + pathLength
+
+    const ticksToSpawn = creep.ticksToLive || 1500 - creep.body.length * CREEP_SPAWN_TIME + pathLength
+
+    return ticksToSpawn > 0
   })
 
   for (const miner of miners) {
@@ -1345,34 +1325,6 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
     }
     income -= value.reserve || 0
     this.memory.currentRemoteIncome += income
-  }
-
-  let x = 10
-  const fontSize = 4
-  const opacity = 1
-  const black = '#000000'
-
-  for (const resourceId of resourceIds) {
-    const stat = sourceStat[resourceId]
-    Game.map.visual.text(`⛏️${stat.work}/${maxWork}`, new RoomPosition(x, 20, targetRoomName), {
-      fontSize,
-      backgroundColor: stat.work >= maxWork ? black : COLOR_NEON_RED,
-      opacity,
-    })
-    const source = Game.getObjectById(resourceId)
-    if (source) {
-      const amountNear = source.energyAmountNear
-      Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, 25, targetRoomName), {
-        fontSize,
-        backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED,
-        opacity,
-      })
-    }
-    x += 30
-  }
-
-  if (result.requested) {
-    return result
   }
 
   const memory = getRoomMemory(targetRoomName)

@@ -1,21 +1,21 @@
 Flag.prototype.dismantleRoom = function () {
-  const closestMyRoom = this.findClosestMyRoom();
-  const targetRoomName = this.pos.roomName;
-  const targetRoom = Game.rooms[targetRoomName];
+  const closestMyRoom = this.findClosestMyRoom()
+  const targetRoomName = this.pos.roomName
+  const targetRoom = Game.rooms[targetRoomName]
   const dismantlers = Overlord.getCreepsByRole(targetRoomName, 'dismantler').concat(
     Overlord.getCreepsByRole(closestMyRoom.name, 'dismantler')
-  );
+  )
 
   if (this.memory.completeDismantle === true) {
-    Game.notify(`${this.pos.roomName} dismantle completed`);
+    Game.notify(`${this.pos.roomName} dismantle completed`)
     for (const dismantler of dismantlers) {
-      dismantler.suicide();
+      dismantler.suicide()
     }
-    this.remove();
+    this.remove()
   }
 
   if (!dismantlers.length) {
-    closestMyRoom.requestDismantler(targetRoomName);
+    closestMyRoom.requestDismantler(targetRoomName)
   }
 
   if (this.memory.lastStructure) {
@@ -23,37 +23,37 @@ Flag.prototype.dismantleRoom = function () {
       this.memory.lastStructure.pos.x,
       this.memory.lastStructure.pos.y,
       this.memory.lastStructure.pos.roomName
-    );
+    )
 
     if (targetRoom) {
-      const lastStructure = lastStructurePos.lookFor(LOOK_STRUCTURES)[0];
+      const lastStructure = lastStructurePos.lookFor(LOOK_STRUCTURES)[0]
       if (!lastStructure) {
-        delete this.memory.lastStructure;
-        return;
+        delete this.memory.lastStructure
+        return
       }
-      targetRoom.visual.circle(lastStructure.pos, { fill: 'blue' });
+      targetRoom.visual.circle(lastStructure.pos, { fill: 'blue' })
       targetRoom.visual.text(
         `⛏️${this.memory.lastStructure.numPositions}`,
         lastStructure.pos.x,
         lastStructure.pos.y - 1
-      );
+      )
 
       if (dismantlers.length < this.memory.lastStructure.numPositions) {
-        closestMyRoom.requestDismantler(targetRoomName);
+        closestMyRoom.requestDismantler(targetRoomName)
       }
       for (const dismantler of dismantlers) {
         if (dismantler.room.name === targetRoomName && dismantler.pos.getRangeTo(lastStructure) <= 1) {
-          dismantler.dismantle(lastStructure);
-          continue;
+          dismantler.dismantle(lastStructure)
+          continue
         }
-        dismantler.moveMy({ pos: lastStructurePos, range: 1 }, { ignoreMap: 1 });
+        dismantler.moveMy({ pos: lastStructurePos, range: 1 })
       }
-      return;
+      return
     }
     for (const dismantler of dismantlers) {
-      dismantler.moveMy({ pos: lastStructurePos, range: 1 }, { ignoreMap: 1 });
+      dismantler.moveMy({ pos: lastStructurePos, range: 1 })
     }
-    return;
+    return
   }
 
   if (targetRoom) {
@@ -64,75 +64,71 @@ Flag.prototype.dismantleRoom = function () {
       routeCallback(roomName, fromRoomName) {
         // 현재 creep이 있는 방이면 무조건 쓴다
         if (roomName === targetRoomName) {
-          return 1;
+          return 1
         }
 
         //목적지는 무조건 간다
         if (roomName === closestMyRoom.name) {
-          return 1;
+          return 1
         }
 
         // inaccessible로 기록된 방은 쓰지말자
-        const intel = Overlord.getIntel(roomName);
+        const intel = Overlord.getIntel(roomName)
         if (intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
-          return 25;
+          return 25
         }
 
         // 막혀있거나, novice zone이거나, respawn zone 이면 쓰지말자
         if (Game.map.getRoomStatus(roomName).status !== 'normal') {
-          return Infinity;
+          return Infinity
         }
 
-        const roomCoord = roomName.match(/[a-zA-Z]+|[0-9]+/g);
-        roomCoord[1] = Number(roomCoord[1]);
-        roomCoord[3] = Number(roomCoord[3]);
-        const x = roomCoord[1];
-        const y = roomCoord[3];
+        const roomCoord = roomName.match(/[a-zA-Z]+|[0-9]+/g)
+        roomCoord[1] = Number(roomCoord[1])
+        roomCoord[3] = Number(roomCoord[3])
+        const x = roomCoord[1]
+        const y = roomCoord[3]
         // highway면 cost 1
         if (x % 10 === 0 || y % 10 === 0) {
-          return 1;
+          return 1
         }
 
         // 내가 쓰고 있는 방이면 cost 1
-        const isMy = Game.rooms[roomName] && (Game.rooms[roomName].isMy || Game.rooms[roomName].isMyRemote);
+        const isMy = Game.rooms[roomName] && (Game.rooms[roomName].isMy || Game.rooms[roomName].isMyRemote)
         if (isMy) {
-          return 1;
+          return 1
         }
 
         // 다른 경우에는 cost 2.5
-        return 2.5;
+        return 2.5
       },
-    });
-    const exitDirection = route[0].exit;
-    const exits = targetRoom.find(exitDirection);
+    })
+    const exitDirection = route[0].exit
+    const exits = targetRoom.find(exitDirection)
 
     // controller에서 내 방으로 가는 출구로 가는 길 찾기
     const goals = exits.map((exitPos) => {
-      return { pos: exitPos, range: 1 };
-    });
+      return { pos: exitPos, range: 1 }
+    })
     const path = PathFinder.search(targetRoom.controller.pos, goals, {
       plainCost: 2,
       swampCost: 10,
       maxRooms: 1,
       roomCallback: function (roomName) {
-        const costs = new PathFinder.CostMatrix();
+        const costs = new PathFinder.CostMatrix()
         for (const structure of targetRoom.structures[STRUCTURE_ROAD]) {
-          costs.set(structure.pos.x, structure.pos.y, 1);
+          costs.set(structure.pos.x, structure.pos.y, 1)
         }
         for (const structure of targetRoom.structures.obstacles) {
           if (structure.structureType === STRUCTURE_WALL) {
-            costs.set(
-              structure.pos.x,
-              structure.pos.y,
-              Math.max(20, Math.min(254, Math.ceil(structure.hits / 100000)))
-            );
-            continue;
+            costs.set(structure.pos.x, structure.pos.y, Math.max(20, Math.min(254, Math.ceil(structure.hits / 100000))))
+            continue
           }
-          costs.set(structure.pos.x, structure.pos.y, 10);
+          costs.set(structure.pos.x, structure.pos.y, 10)
         }
         for (const structure of targetRoom.structures.rampart) {
           if (structure.my || structure.isPublic) {
-            continue;
+            continue
           }
           costs.set(
             structure.pos.x,
@@ -141,78 +137,78 @@ Flag.prototype.dismantleRoom = function () {
               20,
               Math.min(254, Math.ceil(costs.get(structure.pos.x, structure.pos.y) + structure.hits / 100000))
             )
-          );
+          )
         }
-        return costs;
+        return costs
       },
-    }).path;
+    }).path
 
     // 길 시각화
     for (let i = 0; i < path.length - 1; i++) {
-      const posNow = path[i];
-      const posNext = path[i + 1];
+      const posNow = path[i]
+      const posNext = path[i + 1]
       if (posNow.roomName === posNext.roomName) {
         new RoomVisual(posNow.roomName).line(posNow, posNext, {
           color: 'red',
           width: 0.15,
           opacity: 0.2,
           lineStyle: 'dashed',
-        });
+        })
       }
     }
 
     //마지막 structure 찾기
-    let lastStructure = undefined;
+    let lastStructure = undefined
     for (const pos of path) {
-      const rampartOnPos = pos.lookFor(LOOK_STRUCTURES).filter((obj) => obj.structureType === 'rampart')[0];
+      const rampartOnPos = pos.lookFor(LOOK_STRUCTURES).filter((obj) => obj.structureType === 'rampart')[0]
       const structureOnPos = pos
         .lookFor(LOOK_STRUCTURES)
-        .filter((obj) => OBSTACLE_OBJECT_TYPES.includes(obj.structureType))[0];
-      lastStructure = rampartOnPos || structureOnPos || lastStructure;
+        .filter((obj) => OBSTACLE_OBJECT_TYPES.includes(obj.structureType))[0]
+      lastStructure = rampartOnPos || structureOnPos || lastStructure
     }
 
     // lastStructure 있음
     if (lastStructure) {
-      targetRoom.visual.circle(lastStructure.pos, { fill: 'blue' });
-      const lastStructurePos = { x: lastStructure.pos.x, y: lastStructure.pos.y, roomName: targetRoomName };
-      const costs = targetRoom.getDefenseCostMatrix(0, { checkResult: true, exitDirection: exitDirection });
-      const openPositions = lastStructure.pos.getAtRange(1).filter((pos) => costs.get(pos.x, pos.y) === 200);
+      targetRoom.visual.circle(lastStructure.pos, { fill: 'blue' })
+      const lastStructurePos = { x: lastStructure.pos.x, y: lastStructure.pos.y, roomName: targetRoomName }
+      const costs = targetRoom.getDefenseCostMatrix(0, { checkResult: true, exitDirection: exitDirection })
+      const openPositions = lastStructure.pos.getAtRange(1).filter((pos) => costs.get(pos.x, pos.y) === 200)
       for (const pos of openPositions) {
-        targetRoom.visual.circle(pos, { fill: 'yellow' });
+        targetRoom.visual.circle(pos, { fill: 'yellow' })
       }
-      this.memory.lastStructure = { pos: lastStructurePos, numPositions: openPositions.length };
-      return;
+      this.memory.lastStructure = { pos: lastStructurePos, numPositions: openPositions.length }
+      return
     }
 
     // lastStructure 없음
-    this.memory.completeDismantle = true;
-    return;
+    this.memory.completeDismantle = true
+    return
   }
 
   // lastStructureMemory도 없고 targetRoom도 안보임.
   for (const dismantler of dismantlers) {
-    dismantler.moveToRoom(targetRoomName, true);
+    dismantler.moveToRoom(targetRoomName, true)
   }
-};
+}
 
 Room.prototype.requestDismantler = function (targetRoomName) {
   if (!this.hasAvailableSpawn()) {
-    return;
+    return
   }
 
-  let body = [];
+  let body = []
   for (let i = 0; i < Math.min(16, Math.floor(this.energyAvailable / 250)); i++) {
-    body.push(MOVE, WORK, WORK);
+    body.push(MOVE, WORK, WORK)
   }
-  const name = `${targetRoomName} dismantler ${Game.time}_${this.spawnQueue.length}`;
+  const name = `${targetRoomName} dismantler ${Game.time}_${this.spawnQueue.length}`
 
   const memory = {
     role: 'dismantler',
-  };
+  }
 
-  const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['dismantler'] });
-  this.spawnQueue.push(request);
-};
+  const request = new RequestSpawn(body, name, memory, { priority: SPAWN_PRIORITY['dismantler'] })
+  this.spawnQueue.push(request)
+}
 
 Creep.prototype.dismantleToController = function (roomName) {
   if (
@@ -223,11 +219,11 @@ Creep.prototype.dismantleToController = function (roomName) {
     )
   ) {
     if (this.room.name !== roomName) {
-      return this.moveToRoom(roomName, true);
+      return this.moveToRoom(roomName, true)
     }
-    this.heap.dismantleToController = this.heap.dismantleToController || {};
+    this.heap.dismantleToController = this.heap.dismantleToController || {}
 
-    const controller = this.room.controller;
+    const controller = this.room.controller
 
     const path = PathFinder.search(
       this.pos,
@@ -237,71 +233,71 @@ Creep.prototype.dismantleToController = function (roomName) {
         swampCost: 10,
         maxRooms: 3,
         roomCallback: function (callbackRoomName) {
-          const room = Game.rooms[callbackRoomName];
+          const room = Game.rooms[callbackRoomName]
           if (!room) {
-            return;
+            return
           }
           if (callbackRoomName === roomName) {
-            return room.costmatrixForBattle;
+            return room.costmatrixForBattle
           }
-          return room.basicCostmatrix;
+          return room.basicCostmatrix
         },
       }
-    ).path;
-    this.heap.dismantleToController.path = path;
-    this.heap.dismantleToController.targetPos = controller.pos;
+    ).path
+    this.heap.dismantleToController.path = path
+    this.heap.dismantleToController.targetPos = controller.pos
   }
 
-  const path = this.heap.dismantleToController.path;
+  const path = this.heap.dismantleToController.path
   for (let i = 0; i < path.length - 1; i++) {
-    const posNow = path[i];
-    const posNext = path[i + 1];
+    const posNow = path[i]
+    const posNext = path[i + 1]
     if (posNow.roomName === posNext.roomName) {
       new RoomVisual(posNow.roomName).line(posNow, posNext, {
         color: 'aqua',
         width: 0.15,
         opacity: 0.2,
         lineStyle: 'dashed',
-      });
+      })
     }
   }
 
   if (this.room.name !== roomName) {
     if (this.fatigue) {
-      return;
+      return
     }
     if (this.moveByPath(path) !== OK) {
-      delete this.heap.dismantleToController;
-      return;
+      delete this.heap.dismantleToController
+      return
     }
-    path.shift();
+    path.shift()
   }
 
   if (this.pos.getRangeTo(this.room.controller) <= 1) {
-    this.room.memory.completeDismantle = true;
-    return OK;
+    this.room.memory.completeDismantle = true
+    return OK
   }
 
   if (this.pos.isEqualTo(path[0])) {
-    path.shift();
+    path.shift()
   }
 
   if (!path[0]) {
-    return;
+    return
   }
 
   let structureOnPath = path[0]
     .lookFor(LOOK_STRUCTURES)
-    .filter((obj) => OBSTACLE_OBJECT_TYPES.includes(obj.structureType))[0];
-  let rampartOnPath = path[0].lookFor(LOOK_STRUCTURES).filter((obj) => obj.structureType === 'rampart')[0];
+    .filter((obj) => OBSTACLE_OBJECT_TYPES.includes(obj.structureType))[0]
+  let rampartOnPath = path[0].lookFor(LOOK_STRUCTURES).filter((obj) => obj.structureType === 'rampart')[0]
   if (rampartOnPath) {
-    this.dismantle(rampartOnPath);
-    return;
+    this.dismantle(rampartOnPath)
+    return
   }
   if (structureOnPath) {
-    this.dismantle(structureOnPath);
-    return;
+    this.dismantle(structureOnPath)
+    return
   }
-  this.move(this.pos.getDirectionTo(path[0]));
-  return;
-};
+  this.move(this.pos.getDirectionTo(path[0]))
+  return
+}

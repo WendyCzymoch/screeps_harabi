@@ -1,8 +1,6 @@
 const { config } = require('./config')
 const { toTwoDigits } = require('./data')
 
-const profiler = require('screeps-profiler')
-
 INTEL_EXPIRATION_TICK = 60000
 
 global.Overlord = {
@@ -414,5 +412,3 @@ Overlord.memHack = {
 }
 
 Overlord.memHack.register()
-
-profiler.registerObject(Overlord, 'Overlord')

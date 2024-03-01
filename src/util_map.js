@@ -1,9 +1,5 @@
-const MinHeap = require('./util_min_heap')
-
 class MapUtil {
-  constructor() {}
-
-  roomNameToCoord(roomName) {
+  static roomNameToCoord(roomName) {
     const quad = roomName.match(/[NSEW]/g)
     const coords = roomName.match(/[0-9]+/g)
     const x = Number(coords[0])
@@ -11,13 +7,13 @@ class MapUtil {
     return { x: quad[0] === 'W' ? -1 - x : x, y: quad[1] === 'S' ? -1 - y : y }
   }
 
-  roomCoordToName(roomCoord) {
+  static roomCoordToName(roomCoord) {
     const x = roomCoord.x
     const y = roomCoord.y
     return (x < 0 ? 'W' + String(-x - 1) : 'E' + String(x)) + (y < 0 ? 'S' + String(-y - 1) : 'N' + String(y))
   }
 
-  getRoomNamesInRange(roomName, distance) {
+  static getRoomNamesInRange(roomName, distance) {
     const size = 2 * distance + 1
 
     const roomCoord = this.roomNameToCoord(roomName)
@@ -43,7 +39,7 @@ class MapUtil {
    * @param {Function} roomCallback function that checks if a room is we are looking for.
    *                                only one argument (roomName) is accepted
    */
-  findClosestBySafeRoute(roomName, roomCallback, maxDepth = 10) {
+  static findClosestBySafeRoute(roomName, roomCallback, maxDepth = 10) {
     const depthCache = {}
     depthCache[roomName] = 0
     const queue = [roomName]
@@ -51,7 +47,7 @@ class MapUtil {
     while (queue.length > 0) {
       const current = queue.shift()
       const depthCurrent = depthCache[current]
-      const adjacents = Object.values(Game.map.describeExits(current))
+      const adjacents = this.getAdjacents(current)
 
       for (const adjacent of adjacents) {
         if (depthCache[adjacent] !== undefined) {
@@ -67,7 +63,6 @@ class MapUtil {
         }
 
         if (roomCallback(adjacent)) {
-          console.log(`found ${adjacent}`)
           return adjacent
         }
 
@@ -86,7 +81,37 @@ class MapUtil {
     return undefined
   }
 
-  isSafe(roomName) {
+  static getAdjacents(roomName) {
+    const neighbors = Object.values(Game.map.describeExits(roomName))
+
+    if (!Memory.rooms[roomName]) {
+      return neighbors
+    }
+
+    const portalInfo = Memory.rooms[roomName].portalInfo
+
+    if (!portalInfo) {
+      return neighbors
+    }
+
+    const portalInfoValues = Object.values(portalInfo)
+
+    if (!portalInfoValues || portalInfoValues.length === 0) {
+      return neighbors
+    }
+
+    const info = portalInfoValues.find((info) => !info.shard)
+
+    if (!info || !info.roomName) {
+      return neighbors
+    }
+
+    neighbors.push(info.roomName)
+
+    return neighbors
+  }
+
+  static isSafe(roomName) {
     const roomIntel = Overlord.getIntel(roomName)
 
     if (roomIntel[scoutKeys.isMy] || roomIntel[scoutKeys.isMyRemote]) {
@@ -112,5 +137,5 @@ class MapUtil {
 }
 
 module.exports = {
-  MapUtil: new MapUtil(),
+  MapUtil,
 }

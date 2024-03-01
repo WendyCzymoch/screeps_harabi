@@ -118,6 +118,7 @@ Room.prototype.manageScout = function () {
         break outer
       }
     }
+    delete status.depth
     status.state = 'wait'
     break outer
   }
@@ -314,6 +315,8 @@ Room.prototype.analyzeIntel = function () {
         const claimScore = this.getClaimScore()
         result[scoutKeys.claimScore] = claimScore
       }
+    } else {
+      result[scoutKeys.isRemoteCandidate] = true
     }
   }
 

@@ -4,7 +4,7 @@ global.sendQuad = function (targetRoomName, modelNumber) {
   const level = Math.floor(modelNumber / 10) || 7
 
   targetRoomName = targetRoomName.toUpperCase()
-  const base = Overlord.findClosestMyRoom(targetRoomName, level, 2)
+  const base = Overlord.findClosestMyRoom(targetRoomName, level)
 
   if (!base) {
     return `there is no adequate base`
