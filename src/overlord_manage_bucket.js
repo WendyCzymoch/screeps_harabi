@@ -28,7 +28,7 @@ Overlord.getBlockedRemoteNames = function () {
 Overlord.manageBucket = function () {
   const averageCpu = this.getAverageCpu()
 
-  if (Memory._manageBucketTime && Game.time < Memory._nextManageBucketTime) {
+  if (Memory._nextManageBucketTime && Game.time < Memory._nextManageBucketTime) {
     return
   }
 

@@ -174,6 +174,32 @@ Room.prototype.manageRemoteHaulers = function () {
     return
   }
 
+  const haulers = Overlord.getCreepsByRole(this.name, 'remoteHauler').filter((creep) => {
+    if (creep.spawning) {
+      return false
+    }
+    return true
+  })
+
+  const freeHaulers = []
+  const fetchingHaulers = []
+
+  for (const hauler of haulers) {
+    if (hauler.memory.targetRoomName) {
+      runRemoteHauler(hauler)
+      if (!hauler.memory.supplying) {
+        fetchingHaulers.push(hauler)
+      }
+    }
+    if (!hauler.memory.targetRoomName) {
+      freeHaulers.push(hauler)
+    }
+  }
+
+  if (!freeHaulers.length === 0) {
+    return
+  }
+
   const sourceStats = {}
 
   for (const remoteName in remoteInfos) {
@@ -213,32 +239,10 @@ Room.prototype.manageRemoteHaulers = function () {
     }
   }
 
-  const haulers = Overlord.getCreepsByRole(this.name, 'remoteHauler').filter((creep) => {
-    if (creep.spawning) {
-      return false
+  for (const hauler of fetchingHaulers) {
+    if (hauler.memory.sourceId && sourceStats[hauler.memory.sourceId]) {
+      sourceStats[hauler.memory.sourceId].energyAmountNear -= hauler.store.getCapacity()
     }
-    if (creep.memory.getRecycled) {
-      return false
-    }
-    return true
-  })
-
-  const freeHaulers = []
-
-  for (const hauler of haulers) {
-    if (hauler.memory.targetRoomName) {
-      runRemoteHauler(hauler)
-      if (!hauler.memory.supplying && hauler.memory.sourceId && sourceStats[hauler.memory.sourceId]) {
-        sourceStats[hauler.memory.sourceId].energyAmountNear -= hauler.store.getCapacity()
-      }
-    }
-    if (!hauler.memory.targetRoomName) {
-      freeHaulers.push(hauler)
-    }
-  }
-
-  if (!freeHaulers.length === 0) {
-    return
   }
 
   for (const hauler of freeHaulers) {

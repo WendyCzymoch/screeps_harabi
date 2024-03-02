@@ -385,7 +385,7 @@ Room.prototype.getMaxWork = function () {
       return 0
     }
 
-    const upgrading = (this.heap.upgrading = this.energyLevel >= config.energyLevel.UPGRADE)
+    const upgrading = (this.heap.upgrading = this.energyLevel >= config.energyLevel.UPGRADE_MAX_RCL)
 
     // if constructing, maxWork = energyLevel * 5
     if (constructing) {

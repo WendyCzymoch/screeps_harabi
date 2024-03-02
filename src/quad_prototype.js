@@ -1124,7 +1124,7 @@ Quad.prototype.getRallyExit = function (targetRoomName) {
 
   const thisRoomName = this.roomName
 
-  const route = Overlord.findRoutesWithPortal(thisRoomName, targetRoomName, 2)
+  const route = Overlord.findRoutesWithPortal(thisRoomName, targetRoomName)
 
   if (route === ERR_NO_PATH) {
     return undefined

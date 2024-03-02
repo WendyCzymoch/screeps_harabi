@@ -63,7 +63,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
         return ERR_NO_PATH
       }
 
-      routes = this.findRoutesWithPortal(startPos.roomName, targetRoomName, ignoreMap)
+      routes = this.findRoutesWithPortal(startPos.roomName, targetRoomName)
     }
 
     if (routes === ERR_NO_PATH) {
@@ -213,25 +213,32 @@ function getPortalPositions(roomName, toRoomName) {
   })
 }
 
-Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap = 1) {
+Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, options) {
+  const defaultOptions = { maxRooms: 16 }
+  const mergedOptions = { ...defaultOptions, ...options }
+  const { maxRooms } = mergedOptions
+
   const costs = {}
   costs[startRoomName] = 0
 
   const previous = []
   const queue = new MinHeap((roomName) => costs[roomName])
   const portalSet = {}
+  const depthCache = {}
+  depthCache[startRoomName] = 0
 
   queue.insert(startRoomName)
 
   const cpuBefore = Game.cpu.getUsed()
 
   while (queue.getSize() > 0) {
-    if (Game.cpu.getUsed() - cpuBefore > 30) {
-      console.log(`used too much cpu`)
+    if (Game.cpu.getUsed() - cpuBefore > 10) {
+      console.log(`Using too much cpu to find route from ${startRoomName} to ${goalRoomName}`)
       return ERR_NO_PATH
     }
 
     const current = queue.remove()
+    const currentDepth = depthCache[current]
 
     if (current === goalRoomName) {
       break
@@ -252,16 +259,22 @@ Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, ignoreMap
     }
 
     for (const neighbor of neighbors) {
-      const cost = getRoomCost(startRoomName, goalRoomName, neighbor, ignoreMap)
+      const cost = getRoomCost(startRoomName, goalRoomName, neighbor)
       if (cost === Infinity) {
         continue
       }
+
       const afterCost = currentCost + cost
+
       const beforeCost = costs[neighbor] !== undefined ? costs[neighbor] : Infinity
+
       if (afterCost < beforeCost) {
         costs[neighbor] = afterCost
         previous[neighbor] = current
-        queue.insert(neighbor)
+        depthCache[neighbor] = currentDepth + 1
+        if (depthCache[neighbor] < maxRooms) {
+          queue.insert(neighbor)
+        }
       }
     }
   }

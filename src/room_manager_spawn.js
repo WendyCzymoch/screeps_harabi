@@ -356,6 +356,8 @@ Room.prototype.getDesiredWallMakerCount = function () {
     if (hits < threshold) {
       return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 1)
     }
+  } else if (hits < 5000) {
+    return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 1)
   }
 
   return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = 0)
