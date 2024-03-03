@@ -171,22 +171,6 @@ global.checkCPU = function (name) {
   Game._cpu = cpu
 }
 
-global.claim = function (targetRoomName, baseName) {
-  targetRoomName = targetRoomName.toUpperCase()
-  const base = baseName ? Game.rooms[baseName.toUpperCase()] : Overlord.findClosestMyRoom(targetRoomName, 4, 12)
-  baseName = base.name
-  base.memory.claimRoom = base.memory.claimRoom || {}
-  base.memory.claimRoom[targetRoomName] = base.memory.claimRoom[targetRoomName] || {}
-  return `${baseName} starts claim protocol to ${targetRoomName}`
-}
-
-global.cancelAllClaim = function () {
-  const myRooms = Overlord.myRooms
-  for (const room of myRooms) {
-    delete room.memory.claimRoom
-  }
-}
-
 global.visual = function () {
   if (data.visualize) {
     data.visualize = false

@@ -34,6 +34,8 @@ global.scoutKeys = {
   depth: 21,
 
   enemyStrength: 22,
+
+  claimFailure: 23,
 }
 
 Room.prototype.manageScout = function () {
@@ -474,7 +476,13 @@ Room.prototype.getClaimScore = function () {
 
   neighborScore = Math.clamp(neighborScore, 0, 1)
 
-  return ((swampScore + sourceScore + mineralScore + neighborScore + remoteScore) / 5).toFixedNumber(2)
+  const roomIntel = Overlord.getIntel(this.name)
+
+  const numFailure = roomIntel[scoutKeys.claimFailure] || 0
+
+  const failureScore = Math.clamp(1 - numFailure * 0.5, 0, 1)
+
+  return ((swampScore + sourceScore + mineralScore + neighborScore + remoteScore + failureScore) / 6).toFixedNumber(2)
 }
 
 function getMineralCount() {

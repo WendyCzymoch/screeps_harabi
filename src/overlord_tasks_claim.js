@@ -38,6 +38,13 @@ Overlord.manageClaimTasks = function () {
         request.roomName
       )
       this.deleteTask(request)
+
+      if (request.result !== 'success') {
+        const intel = Overlord.getIntel(request.roomName)
+        intel[scoutKeys.claimFailure] = intel[scoutKeys.claimFailure] || 0
+        intel[scoutKeys.claimFailure] += 1
+        delete intel[scoutKeys.claimScore]
+      }
       continue
     }
 
@@ -66,6 +73,16 @@ Room.prototype.runClaimTask = function (request) {
   if (targetRoom && targetRoom.controller.owner && targetRoom.controller.owner.username !== MY_NAME) {
     request.result = 'taken'
     request.complete = true
+    return
+  }
+
+  if (
+    request.isClaimed &&
+    (!targetRoom || !targetRoom.controller.owner || !targetRoom.controller.owner.username !== MY_NAME)
+  ) {
+    request.result = 'unclaimed'
+    request.complete = true
+    return
   }
 
   // defense part
@@ -98,13 +115,15 @@ Room.prototype.runClaimTask = function (request) {
   }
 
   // claim part
-  request.isClaimed = targetRoom && targetRoom.isMy
 
   if (!request.isClaimed) {
-    request.isClaimed = false
-    const claimer = Overlord.getCreepsByRole(roomName, 'claimer')[0]
-    if (!claimer) {
-      this.requestClaimer(roomName)
+    if (targetRoom && targetRoom.isMy) {
+      request.isClaimed = true
+    } else {
+      const claimer = Overlord.getCreepsByRole(roomName, 'claimer')[0]
+      if (!claimer) {
+        this.requestClaimer(roomName)
+      }
     }
   }
 

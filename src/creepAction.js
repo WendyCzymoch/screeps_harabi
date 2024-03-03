@@ -399,10 +399,13 @@ function guard(creep) {
     return
   }
 
-  const enemyCombatants = creep.room.getEnemyCombatants()
+  const enemyCombatants = creep.room.getEnemyCombatants().filter((creep) => creep.owner.username !== 'Source Keeper')
+
+  if (enemyCombatants.length > 0 || creep.hits < creep.hitsMax) {
+    creep.healWounded()
+  }
 
   if (enemyCombatants.length > 0) {
-    creep.healWounded()
     creep.activeRangedAttack()
     creep.handleCombatants(enemyCombatants)
     return

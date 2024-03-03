@@ -42,8 +42,6 @@ Room.prototype.runRoomManager = function () {
     this.manageExtractor()
     this.manageFactory()
 
-    this.manageClaim()
-
     this.manageScout()
     this.defenseNuke()
 

@@ -144,10 +144,10 @@ Room.prototype.guardRoom = function (request) {
     request.try = true
   }
 
-  if (!request.cleared && request.isEnemy === false) {
+  if (!request.cleared && !request.isEnemy) {
     request.cleared = true
     request.clearedTick = Game.time
-  } else if (request.cleared && request.isEnemy === true) {
+  } else if (request.cleared && request.isEnemy) {
     request.cleared = false
   }
 

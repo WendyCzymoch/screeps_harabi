@@ -21,7 +21,7 @@ Flag.prototype.manageClearAll = function () {
     for (const powerCreep of targetRoom.find(FIND_MY_POWER_CREEPS)) {
       powerCreep.suicide()
     }
-    // targetRoom.controller.unclaim()
+    targetRoom.controller.unclaim()
     delete Memory.rooms[targetRoomName]
     this.remove()
     return
