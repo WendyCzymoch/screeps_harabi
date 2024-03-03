@@ -60,6 +60,25 @@ Room.prototype.operateFactory = function () {
     return ERR_NOT_ENOUGH_RESOURCES
   }
 
+  if (factory.store.getFreeCapacity() < 1000) {
+    const notNecessaryResource = Object.keys(factory.store).find(
+      (resourceType) =>
+        resourceType !== RESOURCE_ENERGY &&
+        (!components[resourceType] || factory.store[resourceType] > components[resourceType] + 1000)
+    )
+
+    const targetStorage = [terminal, storage].find((structure) => structure && structure.store.getFreeCapacity() > 5000)
+
+    if (notNecessaryResource && targetStorage) {
+      if (!researcher) {
+        this.heap.needResearcher = true
+        return ERR_BUSY
+      }
+      researcher.getDeliveryRequest(factory, targetStorage, notNecessaryResource)
+      return ERR_FULL
+    }
+  }
+
   const componentNames = Object.keys(components)
 
   for (const component of componentNames) {
@@ -83,23 +102,6 @@ Room.prototype.operateFactory = function () {
         researcher.getDeliveryRequest(storage, factory, component)
         return ERR_NOT_ENOUGH_RESOURCES
       }
-    }
-  }
-
-  if (factory.store.getFreeCapacity() < 1000) {
-    const notNecessaryResource = Object.keys(factory.store).find(
-      (resourceType) => !components[resourceType] || factory.store[resourceType] > components[resourceType] + 1000
-    )
-
-    const targetStorage = [terminal, storage].find((structure) => structure && structure.store.getFreeCapacity() > 5000)
-
-    if (notNecessaryResource && targetStorage) {
-      if (!researcher) {
-        this.heap.needResearcher = true
-        return ERR_BUSY
-      }
-      researcher.getDeliveryRequest(factory, targetStorage, notNecessaryResource)
-      return ERR_FULL
     }
   }
 

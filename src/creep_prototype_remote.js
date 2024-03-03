@@ -303,7 +303,8 @@ Creep.prototype.moveByRemotePath = function (path, options = {}) {
   const result = reverse ? this.moveByPathMyReverse(path) : this.moveByPathMy(path)
 
   if (result !== OK) {
-    let startPositions = reverse ? path.slice(path.length - 10) : path.slice(0, 10)
+    let startPositions = path
+    // let startPositions = reverse ? path.slice(path.length - 10) : path.slice(0, 10)
 
     const goals = startPositions.map((pos) => {
       return { pos, range: 0 }

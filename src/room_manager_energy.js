@@ -11,7 +11,7 @@ const ENERGY_PRIORITY = {
   lab: 1,
   tower: 1,
   link: 1,
-  container: 2,
+  container: 3,
   terminal: 7,
   factory: 9,
   nuker: 10,
@@ -59,8 +59,8 @@ function Request(client) {
 
   if (client.structureType) {
     this.priority = ENERGY_PRIORITY[client.structureType]
-  } else if (!client.working || client.memory.idBuilder) {
-    this.priority = 3
+  } else if (client.memory.isBuilder) {
+    this.priority = 2
     this.amount += client.store.getCapacity()
   } else if (client.store.getUsedCapacity() / client.store.getCapacity() < 0.5) {
     this.priority = 4
@@ -302,6 +302,7 @@ Creep.prototype.setTargetId = function (targetId) {
 
 Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
   const requests = this.getEnergyRequests()
+
   if (requests.size === 0) {
     const spawn = this.structures.spawn[0]
     if (!spawn) {
@@ -312,7 +313,9 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
     }
     return
   }
+
   const applicants = []
+
   for (const creep of arrayOfCreeps) {
     if (creep.heap.engaged) {
       const client = Game.getObjectById(creep.heap.engaged.id)
@@ -321,10 +324,12 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
       delete creep.heap.engaged
       let pushed = false
 
+      // technically not engaged
       if (!client || client.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
         applicants.push(new Applicant(creep))
         continue
       }
+
       // if energy supply is suceeded, creep is free again
       if (client && creep.transfer(client, RESOURCE_ENERGY) === OK) {
         if (amountLeft > 0) {
@@ -337,6 +342,7 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
       }
 
       const request = requests.get(client.id)
+
       if (request) {
         request.amount -= creep.store.getUsedCapacity(RESOURCE_ENERGY)
         if (!pushed) {
@@ -388,11 +394,14 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
     }
     for (const request of freeRequests) {
       const bestApplicant = request.applicants.remove()
+      // if target creep is not engaged, engage
       if (!bestApplicant.engaged) {
         request.amount -= bestApplicant.amount
         bestApplicant.engaged = request
         continue
       }
+
+      // target creep is engaged.
       const existingRequest = bestApplicant.engaged
       if (existingRequest.priority < request.priority) {
         continue

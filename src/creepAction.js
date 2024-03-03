@@ -578,12 +578,11 @@ function sourceKeeperHandler(creep) {
     return
   }
 
-  if (creep.hits < creep.hitsMax) {
-    creep.heal(creep)
-  }
-
   if (getRoomMemory(roomName).isCombatant) {
     runAway(creep, creep.memory.base)
+    if (creep.hits < creep.hitsMax) {
+      creep.heal(creep)
+    }
     return
   }
 
@@ -591,6 +590,9 @@ function sourceKeeperHandler(creep) {
 
   if (!room || creep.room.name !== roomName) {
     creep.moveToRoom(roomName, 2)
+    if (creep.hits < creep.hitsMax) {
+      creep.heal(creep)
+    }
     return
   }
 
@@ -615,6 +617,9 @@ function sourceKeeperHandler(creep) {
     if (nextSourceKeeperLair) {
       creep.moveMy({ pos: nextSourceKeeperLair.pos, range: 1 })
     }
+    if (creep.hits < creep.hitsMax) {
+      creep.heal(creep)
+    }
     return
   } else {
     delete creep.heap.nextSourceKeeperLair
@@ -631,6 +636,9 @@ function sourceKeeperHandler(creep) {
     return { pos: sourceKeeper.pos, range: 1 }
   })
   creep.moveMy(goals)
+  if (creep.hits < creep.hitsMax) {
+    creep.heal(creep)
+  }
   return
 }
 

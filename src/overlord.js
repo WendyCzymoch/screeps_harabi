@@ -393,22 +393,22 @@ Object.defineProperties(Creep.prototype, {
   },
 })
 
-Overlord.memHack = {
-  memory: null,
-  parseTime: -1,
-  register() {
-    const start = Game.cpu.getUsed()
-    this.memory = Memory
-    const end = Game.cpu.getUsed()
-    this.parseTime = end - start
-    console.log(this.parseTime)
-    this.memory = RawMemory._parsed
-  },
-  pretick() {
-    delete global.Memory
-    global.Memory = this.memory
-    RawMemory._parsed = this.memory
-  },
-}
+// Overlord.memHack = {
+//   memory: null,
+//   parseTime: -1,
+//   register() {
+//     const start = Game.cpu.getUsed()
+//     this.memory = Memory
+//     const end = Game.cpu.getUsed()
+//     this.parseTime = end - start
+//     console.log(this.parseTime)
+//     this.memory = RawMemory._parsed
+//   },
+//   pretick() {
+//     delete global.Memory
+//     global.Memory = this.memory
+//     RawMemory._parsed = this.memory
+//   },
+// }
 
-Overlord.memHack.register()
+// Overlord.memHack.register()

@@ -2,7 +2,7 @@ const { BlinkyRequest } = require('./overlord_tasks_blinky')
 
 global.claimRoom = function (targetRoomName, baseName = undefined) {
   targetRoomName = targetRoomName.toUpperCase()
-  const tasks = this.getTasksWithCategory('claim')
+  const tasks = Overlord.getTasksWithCategory('claim')
   if (tasks[targetRoomName]) {
     return ERR_FULL
   }
@@ -29,7 +29,11 @@ Overlord.manageClaimTasks = function () {
 
     if (!roomInCharge) {
       this.deleteTask(request)
-      return 'no room in charge'
+      data.recordLog(
+        `CLAIM: ${roomNameInCharge} claim ${request.roomName} completed. no room in charge`,
+        request.roomName
+      )
+      continue
     }
 
     if (request.complete) {
@@ -78,7 +82,7 @@ Room.prototype.runClaimTask = function (request) {
 
   if (
     request.isClaimed &&
-    (!targetRoom || !targetRoom.controller.owner || !targetRoom.controller.owner.username !== MY_NAME)
+    (!targetRoom || !targetRoom.controller.owner || targetRoom.controller.owner.username !== MY_NAME)
   ) {
     request.result = 'unclaimed'
     request.complete = true
