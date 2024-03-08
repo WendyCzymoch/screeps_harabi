@@ -126,7 +126,7 @@ Room.prototype.runMineralTask = function (request) {
     return
   }
 
-  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < 600) {
+  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < config.secondsToStopTasks) {
     request.result = 'closed'
     request.completed = true
     return

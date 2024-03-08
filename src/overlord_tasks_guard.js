@@ -79,7 +79,7 @@ Room.prototype.guardRoom = function (request) {
     return
   }
 
-  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(roomName) < 600) {
+  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(roomName) < config.secondsToStopTasks) {
     request.result = 'closed'
     request.completed = true
     for (const guard of guardGroups.total) {

@@ -39,7 +39,6 @@ class CreepUtil {
 
       break
     }
-
     const body = parseBody(`${work - 1}w${carry}c${move}m1w`)
 
     return { body, numWork: work, cost }

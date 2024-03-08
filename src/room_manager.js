@@ -15,7 +15,10 @@ Room.prototype.runRoomManager = function () {
     this.abandonRoom()
   }
 
-  if (this.memory.vacate || (config.seasonNumber === 6 && Overlord.getSecondsToClose(this.name) < 5000)) {
+  if (
+    this.memory.vacate ||
+    (config.seasonNumber === 6 && Overlord.getSecondsToClose(this.name) < config.secondsToStartEmpty)
+  ) {
     this.memory.vacate = true
     this.vacate()
   }

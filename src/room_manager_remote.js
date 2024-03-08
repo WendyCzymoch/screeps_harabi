@@ -37,7 +37,7 @@ Room.prototype.manageRemotes = function () {
   outer: for (const info of activeRemotes) {
     const targetRoomName = info.remoteName
 
-    if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < 600) {
+    if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < config.secondsToStopTasks) {
       // less than 10 minutes left
       this.deleteRemote(targetRoomName)
       return

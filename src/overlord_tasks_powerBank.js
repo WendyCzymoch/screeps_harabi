@@ -100,7 +100,7 @@ Room.prototype.runPowerBankRequest = function (powerBankRequest) {
     return
   }
 
-  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < 1000) {
+  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < config.secondsToStopTasks) {
     powerBankRequest.completed = true
     return
   }

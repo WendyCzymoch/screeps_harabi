@@ -1,47 +1,99 @@
+const { RoomPostionUtils } = require('./util_roomPosition')
+
 global.TRAFFIC_TEST = false
 
-const CPU_CHECK = false
-
 Room.prototype.manageTraffic = function () {
-  const CPUbefore = CPU_CHECK ? Game.cpu.getUsed() : undefined
-
   const creeps = this.find(FIND_MY_CREEPS)
-  const movingCreepIndexes = []
 
-  const costs = barrierCosts.clone() // CostMatrix which is filled with 255
+  const dist = {}
+  const match = {}
 
-  for (let a = 0; a < creeps.length; a++) {
-    const creep = creeps[a]
-    costs.set(creep.pos.x, creep.pos.y, a)
-    if (creep.getNextPos()) {
-      movingCreepIndexes.push(a)
-    }
-  }
-
-  const visited = new Uint8Array(creeps.length)
-
-  for (const a of movingCreepIndexes) {
-    const creep = creeps[a]
-    if (!creep._matchedPos) {
-      this.dfs(a, creeps, visited, costs)
-    }
-  }
-
-  let numMoved = 0
+  const movingCreeps = []
   for (const creep of creeps) {
-    const matchedPos = creep._matchedPos
-    if (matchedPos) {
-      const direction = creep.pos.getDirectionTo(matchedPos)
-      if (creep.move(direction) === OK) {
-        numMoved++
+    const nextPos = creep.getNextPos()
+    if (!nextPos) {
+      const packedCoord = RoomPostionUtils.packCoord(creep.pos)
+      match[packedCoord] = creep
+      creep.matchedPos = creep.pos
+    } else if (creep.checkEmpty(nextPos) === OK) {
+      const packedCoord = RoomPostionUtils.packCoord(nextPos)
+      match[packedCoord] = creep
+      creep.matchedPos = nextPos
+    } else {
+      movingCreeps.push(creep)
+    }
+  }
+
+  while (bfs(creeps, dist, match)) {
+    for (const creep of movingCreeps) {
+      if (!creep.matchedPos) {
+        dfs(creep, dist, match)
       }
     }
   }
 
-  if (CPU_CHECK && this.isMy) {
-    const usedCPU = Game.cpu.getUsed() - CPUbefore - numMoved * 0.2
-    console.log(`use ${(usedCPU / numMoved).toFixed(2)} cpu for each move`)
+  for (const creep of creeps) {
+    const matchedPos = creep.matchedPos
+    if (matchedPos && !creep.pos.isEqualTo(matchedPos)) {
+      creep.move(creep.pos.getDirectionTo(matchedPos))
+    }
   }
+}
+
+function bfs(creeps, dist, match) {
+  const queue = []
+  for (const creep of creeps) {
+    if (!creep.matchedPos) {
+      dist[creep.name] = 0
+      queue.push(creep)
+    } else {
+      dist[creep.name] = 100
+    }
+  }
+
+  dist[undefined] = 100
+
+  while (queue.length) {
+    const creep = queue.shift()
+
+    const name = creep ? creep.name : undefined
+
+    if (dist[name] < dist[undefined]) {
+      for (const pos of creep.getMoveIntent()) {
+        const packedCoord = RoomPostionUtils.packCoord(pos)
+
+        const pairedCreep = match[packedCoord]
+
+        const name = pairedCreep ? pairedCreep.name : undefined
+
+        if (dist[name] === 100) {
+          dist[name] = dist[creep.name] + 1
+          queue.push(pairedCreep)
+        }
+      }
+    }
+  }
+  return dist[undefined] !== 100
+}
+
+function dfs(creep, dist, match) {
+  if (creep !== undefined) {
+    for (const pos of creep.getMoveIntent()) {
+      const packedCoord = RoomPostionUtils.packCoord(pos)
+      const pairedCreep = match[packedCoord]
+      const name = pairedCreep ? pairedCreep.name : undefined
+      if (dist[name] === dist[creep.name] + 1) {
+        if (dfs(pairedCreep, dist, match)) {
+          creep.matchedPos = pos
+          match[packedCoord] = creep
+          return true
+        }
+      }
+    }
+    dist[creep.name] = 100
+    return false
+  }
+  return true
 }
 
 Creep.prototype.getStuckTick = function () {
@@ -55,42 +107,7 @@ Creep.prototype.getStuckTick = function () {
  * @param {array} visited - array which represent if a creep is checked
  * @param {array} costs - costMatrix which represent index of the creep which is occupying that position
  */
-Room.prototype.dfs = function (a, creeps, visited, costs) {
-  visited[a] = 1
-  const creep = creeps[a]
-
-  if (creep._matchedPos) {
-    return false
-  }
-
-  if (creep.fatigue > 0) {
-    return false
-  }
-
-  const moveIntent = creep.getMoveIntent()
-
-  if (creep.getNextPos()) {
-    costs.set(creep.pos.x, creep.pos.y, 255)
-  }
-
-  while (moveIntent.length > 0) {
-    const pos = moveIntent.shift()
-    const before = costs.get(pos.x, pos.y)
-    if (before === 255 || (!visited[before] && this.dfs(before, creeps, visited, costs))) {
-      const newBefore = costs.get(pos.x, pos.y)
-      if (newBefore !== 255 && creeps[newBefore].getNextPos()) {
-        continue
-      }
-      creeps[a]._matchedPos = pos
-      costs.set(pos.x, pos.y, a)
-      return true
-    }
-  }
-
-  costs.set(creep.pos.x, creep.pos.y, a)
-
-  return false
-}
+Room.prototype.dfs = function (creep, creeps, visited) {}
 
 Creep.prototype.setNextPos = function (pos) {
   this._nextPos = pos
@@ -115,11 +132,17 @@ Creep.prototype.getMoveIntent = function () {
 
   const result = []
 
+  if (this.fatigue > 0) {
+    return result
+  }
+
   const nextPos = this.getNextPos()
   if (nextPos) {
     result.push(nextPos)
     return (this._moveIntent = result)
   }
+
+  result.push(this.pos)
 
   const adjacents = this.pos.getAtRange(1).sort((a, b) => Math.random() - 0.5)
 
@@ -131,13 +154,6 @@ Creep.prototype.getMoveIntent = function () {
     const positionsOutOfRange = []
 
     for (const pos of adjacents) {
-      if (pos.isWall) {
-        continue
-      }
-      if (isEdgeCoord(pos.x, pos.y)) {
-        continue
-      }
-
       if (!pos.walkable) {
         continue
       }
@@ -155,12 +171,6 @@ Creep.prototype.getMoveIntent = function () {
   }
 
   for (const pos of adjacents) {
-    if (pos.isWall) {
-      continue
-    }
-    if (isEdgeCoord(pos.x, pos.y)) {
-      continue
-    }
     if (!pos.walkable) {
       continue
     }

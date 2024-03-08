@@ -7,7 +7,7 @@ const MINERAL_AMOUNT_TO_SELL = 50000
 const MINERAL_AMOUNT_BUFFER = 10000
 const TERMINAL_ENERGY_THRESHOLD_TO_HELP = 10000
 
-const ENERGY_AMOUNT_TO_FUNNEL = 1000
+const ENERGY_AMOUNT_TO_FUNNEL = 5000
 const ENERGY_LEVEL_TO_FUNNEL = config.energyLevel.FUNNEL
 const ENERGY_LEVEL_TO_HELP = config.energyLevel.HELP
 const ENERGY_LEVEL_TO_BE_HELPED = config.energyLevel.BE_HELPED
@@ -21,7 +21,7 @@ StructureTerminal.prototype.run = function () {
     return
   }
 
-  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(this.room.name) < 5000) {
+  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(this.room.name) < config.secondsToStartEmpty) {
     return
   }
 
@@ -57,7 +57,10 @@ StructureTerminal.prototype.run = function () {
   if (this.room.controller.level === 8 && this.room.energyLevel > ENERGY_LEVEL_TO_BALANCE) {
     const balanceTarget = Util.getMinObject(Overlord.structures.terminal, (terminal) => terminal.room.energyLevel)
     if (balanceTarget && balanceTarget.room.energyLevel < config.energyLevel.STOP_BALANCE) {
-      if (config.seasonNumber === 6 && Overlord.getSecondsToClose(balanceTarget.room.name) < 5000) {
+      if (
+        config.seasonNumber === 6 &&
+        Overlord.getSecondsToClose(balanceTarget.room.name) < config.secondsToStartEmpty
+      ) {
         return
       }
 

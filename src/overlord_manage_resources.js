@@ -89,7 +89,7 @@ function getMyFunnelList() {
   const result = []
 
   for (const room of myRooms) {
-    if (config.seasonNumber === 6 && Overlord.getSecondsToClose(room.name) < 5000) {
+    if (config.seasonNumber === 6 && Overlord.getSecondsToClose(room.name) < config.secondsToStartEmpty) {
       continue
     }
 

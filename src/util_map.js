@@ -134,10 +134,6 @@ class MapUtil {
 
     return true
   }
-
-  static findClosestRoom = function (fromRoomName, roomNames, maxRooms = 16) {
-    return MapUtil.findClosestBySafeRoute(fromRoomName, (roomName) => roomNames.includes(roomName), maxRooms)
-  }
 }
 
 module.exports = {

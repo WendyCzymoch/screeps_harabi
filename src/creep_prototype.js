@@ -281,6 +281,9 @@ Creep.prototype.getCost = function () {
 
 // pos is roomPosition
 Creep.prototype.checkEmpty = function (pos) {
+  if (isEdgeCoord(pos.x, pos.y)) {
+    return OK
+  }
   const creep = pos.lookFor(LOOK_CREEPS)[0]
   if (!creep) {
     return OK

@@ -1,7 +1,14 @@
 class RoomPostionUtils {
   constructor() {}
 
-  packPos(pos) {
+  static packCoord(pos) {
+    const x = pos.x
+    const y = pos.y
+    const coord = 50 * y + x
+    return coord
+  }
+
+  static packPos(pos) {
     const x = pos.x
     const y = pos.y
     const roomName = pos.roomName
@@ -10,4 +17,6 @@ class RoomPostionUtils {
   }
 }
 
-Overlord.roomPositionUtils = new RoomPostionUtils()
+module.exports = {
+  RoomPostionUtils,
+}

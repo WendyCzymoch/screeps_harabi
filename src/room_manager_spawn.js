@@ -480,7 +480,8 @@ Room.prototype.requestMiner = function (source) {
 
   let priority = this.memory.militaryThreat ? SPAWN_PRIORITY['minerNotUrgent'] : SPAWN_PRIORITY['miner']
 
-  const maxEnergy = this.heap.sourceUtilizationRate > 0 ? this.energyCapacityAvailable : this.energyAvailable
+  const maxEnergy =
+    this.heap.sourceUtilizationRate > 0 ? this.energyCapacityAvailable : Math.max(300, this.energyAvailable)
 
   const maxWork = this.getNeedBigMiner() ? 12 : 6
 

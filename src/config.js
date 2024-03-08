@@ -126,8 +126,6 @@ if (shardName === 'swc') {
 
   config.publicRamparts = false
 
-  config.seasonNumber = 6
-
   config.rampartHitsPerRclSquare = 5000
 
   config.blockUpragade = false
@@ -135,6 +133,12 @@ if (shardName === 'swc') {
   config.distanceToRemote = 2
 
   config.diplomacy = false
+
+  config.seasonNumber = 6
+
+  config.secondsToStartEmpty = 15000
+
+  config.secondsToStopTasks = 600
 } else if (['shard0', 'shard1', 'shard2', 'shard3'].includes(shardName)) {
   // world
   config.isWorld = true
