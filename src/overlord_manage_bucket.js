@@ -40,7 +40,7 @@ Overlord.manageBucket = function () {
 
   const cpuThreshold = limitCpu * CPU_THRESHOLD_UP
 
-  if (averageCpu > cpuThreshold || Game.cpu.bucket < BUCKET_THRESHOLD) {
+  if (averageCpu > cpuThreshold && Game.cpu.bucket < BUCKET_THRESHOLD) {
     const diff = averageCpu - cpuThreshold
     const number = Math.clamp(Math.ceil(diff / 3), 1, Overlord.myRooms.length)
     this.removeRemote(number)

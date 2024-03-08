@@ -219,7 +219,7 @@ const storedEnergy = new VisualItem('Energy', 4.5, (room) => {
 })
 
 // Remote
-const remoteIncome = new VisualItem('Remote', 4, (room) => {
+const remoteIncome = new VisualItem('Remote', 3, (room) => {
   const activeRemotes = room.getActiveRemotes()
   const activeRemoteNames = room.getActiveRemoteNames()
 
@@ -242,20 +242,11 @@ const remoteIncome = new VisualItem('Remote', 4, (room) => {
       continue
     }
     num += info.resourceIds.length
-    const currentIncome = room.getRemoteNetIncomePerTick(targetRoomName)
-    const expectedIncome = info.value
-    income += currentIncome
-    Game.map.visual.text(
-      `${currentIncome.toFixed(1)}/${expectedIncome.toFixed(1)}`,
-      new RoomPosition(25, 12, targetRoomName),
-      { fontSize: 5, color: COLOR_NEON_YELLOW, backgroundColor: '#000000', opacity: 1 }
-    )
   }
 
-  const totalIncome = Math.floor(10 * income) / 10
-  const content = `${totalIncome}e/t(${num})`
+  const content = `${num}`
 
-  const hue = (120 * Math.max(0, totalIncome - num * 2)) / (num * 7)
+  const hue = (120 * num) / 10
   const color = `hsl(${hue},100%,60%)`
 
   const option = { color }

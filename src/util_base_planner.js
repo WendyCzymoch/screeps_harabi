@@ -253,18 +253,13 @@ Room.prototype.getCostsForMincut = function (maxLevel) {
   const costs = new PathFinder.CostMatrix()
   const terrain = this.getTerrain()
 
-  const floodFill = this.floodFill(this.find(FIND_EXIT))
-  const positionsByLevel = floodFill.positions
-  maxLevel = maxLevel || Math.max(...Object.keys(positionsByLevel))
-  const floodFillCosts = floodFill.costs
-
   for (let x = 0; x < 50; x++) {
     for (let y = 0; y < 50; y++) {
       if (terrain.get(x, y) === TERRAIN_MASK_WALL) {
         costs.set(x, y, WALL_COST)
         continue
       }
-      const cost = 1 + Math.max(1 + maxLevel - floodFillCosts.get(x, y), 0)
+      const cost = 1
       costs.set(x, y, cost)
     }
   }
@@ -893,6 +888,10 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
     }
   }
 
+  for (const pos of floodFillResults) {
+    this.visual.circle(pos, { fill: COLOR_NEON_RED, radius: 0.5 })
+  }
+
   if (floodFillResults.length < 63) {
     console.log(`not enough extensions`)
     return { basePlan: basePlan, score: 0 }
@@ -1230,12 +1229,13 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   // place towers
   const ramparts = [...cuts]
   const floodFillAllPositions = floodFill.allPositions
-  let towerPosCandidates = floodFillAllPositions.filter((pos) => costs.get(pos.x, pos.y) === 0)
-  towerPosCandidates.push(...floodFillResults)
+  const floodFillAllPositionsFiltered = floodFillAllPositions.filter((pos) => costs.get(pos.x, pos.y) === 0)
+
+  let towerPosCandidates = [...floodFillResults, ...floodFillAllPositionsFiltered]
 
   while (structures.tower.length < 6) {
     if (structures.tower.length === 0) {
-      const towerPos = towerPosCandidates.sort((a, b) => a.getAverageRange(ramparts) - b.getAverageRange(ramparts))[0]
+      const towerPos = Util.getMinObject(towerPosCandidates, (pos) => pos.getAverageRange(ramparts))
 
       structures.tower.push(towerPos)
 
@@ -1278,7 +1278,10 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   structures.tower.sort((a, b) => a.getRangeTo(firstSpawnPos) - b.getRangeTo(firstSpawnPos))
 
   // road to tower
+
+  let i = 0
   for (const towerPos of structures.tower) {
+    i++
     const towerPathSearch = PathFinder.search(
       firstSpawnPos,
       { pos: towerPos, range: 1 },
@@ -1302,6 +1305,8 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
 
     structures.road.push(...path)
     for (const pos of path) {
+      const level = [1, 2, 3, 4, 5, 6, 7, 8].find((level) => CONTROLLER_STRUCTURES[STRUCTURE_TOWER][level] >= i)
+      basePlan[`lv${level}`].push(pos.packStructurePlan('road'))
       costs.set(pos.x, pos.y, ROAD_COST)
       costsForRoad.set(pos.x, pos.y, ROAD_COST)
     }

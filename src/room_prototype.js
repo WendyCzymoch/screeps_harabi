@@ -157,6 +157,22 @@ Object.defineProperties(Room.prototype, {
       return this._constructionSites
     },
   },
+  basicExitCostMatrix: {
+    get() {
+      if (this.heap._basicExitCostMatrix) {
+        return this.heap._basicExitCostMatrix
+      }
+
+      const costs = new PathFinder.CostMatrix()
+
+      for (const exit of this.find(FIND_EXIT)) {
+        costs.set(exit.x, exit.y, 20)
+      }
+
+      return (this.heap._basicExitCostMatrix = costs)
+    },
+  },
+
   basicCostmatrix: {
     get() {
       if (Game.time > this.heap._basicCostmatrixTick + 10) {
@@ -167,11 +183,7 @@ Object.defineProperties(Room.prototype, {
         return this.heap.basicCostmatrix
       }
 
-      const costs = new PathFinder.CostMatrix()
-
-      for (const exit of this.find(FIND_EXIT)) {
-        costs.set(exit.x, exit.y, 20)
-      }
+      const costs = this.basicExitCostMatrix
 
       for (const structure of this.structures[STRUCTURE_ROAD]) {
         costs.set(structure.pos.x, structure.pos.y, 1)

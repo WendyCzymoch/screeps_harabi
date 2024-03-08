@@ -80,6 +80,7 @@ Creep.prototype.moveMy = function (goals, options = {}) {
 
   if (this.needNewPath(goals)) {
     this.resetPath()
+
     const result = this.searchPath(goals, { ignoreCreeps, staySafe, ignoreMap, moveCost })
     // 도착지까지 길이 안찾아지는 경우
     if (result === ERR_NO_PATH) {
@@ -392,7 +393,7 @@ Creep.prototype.needNewPath = function (goals) {
     return true
   }
 
-  if (this.heap.path.length === 0) {
+  if (!this.heap.path.length) {
     return true
   }
 

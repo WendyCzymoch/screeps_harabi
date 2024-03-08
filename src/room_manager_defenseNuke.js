@@ -18,7 +18,17 @@ Room.prototype.defenseNuke = function () {
   status.state = status.state || 'init'
   this.visual.text(`☢️${status.state}`, this.controller.pos.x + 0.75, this.controller.pos.y + 1.5, { align: 'left' })
 
-  const structureTypeToDefend = ['storage', 'terminal', 'powerSpawn', 'nuker', 'factory', 'spawn', 'tower', 'lab', 'rampart']
+  const structureTypeToDefend = [
+    'storage',
+    'terminal',
+    'powerSpawn',
+    'nuker',
+    'factory',
+    'spawn',
+    'tower',
+    'lab',
+    'rampart',
+  ]
 
   if (status.state === 'init') {
     // 모든 nuke에 대해 실행
@@ -102,7 +112,7 @@ Room.prototype.defenseNuke = function () {
 
       this.visual.circle(pos, { fill: 'red', radius: 0.5 })
 
-      const rampart = pos.lookFor(LOOK_STRUCTURES).filter(structure => structure.structureType === 'rampart')[0]
+      const rampart = pos.lookFor(LOOK_STRUCTURES).filter((structure) => structure.structureType === 'rampart')[0]
       if (!rampart) {
         status.state = 'init'
         return
@@ -124,12 +134,14 @@ Room.prototype.defenseNuke = function () {
         threshold += 5150000
       }
       const structures = rampart.pos.lookFor(LOOK_STRUCTURES)
-      const isExistingRampart = !structures.some(structure => structure.structureType !== 'rampart' && structureTypeToDefend.includes(structure.structureType))
+      const isExistingRampart = !structures.some(
+        (structure) => structure.structureType !== 'rampart' && structureTypeToDefend.includes(structure.structureType)
+      )
       if (isExistingRampart) {
         threshold += 2000000
       }
       if (rampart.hits < threshold) {
-        this.visual.text(`${Math.floor(100 * rampart.hits / threshold)}%`, rampart.pos)
+        this.visual.text(`${Math.floor((100 * rampart.hits) / threshold)}%`, rampart.pos)
         return this.repairStructure(rampart)
       } else {
         this.visual.text(`✅`, rampart.pos)
@@ -161,17 +173,18 @@ Room.prototype.defenseNuke = function () {
 }
 
 Room.prototype.repairStructure = function (rampart) {
-  let laborers = this.creeps.laborer.filter(creep => creep.memory.isBuilder)
+  let laborers = this.creeps.laborer.filter((creep) => creep.memory.isBuilder)
   const rampartLowest = rampart
   for (const laborer of laborers) {
     // energy 없으면 energy 받아라
     if (!laborer.working) {
-      laborer.needDelivery = true
       //storage가 가까우면 storage에서 energy 받자
       if (this.storage) {
         laborer.getEnergyFrom(this.storage.id)
         continue
       }
+      laborer.needDelivery = true
+      continue
       // 그게 아니면 hauler들이 갖다주길 기다리자
     }
     // energy 있으면 일해라

@@ -1,17 +1,35 @@
-const { Util } = require('./util')
+Memory = {}
 
-const array = []
+Memory.creeps = {}
 
-for (let i = 0; i < 10; i++) {
-  array.push({ power: Math.random() })
-}
-
-console.log(JSON.stringify(array))
-
-console.log(Util.getMinObject(array, (element) => element.power))
-
-for (const creep of Object.values(Game.creeps)) {
-  if (!creep.memory.role) {
-    creep.suicide()
+class Creep {
+  constructor(name) {
+    this.name = name
   }
 }
+
+Object.defineProperties(Creep.prototype, {
+  mem: {
+    get() {
+      Memory.creeps[this.name] = Memory.creeps[this.name] || {}
+      return Memory.creeps[this.name]
+    },
+    set(object) {
+      Memory.creeps[this.name] = object
+    },
+  },
+})
+
+const myCreep = new Creep('meh')
+
+console.log(myCreep.name)
+
+console.log(myCreep.mem)
+
+myCreep.mem.role = 'sheep'
+
+console.log(myCreep.mem.role)
+
+myCreep.mem = { role: 'sheep' }
+
+console.log(myCreep.mem.role)

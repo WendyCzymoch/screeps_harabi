@@ -10,7 +10,6 @@ const ENERGY_PRIORITY = {
   spawn: 1,
   lab: 1,
   tower: 1,
-  link: 1,
   container: 3,
   terminal: 7,
   factory: 9,
@@ -48,7 +47,6 @@ function Applicant(creep) {
   this.amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
   this.isManager = creep.memory.role === 'manager' ? true : false
   this.engaged = null
-  this.married = false
   this.giveEnergy = false
 }
 
@@ -77,7 +75,6 @@ Room.prototype.manageEnergy = function () {
   let suppliers = []
   let fetchers = []
   const haulers = this.creeps.hauler.concat(this.creeps.manager)
-  const remoteHaulers = this.getSupplyingRemoteHaulers()
 
   outer: for (const researcher of this.creeps.researcher) {
     if (researcher.isFree) {
@@ -91,8 +88,8 @@ Room.prototype.manageEnergy = function () {
     }
   }
 
-  for (const remoteHauler of remoteHaulers) {
-    haulers.push(remoteHauler)
+  if (!this.storage) {
+    haulers.push(...this.getSupplyingRemoteHaulers())
   }
 
   outer: for (const creep of haulers) {
@@ -301,9 +298,9 @@ Creep.prototype.setTargetId = function (targetId) {
 }
 
 Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
-  const requests = this.getEnergyRequests()
+  const requests = this.getEnergyRequests(arrayOfCreeps.length || 1)
 
-  if (requests.size === 0) {
+  if (Object.keys(requests).length === 0) {
     const spawn = this.structures.spawn[0]
     if (!spawn) {
       return
@@ -319,45 +316,37 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
   for (const creep of arrayOfCreeps) {
     if (creep.heap.engaged) {
       const client = Game.getObjectById(creep.heap.engaged.id)
-      const amountLeft = creep.store[RESOURCE_ENERGY] - creep.heap.engaged.amount
-
-      delete creep.heap.engaged
-      let pushed = false
 
       // technically not engaged
       if (!client || client.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+        delete creep.heap.engaged
         applicants.push(new Applicant(creep))
         continue
       }
 
       // if energy supply is suceeded, creep is free again
-      if (client && creep.transfer(client, RESOURCE_ENERGY) === OK) {
+      if (creep.giveEnergyTo(client.id) === OK) {
+        const amountLeft = creep.store[RESOURCE_ENERGY] - creep.heap.engaged.amount
         if (amountLeft > 0) {
           const applicant = new Applicant(creep)
           applicant.amount = amountLeft
           applicant.giveEnergy = true
           applicants.push(applicant)
-          pushed = true
         }
+        delete creep.heap.engaged
       }
 
-      const request = requests.get(client.id)
+      const request = requests[client.id]
 
       if (request) {
         request.amount -= creep.store.getUsedCapacity(RESOURCE_ENERGY)
-        if (!pushed) {
-          const applicant = new Applicant(creep)
-          applicant.engaged = request
-          applicant.married = true
-          applicants.push(applicant)
-        }
       }
     } else {
       applicants.push(new Applicant(creep))
     }
   }
 
-  const requestsArray = Array.from(requests.values())
+  const requestsArray = Object.values(requests)
 
   for (const request of requestsArray) {
     request.applicants = new MinHeap((a) => a.pos.getRangeTo(request.pos))
@@ -389,9 +378,11 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
 
       return true
     })
+
     if (!freeRequests.length) {
       break
     }
+
     for (const request of freeRequests) {
       const bestApplicant = request.applicants.remove()
       // if target creep is not engaged, engage
@@ -403,14 +394,14 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
 
       // target creep is engaged.
       const existingRequest = bestApplicant.engaged
+
       if (existingRequest.priority < request.priority) {
         continue
       }
 
       if (
         existingRequest.priority === request.priority &&
-        bestApplicant.pos.getRangeTo(existingRequest.pos) <=
-          bestApplicant.pos.getRangeTo(request.pos) + (bestApplicant.married ? 2 : 0)
+        bestApplicant.pos.getRangeTo(existingRequest.pos) <= bestApplicant.pos.getRangeTo(request.pos)
       ) {
         continue
       }
@@ -418,7 +409,6 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
       request.amount -= bestApplicant.amount
       existingRequest.amount += bestApplicant.amount
       bestApplicant.engaged = request
-      bestApplicant.married = false
     }
   }
 
@@ -446,26 +436,38 @@ Room.prototype.manageEnergySupply = function (arrayOfCreeps) {
   }
 }
 
-Room.prototype.getEnergyRequests = function () {
+Room.prototype.getEnergyRequests = function (number) {
+  const requests = {}
+
+  number = number || 1 // number should not be 0.
+
+  let numRequests = 0
+
+  if (numRequests >= number) {
+    return requests
+  }
+
   const controllerContainer = this.controller.container
   const storage = this.storage
   const factory = this.structures.factory[0]
   const nuker = this.structures.nuker[0]
   const terminal = this.terminal
 
-  const requests = new Map()
+  const energyCapacityUsed = this.energyCapacityAvailable - (this.energyAvailable || 0)
 
-  if (this.energyAvailable || 0 < this.energyCapacityAvailable) {
+  if (energyCapacityUsed > 0) {
     for (const client of this.structures.extension) {
       if (client.store.getFreeCapacity(RESOURCE_ENERGY)) {
-        requests.set(client.id, new Request(client))
+        requests[client.id] = new Request(client)
+        numRequests++
       }
     }
 
     if (!this.getHubCenterPos() || this.creeps.distributor.length === 0) {
       for (const client of this.structures.spawn) {
         if (client.store.getFreeCapacity(RESOURCE_ENERGY)) {
-          requests.set(client.id, new Request(client))
+          requests[client.id] = new Request(client)
+          numRequests++
         }
       }
     }
@@ -473,50 +475,20 @@ Room.prototype.getEnergyRequests = function () {
 
   for (const client of this.structures.lab) {
     if (client.store.getUsedCapacity(RESOURCE_ENERGY) < 1000) {
-      requests.set(client.id, new Request(client))
+      requests[client.id] = new Request(client)
+      numRequests++
     }
   }
 
   for (const client of this.structures.tower) {
     if (client.store.getFreeCapacity(RESOURCE_ENERGY) > 400) {
-      const request = new Request(client)
-      requests.set(client.id, request)
+      requests[client.id] = new Request(client)
+      numRequests++
     }
   }
 
-  if (storage && storage.store.getFreeCapacity(RESOURCE_ENERGY)) {
-    requests.set(storage.id, new Request(storage))
-  } else if (terminal && terminal.store.getFreeCapacity(RESOURCE_ENERGY)) {
-    requests.set(terminal.id, new Request(terminal))
-  }
-
-  if (
-    factory &&
-    factory.store.getFreeCapacity(RESOURCE_ENERGY) &&
-    factory.store.getUsedCapacity(RESOURCE_ENERGY) < 2000
-  ) {
-    requests.set(factory.id, new Request(factory))
-  }
-
-  for (const creep of this.creeps.laborer) {
-    if (creep.spawning) {
-      continue
-    }
-    if (creep.needDelivery && creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-      requests.set(creep.id, new Request(creep))
-    }
-  }
-
-  if (!storage) {
-    for (const creep of this.creeps.wallMaker) {
-      if (creep.spawning) {
-        continue
-      }
-      if (Game.time > creep.heap.deliveryCallTime + 1) {
-        continue
-      }
-      requests.set(creep.id, new Request(creep))
-    }
+  if (numRequests >= number) {
+    return requests
   }
 
   if (controllerContainer) {
@@ -528,8 +500,48 @@ Room.prototype.getEnergyRequests = function () {
     }
 
     if (this.heap.refillControllerContainer) {
-      requests.set(controllerContainer.id, new Request(controllerContainer))
+      requests[controllerContainer.id] = new Request(controllerContainer)
+      numRequests++
     }
+  }
+
+  if (numRequests >= number) {
+    return requests
+  }
+
+  for (const creep of this.creeps.laborer) {
+    if (creep.spawning) {
+      continue
+    }
+    if (creep.needDelivery && creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      requests[creep.id] = new Request(creep)
+      numRequests++
+    }
+  }
+
+  if (!storage) {
+    for (const creep of this.creeps.wallMaker) {
+      if (creep.spawning) {
+        continue
+      }
+      if (Game.time > creep.heap.deliveryCallTime + 1) {
+        continue
+      }
+      requests[creep.id] = new Request(creep)
+      numRequests++
+    }
+  }
+
+  if (numRequests >= number) {
+    return requests
+  }
+
+  if (
+    factory &&
+    factory.store.getFreeCapacity(RESOURCE_ENERGY) &&
+    factory.store.getUsedCapacity(RESOURCE_ENERGY) < 2000
+  ) {
+    requests[factory.id] = new Request(factory)
   }
 
   if (nuker) {
@@ -540,8 +552,14 @@ Room.prototype.getEnergyRequests = function () {
     }
 
     if (this.memory.fillNuker && nuker.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-      requests.set(nuker.id, new Request(nuker))
+      requests[nuker.id] = new Request(nuker)
     }
+  }
+
+  if (storage && storage.store.getFreeCapacity(RESOURCE_ENERGY)) {
+    requests[storage.id] = new Request(storage)
+  } else if (terminal && terminal.store.getFreeCapacity(RESOURCE_ENERGY)) {
+    requests[terminal.id] = new Request(terminal)
   }
 
   return requests

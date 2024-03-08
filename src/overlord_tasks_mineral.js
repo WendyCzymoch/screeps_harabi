@@ -20,6 +20,10 @@ Room.prototype.checkMineral = function (targetRoomName) {
     return
   }
 
+  if (isStronghold(targetRoomName)) {
+    return
+  }
+
   const mineralRequests = Overlord.getTasksWithCategory('mineral')
   if (Object.values(mineralRequests).find((request) => request.roomNameInCharge === this.name)) {
     return

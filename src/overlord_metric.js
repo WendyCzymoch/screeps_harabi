@@ -63,7 +63,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
         return ERR_NO_PATH
       }
 
-      routes = this.findRoutesWithPortal(startPos.roomName, targetRoomName)
+      routes = this.findRoute(startPos.roomName, targetRoomName)
     }
 
     if (routes === ERR_NO_PATH) {
@@ -161,10 +161,13 @@ Overlord.findPath = function (startPos, goals, options = {}) {
       maxRooms: maxRoomsNow,
       maxOps: maxRoomsNow > 1 ? 40000 : 5000,
     })
+
     if (search.incomplete) {
       return ERR_NO_PATH
     }
+
     result.push(...search.path)
+
     if (toPortal) {
       const portalInfo = Memory.rooms[routeNowLastRoomName].portalInfo
       const lastPos = result[result.length - 1] || posNow
@@ -211,6 +214,33 @@ function getPortalPositions(roomName, toRoomName) {
   return positions.map((pos) => {
     return { pos, range: 1 }
   })
+}
+
+Overlord.findRoute = function (startRoomName, goalRoomName, options) {
+  const normal = this.findRouteWithoutPortal(startRoomName, goalRoomName, options)
+
+  if (normal) {
+    return normal
+  }
+
+  return this.findRoutesWithPortal(startRoomName, goalRoomName, options)
+}
+
+Overlord.findRouteWithoutPortal = function (startRoomName, goalRoomName, options) {
+  const defaultOptions = { maxRooms: 16 }
+  const mergedOptions = { ...defaultOptions, ...options }
+  const { maxRooms } = mergedOptions
+
+  const findRoute = Game.map.findRoute(startRoomName, goalRoomName, {
+    routeCallback(roomName) {
+      return getRoomCost(startRoomName, goalRoomName, roomName)
+    },
+  })
+
+  if (findRoute === ERR_NO_PATH || Object.keys(findRoute).length > maxRooms) {
+    return false
+  }
+  return [[startRoomName, ...findRoute.map((info) => info.room)]]
 }
 
 Overlord.findRoutesWithPortal = function (startRoomName, goalRoomName, options) {

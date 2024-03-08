@@ -9,6 +9,7 @@ Room.prototype.manageTraffic = function () {
   const movingCreepIndexes = []
 
   const costs = barrierCosts.clone() // CostMatrix which is filled with 255
+
   for (let a = 0; a < creeps.length; a++) {
     const creep = creeps[a]
     costs.set(creep.pos.x, creep.pos.y, a)
@@ -22,7 +23,6 @@ Room.prototype.manageTraffic = function () {
   for (const a of movingCreepIndexes) {
     const creep = creeps[a]
     if (!creep._matchedPos) {
-      visited.fill(0)
       this.dfs(a, creeps, visited, costs)
     }
   }
@@ -30,7 +30,7 @@ Room.prototype.manageTraffic = function () {
   let numMoved = 0
   for (const creep of creeps) {
     const matchedPos = creep._matchedPos
-    if (matchedPos && !creep.pos.isEqualTo(matchedPos)) {
+    if (matchedPos) {
       const direction = creep.pos.getDirectionTo(matchedPos)
       if (creep.move(direction) === OK) {
         numMoved++
@@ -67,7 +67,7 @@ Room.prototype.dfs = function (a, creeps, visited, costs) {
     return false
   }
 
-  const moveIntent = [...creep.getMoveIntent()]
+  const moveIntent = creep.getMoveIntent()
 
   if (creep.getNextPos()) {
     costs.set(creep.pos.x, creep.pos.y, 255)
@@ -76,7 +76,7 @@ Room.prototype.dfs = function (a, creeps, visited, costs) {
   while (moveIntent.length > 0) {
     const pos = moveIntent.shift()
     const before = costs.get(pos.x, pos.y)
-    if (before === 255 || (visited[before] === 0 && this.dfs(before, creeps, visited, costs))) {
+    if (before === 255 || (!visited[before] && this.dfs(before, creeps, visited, costs))) {
       const newBefore = costs.get(pos.x, pos.y)
       if (newBefore !== 255 && creeps[newBefore].getNextPos()) {
         continue

@@ -34,8 +34,8 @@ class MapUtil {
   }
 
   /**
-   *
-   * @param {string} roomName
+   * find closest room which is reachable via safe rooms
+   * @param {string} roomName roomName to start
    * @param {Function} roomCallback function that checks if a room is we are looking for.
    *                                only one argument (roomName) is accepted
    */
@@ -133,6 +133,10 @@ class MapUtil {
     }
 
     return true
+  }
+
+  static findClosestRoom = function (fromRoomName, roomNames, maxRooms = 16) {
+    return MapUtil.findClosestBySafeRoute(fromRoomName, (roomName) => roomNames.includes(roomName), maxRooms)
   }
 }
 

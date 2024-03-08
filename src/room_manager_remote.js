@@ -2,6 +2,7 @@ const { config } = require('./config')
 const { getCombatInfo, GuardRequest } = require('./overlord_tasks_guard')
 const { getBuilderModel } = require('./room_manager_spawn')
 const { getRoomMemory } = require('./util')
+const { CreepUtil } = require('./util_creep_body_maker')
 
 const MAX_DISTANCE = 140
 
@@ -38,6 +39,11 @@ Room.prototype.manageRemotes = function () {
 
     if (config.seasonNumber === 6 && Overlord.getSecondsToClose(targetRoomName) < 600) {
       // less than 10 minutes left
+      this.deleteRemote(targetRoomName)
+      return
+    }
+
+    if (Game.map.getRoomStatus(targetRoomName).status !== 'normal') {
       this.deleteRemote(targetRoomName)
       return
     }
@@ -165,8 +171,6 @@ Room.prototype.manageRemotes = function () {
 }
 
 Room.prototype.manageRemoteHaulers = function () {
-  this.heap.numIdlingRemoteHaulerCarryParts = 0
-
   const remoteInfos = this.memory.remotes
   const activeRemoteNames = this.getActiveRemoteNames()
 
@@ -190,8 +194,7 @@ Room.prototype.manageRemoteHaulers = function () {
       if (!hauler.memory.supplying) {
         fetchingHaulers.push(hauler)
       }
-    }
-    if (!hauler.memory.targetRoomName) {
+    } else {
       freeHaulers.push(hauler)
     }
   }
@@ -269,10 +272,6 @@ Room.prototype.manageRemoteHaulers = function () {
       const expectedEnergyDelta = getSourceExpectedEnergyDelta(stat)
       const expectedEnergy = stat.energyAmountNear + expectedEnergyDelta
 
-      if (expectedEnergy < capacity) {
-        continue
-      }
-
       const currentScore = expectedEnergy / stat.pathLength
 
       if (currentScore > score) {
@@ -292,19 +291,14 @@ Room.prototype.manageRemoteHaulers = function () {
       hauler.memory.pathLength = targetPathLength
 
       sourceStats[targetSourceId].energyAmountNear -= capacity
-
-      runRemoteHauler(hauler)
     } else {
       hauler.say('😴', true)
-
-      this.heap.numIdlingRemoteHaulerCarryParts += hauler.getActiveBodyparts(CARRY)
-
-      Game.map.visual.text(`😴`, hauler.pos, { fontSize: 5 })
-
       if (hauler.ticksToLive < hauler.body.length * CREEP_SPAWN_TIME) {
         hauler.memory.getRecycled = true
       }
     }
+
+    runRemoteHauler(hauler)
   }
 }
 
@@ -326,15 +320,13 @@ function runRemoteHauler(creep) {
     return
   }
 
-  base.heap.numRemoteHaulerCarryParts += creep.getActiveBodyparts(CARRY)
-
   if (creep.spawning) {
     return
   }
 
   const targetRoomName = creep.memory.targetRoomName
 
-  if (!creep.readyToWork(targetRoomName)) {
+  if (!creep.readyToWork(targetRoomName) || !targetRoomName) {
     return
   }
 
@@ -347,21 +339,47 @@ function runRemoteHauler(creep) {
     delete creep.memory.sourceId
   } else if (!creep.memory.supplying && creep.store.getFreeCapacity() === 0) {
     creep.memory.supplying = true
-
-    const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
-
-    base.addRemoteProfit(targetRoomName, amount)
   }
 
   // 행동
   const path = base.getRemotePath(targetRoomName, creep.memory.sourceId)
 
   if (creep.memory.supplying) {
-    if (creep.room.name === creep.memory.base) {
+    if (!path) {
       return
     }
 
-    if (!path) {
+    if (creep.room.name !== creep.memory.base) {
+      creep.moveByRemotePath(path)
+      return
+    }
+
+    const storage = base.storage
+
+    if (!storage) {
+      return
+    }
+
+    const structuresNear = base.lookForAtArea(
+      LOOK_STRUCTURES,
+      Math.max(0, creep.pos.y - 1),
+      Math.max(0, creep.pos.x - 1),
+      Math.min(creep.pos.y + 1, 49),
+      Math.min(creep.pos.x + 1, 49),
+      true
+    )
+    const targetExtensionInfo = structuresNear.find(
+      (info) =>
+        info.structure.structureType === STRUCTURE_EXTENSION &&
+        info.structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+    )
+
+    if (targetExtensionInfo) {
+      creep.transfer(targetExtensionInfo.structure, RESOURCE_ENERGY)
+    }
+
+    if (creep.pos.getRangeTo(storage) <= 3) {
+      creep.giveResourceTo(storage)
       return
     }
 
@@ -375,8 +393,6 @@ function runRemoteHauler(creep) {
 
   if (creep.ticksToLive < (creep.memory.pathLength || 0)) {
     creep.memory.getRecycled = true
-    const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
-    base.addRemoteProfit(targetRoomName, amount)
     return
   }
 
@@ -389,12 +405,8 @@ function runRemoteHauler(creep) {
   creep.heap.idling = creep.heap.idling || 0
   creep.heap.idling++
 
-  base.heap.numIdlingRemoteHaulerCarryParts += creep.getActiveBodyparts(CARRY)
-
   if (creep.heap.idling > 10) {
     if (creep.store.getUsedCapacity() > 0) {
-      const amount = creep.store.getUsedCapacity(RESOURCE_ENERGY)
-      base.addRemoteProfit(targetRoomName, amount)
       creep.memory.supplying = true
     } else {
       delete creep.memory.targetRoomName
@@ -1122,40 +1134,6 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) {
 
   status.sourceStat = sourceStat
 
-  const positions = [
-    { x: 10, y: 15 },
-    { x: 40, y: 15 },
-    { x: 10, y: 30 },
-    { x: 40, y: 30 },
-  ]
-  let i = 0
-  for (const sourceId of Object.keys(sourceStat)) {
-    const x = positions[i].x
-    const y = positions[i].y
-    i++
-    const stat = sourceStat[sourceId]
-    if (stat.notMining) {
-      continue
-    }
-    const fontSize = 4
-    const opacity = 1
-    const black = '#000000'
-    Game.map.visual.text(`⛏️${stat.work}/${stat.maxWork}`, new RoomPosition(x, y, targetRoomName), {
-      fontSize,
-      backgroundColor: stat.work >= stat.maxWork ? black : COLOR_NEON_RED,
-      opacity,
-    })
-    const source = Game.getObjectById(sourceId)
-    if (source && source instanceof Source) {
-      const amountNear = source.energyAmountNear
-      Game.map.visual.text(`🔋${amountNear}/2000 `, new RoomPosition(x, y + 5, targetRoomName), {
-        fontSize,
-        backgroundColor: amountNear < 2000 ? black : COLOR_NEON_RED,
-        opacity,
-      })
-    }
-  }
-
   if (result.requested) {
     return result
   }
@@ -1436,7 +1414,7 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
 
   const maxWork = options.maxWork || 6
 
-  const model = getRemoteMinerModel(this.energyCapacityAvailable, maxWork)
+  const model = CreepUtil.getMinerModel(this.energyCapacityAvailable, maxWork)
 
   const body = model.body
 
@@ -1460,41 +1438,6 @@ Room.prototype.requestRemoteMiner = function (targetRoomName, sourceId, options 
 
   const request = new RequestSpawn(body, name, memory, spawnOptions)
   this.spawnQueue.push(request)
-}
-
-function getRemoteMinerModel(energyCapacity, maxWork) {
-  let cost = 0
-  let work = 0
-  let move = 0
-  let carry = 0
-  while (cost < energyCapacity && work + move + carry < MAX_CREEP_SIZE) {
-    if ((move === 0 || work / move >= 2) && energyCapacity >= cost + BODYPART_COST[MOVE]) {
-      move++
-      cost += BODYPART_COST[MOVE]
-      continue
-    }
-
-    if (work >= 5 && carry < 1 && energyCapacity >= cost + BODYPART_COST[CARRY]) {
-      carry++
-      cost += BODYPART_COST[CARRY]
-      continue
-    }
-
-    if (maxWork && work >= maxWork) {
-      break
-    }
-
-    if (energyCapacity >= cost + BODYPART_COST[WORK]) {
-      work++
-      cost += BODYPART_COST[WORK]
-      continue
-    }
-    break
-  }
-
-  const body = parseBody(`${work - 1}w${carry}c${move}m1w`)
-
-  return { body, numWork: work, cost }
 }
 
 function getReservationTick(targetRoomName) {
@@ -1525,62 +1468,6 @@ Room.prototype.getInvaderStrengthThreshold = function () {
 
 function getInvaderStrengthThreshold(level) {
   return Math.exp((level - 1) * 0.4) * 100
-}
-
-// get remote net income per tick with EMA
-Room.prototype.getRemoteNetIncomePerTick = function (targetRoomName) {
-  const remoteStatus = this.getRemoteStatus(targetRoomName)
-
-  if (!remoteStatus.startTick) {
-    delete remoteStatus.netIncome
-  }
-
-  remoteStatus.startTick = remoteStatus.startTick || Game.time
-  remoteStatus.lastTick = remoteStatus.lastTick || Game.time
-  const netIncome = remoteStatus.netIncome || 0
-
-  const interval = Game.time - remoteStatus.lastTick
-
-  // 1 unit with alpha = 0.2
-  // recent unit is weighted by 0.2
-  // previous unit is wighted by 0.2 * 0.8
-  const alpha = 0.2
-
-  if (interval >= CREEP_LIFE_TIME) {
-    if (remoteStatus.netIncomePerTick) {
-      const modifiedAlpha = 1 - Math.pow(1 - alpha, interval / CREEP_LIFE_TIME)
-      remoteStatus.netIncomePerTick =
-        modifiedAlpha * (netIncome / interval) + (1 - modifiedAlpha) * remoteStatus.netIncomePerTick
-    } else {
-      remoteStatus.netIncomePerTick = netIncome / interval
-    }
-    remoteStatus.lastTick = Game.time
-    remoteStatus.netIncome = 0
-  }
-
-  if (!remoteStatus.netIncomePerTick) {
-    return netIncome / interval
-  }
-
-  return remoteStatus.netIncomePerTick
-}
-
-Room.prototype.addRemoteCost = function (targetRoomName, amount) {
-  const remoteStatus = this.getRemoteStatus(targetRoomName)
-  if (remoteStatus) {
-    remoteStatus.netIncome = remoteStatus.netIncome || 0
-    remoteStatus.netIncome -= amount
-    return
-  }
-}
-
-Room.prototype.addRemoteProfit = function (targetRoomName, amount) {
-  const remoteStatus = this.getRemoteStatus(targetRoomName)
-  if (remoteStatus) {
-    remoteStatus.netIncome = remoteStatus.netIncome || 0
-    remoteStatus.netIncome += amount
-    return
-  }
 }
 
 Room.prototype.getActiveRemoteNames = function () {

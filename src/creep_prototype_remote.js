@@ -250,6 +250,9 @@ Creep.prototype.getResourceFromRemote = function (targetRoomName, resourceId, pa
       this.memory.targetId = target.id
       return this.getResourceFrom(target, { resourceType })
     }
+    if (this.store.getUsedCapacity() > 0) {
+      this.memory.supplying = true
+    }
     return ERR_NOT_ENOUGH_RESOURCES
   }
 

@@ -83,7 +83,7 @@ Overlord.checkDeposits = function (targetRoomName) {
         continue;
       }
 
-      const route = this.findRoutesWithPortal(targetRoomName, room.name);
+      const route = this.findRoute(targetRoomName, room.name)
       if (route === ERR_NO_PATH) {
         continue;
       }

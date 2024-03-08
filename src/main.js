@@ -103,8 +103,6 @@ if (Memory.profile) {
   profiler.registerObject(Overlord, 'Overlord')
 }
 
-delete Memory.globalReset
-
 function wrapLoop(fn) {
   let memory
   let tick
@@ -115,6 +113,13 @@ function wrapLoop(fn) {
       delete global.Memory
       Memory = memory
     } else {
+      if (tick) {
+        global.globalUniqueId = global.globalUniqueId || Math.random().toString(16).slice(2)
+        console.log(`Global switched! ${Game.time} / ${tick} id:${global.globalUniqueId}`)
+      } else {
+        console.log(`Global Resetted! ${Game.time}`)
+        Memory.globalReset = Game.time
+      }
       memory = Memory
     }
 
@@ -162,11 +167,6 @@ module.exports.loop = wrapLoop(function () {
       } catch (err) {
         data.recordError(err, 'autoclaim')
       }
-    }
-
-    if (Memory.globalReset === undefined) {
-      console.log(`Global reset happens at ${Game.time}`)
-      Memory.globalReset = Game.time
     }
 
     // Overlord 동작

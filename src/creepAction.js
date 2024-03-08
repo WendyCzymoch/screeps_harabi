@@ -491,6 +491,15 @@ function remoteMiner(creep) {
     return
   }
 
+  if (!targetRoomName) {
+    return
+  }
+
+  if (!base.getRemoteStatus(targetRoomName)) {
+    delete creep.memory.targetRoomName
+    return
+  }
+
   const path = base.getRemotePath(targetRoomName, creep.memory.sourceId)
 
   const source = Game.getObjectById(creep.memory.sourceId)

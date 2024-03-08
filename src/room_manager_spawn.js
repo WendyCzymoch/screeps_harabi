@@ -1,6 +1,7 @@
 const { config } = require('./config')
 const { blinkyBodyMaker } = require('./creep_prototype_blinky')
 const { Util } = require('./util')
+const { CreepUtil } = require('./util_creep_body_maker')
 
 const RAMPART_HITS_THRESHOLD = 50000000 //50M
 
@@ -309,13 +310,26 @@ Room.prototype.getMaxNumManager = function () {
   if (!this.storage) {
     return 0
   }
-  if (this.controller.level < 7) {
-    return 1
+
+  if (!this.controller.linked) {
+    if (!this.memory.controllerPathLength) {
+      const storagePos = this.storage.pos
+      const controllerPath = Overlord.findPath(storagePos, [{ pos: this.controller.pos, range: 1 }])
+      visualizePath(controllerPath)
+      this.memory.controllerPathLength = controllerPath.length
+    }
+    if (!this.memory.controllerPathLength) {
+      return 1
+    }
+    const maxCarry = (this.memory.controllerPathLength * 0.4 * this.laborer.numWork) / 10
+    return 1 + Math.ceil(maxCarry / MANAGER_MAX_CARRY)
   }
+
   if (this.heap.isEnemy) {
     return 3
   }
-  return 2
+
+  return this.structures.spawn.length
 }
 
 Room.prototype.getDesiredWallMakerCount = function () {
@@ -429,21 +443,6 @@ Spawn.prototype.spawnRequest = function (request) {
     return result
   }
 
-  if (request.cost) {
-    const targetRoomName = request.memory.targetRoomName
-    if (targetRoomName) {
-      this.room.addRemoteCost(targetRoomName, request.cost)
-    } else {
-      const activeRemotes = this.room.getActiveRemotes()
-      const weightSum = activeRemotes.map((info) => info.weight).reduce((acc, curr) => acc + curr, 0)
-      for (const info of activeRemotes) {
-        const remoteName = info.remoteName
-        const cost = (request.cost * info.weight) / weightSum
-        this.room.addRemoteCost(remoteName, cost)
-      }
-    }
-  }
-
   if (request.boostRequest) {
     this.room.boostQueue[request.name] = request.boostRequest
   }
@@ -482,33 +481,17 @@ Room.prototype.requestMiner = function (source) {
   let priority = this.memory.militaryThreat ? SPAWN_PRIORITY['minerNotUrgent'] : SPAWN_PRIORITY['miner']
 
   const maxEnergy = this.heap.sourceUtilizationRate > 0 ? this.energyCapacityAvailable : this.energyAvailable
-  let body = []
-  if (source.linked) {
-    if (maxEnergy >= 800) {
-      body = [WORK, WORK, WORK, WORK, WORK, MOVE, MOVE, WORK, MOVE, CARRY]
-    } else if (maxEnergy >= 700) {
-      //여력이 되면
-      body = [WORK, WORK, WORK, WORK, MOVE, MOVE, WORK, MOVE, CARRY]
-    } else if (maxEnergy >= 550) {
-      body = [WORK, WORK, WORK, MOVE, WORK, CARRY, MOVE]
-    } else {
-      body = [WORK, WORK, CARRY, MOVE]
-    }
-  } else {
-    if (maxEnergy >= 750) {
-      body = [WORK, WORK, WORK, WORK, WORK, MOVE, MOVE, WORK, MOVE]
-    } else if (maxEnergy >= 650) {
-      //여력이 되면
-      body = [WORK, WORK, WORK, WORK, MOVE, MOVE, WORK, MOVE]
-    } else if (maxEnergy >= 550) {
-      body = [WORK, WORK, WORK, WORK, WORK, MOVE]
-    } else {
-      body = [WORK, MOVE, WORK, MOVE]
-    }
-  }
+
+  const maxWork = this.getNeedBigMiner() ? 12 : 6
+
+  const model = CreepUtil.getMinerModel(maxEnergy, maxWork)
+
+  const body = model.body
 
   const name = `${this.name} miner ${Game.time}${this.spawnQueue.length}`
+
   const memory = { role: 'miner', sourceId: source.id }
+
   const request = new RequestSpawn(body, name, memory, { priority })
 
   this.spawnQueue.push(request)

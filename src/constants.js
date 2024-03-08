@@ -75,6 +75,8 @@ global.BUILD_PRIORITY = {
   powerSpawn: 13,
 
   nuker: 14,
+
+  constructedWall: 15,
 }
 
 global.CREEP_ROELS = [

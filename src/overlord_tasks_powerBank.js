@@ -249,7 +249,7 @@ Overlord.checkPowerBanks = function (targetRoomName) {
     if (room.terminal.store[RESOURCE_POWER] > 30000) {
       return false
     }
-    const route = this.findRoutesWithPortal(targetRoomName, room.name)
+    const route = this.findRoute(targetRoomName, room.name)
     if (route === ERR_NO_PATH) {
       return false
     }

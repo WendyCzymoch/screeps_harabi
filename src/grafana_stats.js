@@ -79,13 +79,21 @@ Overlord.exportStats = function () {
   // Collect CPU stats
   Memory.stats.cpu.bucket = Game.cpu.bucket
   Memory.stats.cpu.limit = Game.cpu.limit
-  const used = Game.cpu.getUsed()
   Memory.stats.cpu.used = Game.cpu.getUsed() + (Memory.stats.cpu.serializeCpu || 0)
 
   if (!Memory.stats.cpu.serializeCpu || Game.time > (Memory.stats.cpu.serializeCpuTime || 0) + CREEP_LIFE_TIME) {
-    const before = used
+    const before = Game.cpu.getUsed()
+
     JSON.stringify(Memory)
-    Memory.stats.cpu.serializeCpu = Game.cpu.getUsed() - before
+
+    const serializeCpu = Game.cpu.getUsed() - before
+
+    if (Memory.stats.cpu.serializeCpu) {
+      Memory.stats.cpu.serializeCpu = Memory.stats.cpu.serializeCpu * 0.9 + serializeCpu * 0.1
+    } else {
+      Memory.stats.cpu.serializeCpu = serializeCpu
+    }
+
     Memory.stats.cpu.serializeCpuTime = Game.time
   }
 }

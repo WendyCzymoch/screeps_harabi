@@ -95,17 +95,22 @@ Room.prototype.manageBuild = function () {
       if (laborer.memory.targetId !== undefined) {
         continue
       }
-      laborer.memory.targetId = laborer.pos.findClosestByRange(priorityTargets).id
+      const priorityTarget = laborer.pos.findClosestByRange(priorityTargets)
+
+      if (priorityTarget) {
+        laborer.memory.targetId = priorityTarget.id
+      }
     }
   }
 
   for (const laborer of builders) {
-    laborer.needDelivery = true
     // energy 없으면 energy 받아라
     if (!laborer.working) {
       const energySource = this.storage || this.terminal || this.controller.container
       if (energySource) {
         laborer.getEnergyFrom(energySource.id)
+      } else {
+        laborer.needDelivery = true
       }
       continue
     }

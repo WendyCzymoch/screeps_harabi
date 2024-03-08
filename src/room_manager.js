@@ -15,7 +15,8 @@ Room.prototype.runRoomManager = function () {
     this.abandonRoom()
   }
 
-  if (config.seasonNumber === 6 && Overlord.getSecondsToClose(this.name) < 5000) {
+  if (this.memory.vacate || (config.seasonNumber === 6 && Overlord.getSecondsToClose(this.name) < 5000)) {
+    this.memory.vacate = true
     this.vacate()
   }
 
@@ -276,6 +277,7 @@ Room.prototype.vacate = function () {
   const terminal = this.terminal
   const factory = this.structures.factory[0]
 
+  // transfer resources from factory to terminal
   if (terminal && factory && factory.store.getUsedCapacity() > 0 && terminal.store.getFreeCapacity() > 1000) {
     const researcher = this.creeps.researcher[0]
     if (researcher) {
@@ -287,24 +289,27 @@ Room.prototype.vacate = function () {
     }
   }
 
+  // send resources to other rooms
   if (terminal && !terminal.cooldown) {
     if (terminal.store.getUsedCapacity() < 1000 && this.storage.store.getUsedCapacity() < 1000) {
       return OK
     }
 
+    // terminals to send resources
+    const terminals = Overlord.structures.terminal.filter((structure) => {
+      if (structure.id === terminal.id) {
+        return false
+      }
+
+      if (structure.room.memory.vacate) {
+        return false
+      }
+
+      return true
+    })
+
     for (const resourceType of Object.keys(terminal.store)) {
       if (resourceType !== RESOURCE_ENERGY) {
-        const terminals = Overlord.structures.terminal.filter((structure) => {
-          if (structure.id === terminal.id) {
-            return false
-          }
-
-          if (config.seasonNumber === 6 && Overlord.getSecondsToClose(structure.room.name) < 5000) {
-            return false
-          }
-
-          return true
-        })
         const targetTerminal = Util.getMinObject(terminals, (structure) => structure.store[resourceType])
         const amount = Math.min(terminal.store[resourceType], Math.floor(terminal.store[RESOURCE_ENERGY] / 2))
         if (targetTerminal) {
