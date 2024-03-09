@@ -149,7 +149,7 @@ Room.prototype.manageScout = function () {
         this.checkMineral(roomName)
       }
     } else if (this.getRemoteStatus(roomName)) {
-      data.recordLog(`REMOTE: ${this.name} delete remote ${roomName}. depth ${depth}`)
+      data.recordLog(`REMOTE: ${this.name} delete remote ${roomName}. depth ${depth}`, this.name)
       this.deleteRemote(roomName)
     }
 

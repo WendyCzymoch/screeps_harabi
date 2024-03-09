@@ -27,9 +27,14 @@ Overlord.manageAutoClaim = function () {
 }
 
 Overlord.getClaimTargetInfo = function () {
-  const nexts = Memory.nexts || []
+  Memory.nexts = Memory.nexts || []
 
-  for (const next of nexts) {
+  Memory.nexts = Memory.nexts.filter((roomName) => {
+    const room = Game.rooms[roomName]
+    return !room || !room.isMy
+  })
+
+  for (const next of Memory.nexts) {
     const nextRoom = Game.rooms[next]
 
     if (!nextRoom || !nextRoom.isMy) {

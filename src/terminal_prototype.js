@@ -45,7 +45,7 @@ StructureTerminal.prototype.run = function () {
   if (this.room.energyLevel > ENERGY_LEVEL_TO_FUNNEL) {
     if (bestFunnelRequest && bestFunnelRequest.roomName !== roomName) {
       const myFunnelList = Overlord.getMyFunnelList()
-      const thisRoomFunnelInfo = myFunnelList.find((info) => info.roomName === this.name)
+      const thisRoomFunnelInfo = myFunnelList.find((info) => info.roomName === this.room.name)
       if (!thisRoomFunnelInfo || thisRoomFunnelInfo.priority > bestFunnelRequest.priority) {
         this.send(RESOURCE_ENERGY, ENERGY_AMOUNT_TO_FUNNEL, bestFunnelRequest.roomName)
         simpleAllies.endRun()

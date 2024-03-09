@@ -48,8 +48,6 @@ Overlord.manageDiplomacy = function () {
 
     let num = tasks.filter((task) => task.username === username).length
 
-    console.log(`check ${username}. ${num}/${maxNum}. we know ${roomNames.length} rooms`)
-
     room: for (const roomName of roomNames) {
       if (num >= maxNum) {
         continue user
@@ -62,18 +60,15 @@ Overlord.manageDiplomacy = function () {
 
       const roomIntel = this.getIntel(roomName)
       if (roomIntel[scoutKeys.lastHarassTick] && Game.time < roomIntel[scoutKeys.lastHarassTick] + 1000) {
-        console.log(`recently harassed ${roomName}`)
         continue room
       }
 
       if (roomIntel[scoutKeys.depth] > 10) {
-        console.log(`${roomName} depth ${roomIntel[scoutKeys.depth]}`)
         continue room
       }
 
       const closestMyRoom = Game.rooms[roomIntel[scoutKeys.closestMyRoom]]
       if (!closestMyRoom || !closestMyRoom.isMy || closestMyRoom.controller.level < roomIntel[scoutKeys.RCL]) {
-        console.log(`closesetMyRoom ${roomIntel[scoutKeys.closestMyRoom]} Issue`)
         continue room
       }
 
@@ -89,8 +84,6 @@ Overlord.manageDiplomacy = function () {
       num++
       continue room
     }
-
-    console.log(`checked ${username}. ${num}/${maxNum}.`)
   }
 }
 

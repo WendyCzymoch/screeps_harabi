@@ -58,8 +58,6 @@ if (shardName === 'swc') {
 
   config.rampartHitsPerRclSquare = 16000
 
-  config.distanceToRemote = 2
-
   config.alwaysShowDashboard = true
 
   config.diplomacy = true
@@ -129,8 +127,6 @@ if (shardName === 'swc') {
   config.rampartHitsPerRclSquare = 5000
 
   config.blockUpragade = false
-
-  config.distanceToRemote = 2
 
   config.diplomacy = false
 
@@ -208,13 +204,12 @@ if (shardName === 'swc') {
 
   config.rampartHitsPerRclSquare = 16000
 
-  config.distanceToRemote = 2
-
   config.diplomacy = true
 
   config.shards = ['shard0', 'shard1', 'shard2', 'shard3']
 } else {
   // local
+
   config.allies = []
 
   config.task = {
@@ -276,14 +271,14 @@ if (shardName === 'swc') {
 
   config.publicRamparts = false
 
-  config.showTicks = false
+  config.showTicks = true
 
   config.rampartHitsPerRclSquare = 16000
 
-  config.distanceToRemote = 2
-
   config.diplomacy = true
 }
+
+config.distanceToRemote = 3
 
 // quad and duo settings
 config.IMPORTANT_STRUCTURE_TYPES = [

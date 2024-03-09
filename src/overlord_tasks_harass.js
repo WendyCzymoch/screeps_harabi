@@ -10,8 +10,6 @@ Overlord.manageHarassTasks = function () {
     const roomInCharge = Game.rooms[request.roomNameInCharge]
 
     if (request.complete) {
-      console.log(`${roomInCharge.name} complete harss ${request.roomName} of ${request.username}. ${request.result}`)
-
       const roomIntel = this.getIntel(request.roomName)
       roomIntel[scoutKeys.lastHarassTick] = Game.time
 

@@ -344,11 +344,13 @@ function runRemoteHauler(creep) {
   // 행동
   const path = base.getRemotePath(targetRoomName, creep.memory.sourceId)
 
-  if (creep.memory.supplying) {
-    if (!path) {
-      return
-    }
+  if (!path) {
+    delete creep.memory.targetRoomName
+    delete creep.memory.sourceId
+    return
+  }
 
+  if (creep.memory.supplying) {
     if (creep.room.name !== creep.memory.base) {
       creep.moveByRemotePath(path)
       return

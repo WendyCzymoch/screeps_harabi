@@ -5,6 +5,9 @@ require('overlord')
 
 require('global_function')
 
+const { IntentProfiler } = require('./intent_profiler')
+IntentProfiler.init()
+
 require('creep_prototype_attacker')
 require('creep_prototype_blinky')
 require('creep_prototype_combat')
