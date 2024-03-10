@@ -222,13 +222,13 @@ Object.defineProperties(Room.prototype, {
       } else {
         const roomType = getRoomType(this.name)
 
-        if (roomType === 'normal') {
-          for (const rampart of this.structures.rampart) {
-            if (!rampart.isPublic) {
-              costs.set(rampart.pos.x, rampart.pos.y, 255)
-            }
+        for (const rampart of this.structures.rampart) {
+          if (!rampart.isPublic) {
+            costs.set(rampart.pos.x, rampart.pos.y, 255)
           }
-        } else if (roomType === 'sourceKeeper') {
+        }
+
+        if (roomType === 'sourceKeeper') {
           for (const sourceKeeper of this.find(FIND_HOSTILE_CREEPS).filter(
             (creep) => creep.owner.username === 'Source Keeper'
           )) {
@@ -248,6 +248,12 @@ Object.defineProperties(Room.prototype, {
           }
         }
       }
+
+      // for (let x = 0; x < 50; x++) {
+      //   for (let y = 0; y < 50; y++) {
+      //     this.visual.text(costs.get(x, y), x, y)
+      //   }
+      // }
 
       this.heap._basicCostmatrixTick = Game.time
       return (this.heap.basicCostmatrix = costs)

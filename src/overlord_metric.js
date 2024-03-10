@@ -62,7 +62,6 @@ Overlord.findPath = function (startPos, goals, options = {}) {
       if (ignoreMap === 0 && intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
         return ERR_NO_PATH
       }
-
       routes = this.findRoute(startPos.roomName, targetRoomName)
     }
 
@@ -237,6 +236,11 @@ Overlord.findRouteWithoutPortal = function (startRoomName, goalRoomName, options
     },
   })
 
+  if (goalRoomName === 'E27N45') {
+    console.log(JSON.stringify(findRoute))
+    console.log(Object.keys(findRoute).length)
+  }
+
   if (findRoute === ERR_NO_PATH || Object.keys(findRoute).length > maxRooms) {
     return false
   }
@@ -364,6 +368,14 @@ function getRoomCost(startRoomName, goalRoomName, roomName) {
 
   const intel = Overlord.getIntel(roomName)
 
+  if (intel[scoutKeys.isMy]) {
+    return 1
+  }
+
+  if (allies.includes(intel[scoutKeys.owner])) {
+    return 1
+  }
+
   if (intel[scoutKeys.numTower] > 0) {
     return Infinity
   }
@@ -372,18 +384,18 @@ function getRoomCost(startRoomName, goalRoomName, roomName) {
     return 3.1
   }
 
-  if (intel[scoutKeys.isMy] || intel[scoutKeys.isMyRemote]) {
-    return 1
-  }
-
-  if (allies.includes(intel[scoutKeys.owner])) {
+  if (intel[scoutKeys.isMyRemote]) {
     return 1
   }
 
   const roomType = getRoomType(roomName)
 
-  if (roomType === 'highway') {
+  if (roomType === 'highway' || roomType === 'center') {
     return 1
+  }
+
+  if (roomType === 'sourceKeeper') {
+    return 1.2
   }
 
   return 1.1

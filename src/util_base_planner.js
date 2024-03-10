@@ -224,7 +224,7 @@ Room.prototype.getBasePlanByRegion = function (region) {
 
   let candidates = []
   for (const level of levels) {
-    if (level < 3) {
+    if (level < 4) {
       break
     }
     candidates.push(...positionsByLevel[level])
@@ -817,7 +817,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
     console.log(`cannot find container pos of controller`)
   }
 
-  // Flood fill 10 labs && 60 extensions && 1 observer, 1 factory, 1 nuker
+  // Flood fill 10 labs && 60 extensions && 1 observer, 1 factory, 1 nuker && 6 towers
   const floodFill = this.floodFill(structures.road, { costMatrix: costs, visual: false })
 
   const floodFillPositions = floodFill.positions
@@ -840,7 +840,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
     const positions = floodFillPositions[level]
     for (const pos of positions) {
       // 73개 찾았으면 끝내자
-      if (floodFillResults.length >= 73) {
+      if (floodFillResults.length >= 79) {
         break outer
       }
       // 길 깔아야 되는 위치면 넘어가자
@@ -892,7 +892,7 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
     this.visual.circle(pos, { fill: COLOR_NEON_RED, radius: 0.5 })
   }
 
-  if (floodFillResults.length < 63) {
+  if (floodFillResults.length < 69) {
     console.log(`not enough extensions`)
     return { basePlan: basePlan, score: 0 }
   }
@@ -1229,9 +1229,8 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   // place towers
   const ramparts = [...cuts]
   const floodFillAllPositions = floodFill.allPositions
-  const floodFillAllPositionsFiltered = floodFillAllPositions.filter((pos) => costs.get(pos.x, pos.y) === 0)
 
-  let towerPosCandidates = [...floodFillResults, ...floodFillAllPositionsFiltered]
+  let towerPosCandidates = [...floodFillResults]
 
   while (structures.tower.length < 6) {
     if (structures.tower.length === 0) {
