@@ -236,11 +236,6 @@ Overlord.findRouteWithoutPortal = function (startRoomName, goalRoomName, options
     },
   })
 
-  if (goalRoomName === 'E27N45') {
-    console.log(JSON.stringify(findRoute))
-    console.log(Object.keys(findRoute).length)
-  }
-
   if (findRoute === ERR_NO_PATH || Object.keys(findRoute).length > maxRooms) {
     return false
   }
@@ -384,7 +379,7 @@ function getRoomCost(startRoomName, goalRoomName, roomName) {
     return 3.1
   }
 
-  if (intel[scoutKeys.isMyRemote]) {
+  if (Overlord.remotes.includes(roomName)) {
     return 1
   }
 

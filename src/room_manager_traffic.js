@@ -6,28 +6,17 @@ Room.prototype.manageTraffic = function () {
   const creeps = this.find(FIND_MY_CREEPS)
 
   const dist = {}
-  const match = {}
+  const match = new Map()
 
   const movingCreeps = []
 
-  // check creeps to solve
+  // check creeps to solve. match creeps to current pos
   for (const creep of creeps) {
-    const nextPos = creep.getNextPos()
-    if (!nextPos) {
-      const packedCoord = RoomPostionUtils.packCoord(creep.pos)
-      match[packedCoord] = creep
-      creep.matchedPos = creep.pos
-      continue
-    }
+    creep.matchedPos = creep.pos
 
-    if (creep.checkEmpty(nextPos) === OK) {
-      const packedCoord = RoomPostionUtils.packCoord(nextPos)
-      match[packedCoord] = creep
-      creep.matchedPos = nextPos
-      continue
-    }
+    const packedCoord = RoomPostionUtils.packCoord(creep.pos)
 
-    movingCreeps.push(creep)
+    match.set(packedCoord, creep)
   }
 
   while (bfs(creeps, dist, match)) {
