@@ -159,7 +159,7 @@ Room.prototype.manageSpawn = function () {
       this.requestLaborer({ maxWork: 1 })
     }
   } else if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
-    let doBoost = undefined
+    let boost = undefined
 
     if (canBoost) {
       const funnelRequest = Overlord.getBestFunnelRequest()
@@ -167,13 +167,22 @@ Room.prototype.manageSpawn = function () {
       if (config.isWorld || this.controller.level < 8) {
         if (!funnelRequest || funnelRequest.roomName === this.name) {
           const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
-          doBoost = resourceAmountsTotal && (resourceAmountsTotal['XGH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL
+
+          if (resourceAmountsTotal) {
+            if ((resourceAmountsTotal['XGH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
+              boost = 'XGH2O'
+            } else if ((resourceAmountsTotal['GH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
+              boost = 'GH2O'
+            } else if ((resourceAmountsTotal['GH'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
+              boost = 'GH'
+            }
+          }
         }
       }
     }
 
-    if (doBoost) {
-      this.requestLaborer({ maxWork: numWorkEach, boost: 'XGH2O' })
+    if (boost) {
+      this.requestLaborer({ maxWork: numWorkEach, boost })
     } else {
       let numWork = maxWork - this.laborer.numWork
 
