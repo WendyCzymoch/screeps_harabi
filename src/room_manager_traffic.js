@@ -24,9 +24,7 @@ Room.prototype.manageTraffic = function () {
   const visited = {}
 
   for (const creep of movingCreeps) {
-    if (!creep._matchedPos) {
-      this.dfs(creep, visited, match)
-    }
+    this.dfs(creep, visited, match)
   }
 
   let numMoved = 0
@@ -91,6 +89,7 @@ Room.prototype.dfs = function (creep, visited, match) {
       continue
     }
 
+    // there is a creep which can be pushed.
     if (this.dfs(occupyingCreep, visited, match)) {
       const newOccupyingCreep = match.get[packedCoord]
       if (newOccupyingCreep) {
@@ -102,6 +101,7 @@ Room.prototype.dfs = function (creep, visited, match) {
     }
   }
 
+  // this creep cannot move.
   match.set(RoomPostionUtils.packCoord(creep.pos), creep)
 
   return false
