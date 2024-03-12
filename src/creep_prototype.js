@@ -1,5 +1,4 @@
 const VISUALIZE_GOAL = false
-const VISUALIZE_MOVE = false
 
 Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
   if (ignoreMap === undefined) {
@@ -67,7 +66,7 @@ Creep.prototype.moveMy = function (goals, options = {}) {
   // stay 중이면 return
   if (this.heap.stay) {
     if (Game.time < this.heap.stay) {
-      this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' })
+      // this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' })
       this.say(`🛌${this.heap.stay - Game.time}`, true)
       return ERR_NO_PATH
     } else {
@@ -108,7 +107,7 @@ Creep.prototype.moveMy = function (goals, options = {}) {
 
   if (this.heap.stuck >= 5) {
     this.say(`😣`, true)
-    const doIgnoreCreeps = Math.random() < 0.5
+    const doIgnoreCreeps = Math.random() < 0.2
     const result = this.searchPath(goals, { staySafe, ignoreMap, ignoreCreeps: doIgnoreCreeps, moveCost })
     if (result === ERR_NO_PATH) {
       this.heap.noPath = this.heap.noPath || 0

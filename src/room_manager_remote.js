@@ -293,9 +293,7 @@ Room.prototype.manageRemoteHaulers = function () {
       sourceStats[targetSourceId].energyAmountNear -= capacity
     } else {
       hauler.say('😴', true)
-      if (hauler.ticksToLive < hauler.body.length * CREEP_SPAWN_TIME) {
-        hauler.memory.getRecycled = true
-      }
+      hauler.memory.getRecycled = true
     }
 
     runRemoteHauler(hauler)
@@ -1186,10 +1184,18 @@ Room.prototype.spawnSourceKeeperRemoteWorkers = function (info, options) {
     }
 
     if (numCarry < result.maxCarry) {
-      this.requestRemoteHauler({
-        maxCarry: maxHaulerCarry,
-        noRoad: !status.constructionComplete,
-      })
+      if (config.trafficTest) {
+        this.requestRemoteHauler({
+          maxCarry: 1,
+          noRoad: !status.constructionComplete,
+        })
+      } else {
+        this.requestRemoteHauler({
+          maxCarry: maxHaulerCarry,
+          noRoad: !status.constructionComplete,
+        })
+      }
+
       result.requested = true
       return result
     }
@@ -1371,10 +1377,18 @@ Room.prototype.spawnNormalRemoteWorkers = function (info, options) {
     }
 
     if (numCarry < result.maxCarry) {
-      this.requestRemoteHauler({
-        maxCarry: maxHaulerCarry,
-        noRoad: !status.constructionComplete,
-      })
+      if (config.trafficTest) {
+        this.requestRemoteHauler({
+          maxCarry: 1,
+          noRoad: !status.constructionComplete,
+        })
+      } else {
+        this.requestRemoteHauler({
+          maxCarry: maxHaulerCarry,
+          noRoad: !status.constructionComplete,
+        })
+      }
+
       result.requested = true
       return result
     }

@@ -271,11 +271,13 @@ if (shardName === 'swc') {
 
   config.publicRamparts = false
 
-  config.showTicks = true
+  config.showTicks = false
 
   config.rampartHitsPerRclSquare = 16000
 
   config.diplomacy = true
+
+  config.trafficTest = false
 }
 
 config.distanceToRemote = 3

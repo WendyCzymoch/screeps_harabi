@@ -154,7 +154,7 @@ Room.prototype.manageSpawn = function () {
   const numWorkEach = Math.ceil(maxWork / maxNumLaborer)
 
   // source 가동률만큼만 생산
-  if (TRAFFIC_TEST) {
+  if (config.trafficTest) {
     if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
       this.requestLaborer({ maxWork: 1 })
     }

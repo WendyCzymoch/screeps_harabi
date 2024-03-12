@@ -214,6 +214,11 @@ Room.prototype.manageSource = function () {
     }
 
     if (haulerRatio === 0) {
+      if (config.trafficTest) {
+        this.requestHauler(1, { isUrgent: false, office: source })
+        return
+      }
+
       this.requestHauler(source.info.maxCarry, { isUrgent: true, office: source })
       return
     }
@@ -224,6 +229,11 @@ Room.prototype.manageSource = function () {
     }
 
     if (haulerRatio < 1 && source.info.numHauler < source.info.maxNumHauler) {
+      if (config.trafficTest) {
+        this.requestHauler(1, { isUrgent: false, office: source })
+        return
+      }
+
       const numCarry =
         source.info.numHauler < source.info.maxNumHauler - 1
           ? source.info.eachCarry

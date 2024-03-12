@@ -1,12 +1,7 @@
+const { config } = require('./config')
 const { RoomPostionUtils } = require('./util_roomPosition')
 
-global.TRAFFIC_TEST = false
-
-const CPU_CHECK = false
-
 Room.prototype.manageTraffic = function () {
-  const CPUbefore = CPU_CHECK ? Game.cpu.getUsed() : undefined
-
   const creeps = this.find(FIND_MY_CREEPS)
 
   const match = new Map()
@@ -21,9 +16,8 @@ Room.prototype.manageTraffic = function () {
     }
   }
 
-  const visited = {}
-
   for (const creep of movingCreeps) {
+    const visited = {}
     this.dfs(creep, visited, match)
   }
 
@@ -37,11 +31,6 @@ Room.prototype.manageTraffic = function () {
       }
     }
   }
-
-  if (CPU_CHECK) {
-    const usedCPU = Game.cpu.getUsed() - CPUbefore - numMoved * 0.2
-    console.log(`use ${(usedCPU / numMoved).toFixed(2)} cpu for each move`)
-  }
 }
 
 /**
@@ -52,8 +41,6 @@ Room.prototype.manageTraffic = function () {
  * @param {array} costs - costMatrix which represent index of the creep which is occupying that position
  */
 Room.prototype.dfs = function (creep, visited, match) {
-  visited[creep.name] = true
-
   if (creep._matchedPos) {
     return false
   }
@@ -62,27 +49,27 @@ Room.prototype.dfs = function (creep, visited, match) {
     return false
   }
 
-  const moveIntent = creep.getMoveIntent()
+  const moveIntent = [...creep.getMoveIntent()]
 
   while (moveIntent.length > 0) {
     const pos = moveIntent.shift()
 
     const packedCoord = RoomPostionUtils.packCoord(pos)
 
+    if (visited[packedCoord]) {
+      continue
+    }
+
+    visited[packedCoord] = true
+
     const occupyingCreep = match.get(packedCoord)
 
     match.delete(RoomPostionUtils.packCoord(creep.pos))
 
-    // there is no creep for that position
     if (!occupyingCreep) {
       match.set(packedCoord, creep)
       creep._matchedPos = pos
       return true
-    }
-
-    // there is a creep which is already checked. cannot push it.
-    if (visited[occupyingCreep.name]) {
-      continue
     }
 
     // there is a creep which can be pushed.
@@ -104,6 +91,9 @@ Room.prototype.dfs = function (creep, visited, match) {
 }
 
 Creep.prototype.setNextPos = function (pos) {
+  if (config.trafficTest) {
+    this.room.visual.arrow(this.pos, pos)
+  }
   this._nextPos = pos
 }
 
