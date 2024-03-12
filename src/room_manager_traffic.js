@@ -44,10 +44,6 @@ Room.prototype.manageTraffic = function () {
   }
 }
 
-Creep.prototype.getStuckTick = function () {
-  return this.heap.stuck || 0
-}
-
 /**
  *
  * @param {number} a - index of a creep in array of creeps
