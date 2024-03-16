@@ -84,7 +84,6 @@ require('structure_prototype')
 require('terminal_prototype')
 
 require('util_base_planner')
-require('util_chunking')
 require('util_combat_analysis')
 require('util_defenseCostMatrix')
 require('util_dijkstra')

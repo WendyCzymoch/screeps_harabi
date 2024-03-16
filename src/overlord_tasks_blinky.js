@@ -80,10 +80,6 @@ Room.prototype.sendBlinkies = function (request) {
 }
 
 function runBlinky(creep, targetRoomName) {
-  creep.activeHeal()
-
-  creep.activeRangedAttack()
-
   if (!creep.memory.flee && creep.hits / creep.hitsMax <= 0.7) {
     creep.memory.flee = true
   } else if (creep.memory.flee && creep.hits / creep.hitsMax === 1) {
@@ -93,6 +89,15 @@ function runBlinky(creep, targetRoomName) {
   const enemyCombatants = creep.room
     .getEnemyCombatants()
     .filter((creep) => !creep.pos.isRampart && creep.owner.username !== 'Source Keeper')
+
+  if (creep.hits < creep.hitsMax || enemyCombatants.length > 0) {
+    creep.activeHeal()
+  }
+
+  if (enemyCombatants.length > 0) {
+    creep.activeRangedAttack()
+  }
+
   if (creep.memory.flee) {
     for (const enemy of enemyCombatants) {
       if (creep.pos.getRangeTo(enemy.pos) < 10) {

@@ -293,7 +293,9 @@ Room.prototype.manageRemoteHaulers = function () {
       sourceStats[targetSourceId].energyAmountNear -= capacity
     } else {
       hauler.say('😴', true)
-      hauler.memory.getRecycled = true
+      if (hauler.ticksToLive < hauler.body.length * CREEP_SPAWN_TIME) {
+        hauler.memory.getRecycled = true
+      }
     }
 
     runRemoteHauler(hauler)

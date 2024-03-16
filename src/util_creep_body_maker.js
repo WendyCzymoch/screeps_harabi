@@ -9,7 +9,7 @@ class CreepUtil {
     cost += BODYPART_COST[MOVE]
 
     while (cost < energyCapacity && work + move + carry < MAX_CREEP_SIZE) {
-      if (work < 5 && energyCapacity >= cost + BODYPART_COST[WORK]) {
+      if (work < 5 && work < maxWork && energyCapacity >= cost + BODYPART_COST[WORK]) {
         work++
         cost += BODYPART_COST[WORK]
         continue
