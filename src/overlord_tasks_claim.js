@@ -141,7 +141,7 @@ Room.prototype.runClaimTask = function (request) {
 
     let numLeft = 0
 
-    let numDone = 0
+    let numFail = 0
 
     for (const structure of structures) {
       // 내 건물은 넘어가
@@ -164,15 +164,17 @@ Room.prototype.runClaimTask = function (request) {
         numLeft++
         continue
       }
-      numDone++
-      structure.destroy()
+
+      if (structure.destroy() === ERR_BUSY) {
+        numFail++
+      }
     }
 
-    if (numDone === 0) {
+    if (numFail === 0) {
       request.isClearedOnce = true
     }
 
-    if (numLeft === 0 && numDone === 0) {
+    if (numLeft === 0 && numFail === 0) {
       request.isCleared = true
     }
   }
@@ -209,12 +211,8 @@ Room.prototype.runClaimTask = function (request) {
   // pioneer part
 
   if (spawn) {
-    request.saveCPU = false
     // don't send pioneers when there is spawn
     return
-  } else {
-    request.saveCPU = true
-    // save CPU while building spawn. this room will use much CPU after spawn built.
   }
 
   const pioneers = Overlord.getCreepsByRole(roomName, 'pioneer').filter(

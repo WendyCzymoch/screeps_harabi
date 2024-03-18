@@ -723,7 +723,11 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   })
   for (const source of sourcesSorted) {
     const containerPos = firstAnchor.pos.getClosestByPath(
-      source.pos.getAtRange(1).filter((pos) => !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST)
+      source.pos
+        .getAtRange(1)
+        .filter(
+          (pos) => !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST && costs.get(pos.x, pos.y) !== STRUCTURE_COST
+        )
     )
     if (!containerPos) {
       console.log(`cannot find container pos of ${source.id}`)
@@ -737,7 +741,11 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
 
     if (containerPos.available >= 3) {
       const linkPos = firstAnchor.pos.findClosestByRange(
-        containerPos.getAtRange(1).filter((pos) => !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST)
+        containerPos
+          .getAtRange(1)
+          .filter(
+            (pos) => !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST && costs.get(pos.x, pos.y) !== STRUCTURE_COST
+          )
       )
 
       if (!linkPos) {
@@ -754,7 +762,11 @@ Room.prototype.getBasePlanAfterMincut = function (pos, inputCosts, mincut, costs
   //mineral
   // find closest position by Path
   const mineralContainerPos = firstAnchor.pos.getClosestByPath(
-    this.mineral.pos.getAtRange(1).filter((pos) => !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST)
+    this.mineral.pos
+      .getAtRange(1)
+      .filter(
+        (pos) => !pos.isWall && costs.get(pos.x, pos.y) !== ROAD_COST && costs.get(pos.x, pos.y) !== STRUCTURE_COST
+      )
   )
   if (!mineralContainerPos) {
     console.log('no mineral container')
