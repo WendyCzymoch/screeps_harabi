@@ -164,7 +164,7 @@ Room.prototype.manageSpawn = function () {
     if (canBoost) {
       const funnelRequest = Overlord.getBestFunnelRequest()
 
-      if (config.isWorld || this.controller.level < 8) {
+      if (this.controller.level < 8) {
         if (!funnelRequest || funnelRequest.roomName === this.name) {
           const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
 
@@ -366,7 +366,7 @@ Room.prototype.getDesiredWallMakerCount = function () {
 
   if (this.energyLevel >= config.energyLevel.RAMPART_HIGH) {
     if (hits < RAMPART_HITS_THRESHOLD) {
-      const count = Math.ceil((this.energyLevel - config.energyLevel.RAMPART_HIGH) / 20)
+      const count = Math.clamp(Math.ceil((this.energyLevel - config.energyLevel.RAMPART_HIGH) / 20), 0, 5)
       return (this._desiredWallMakerCount = this.heap.desiredWallMakerCount = count)
     }
   } else if (this.energyLevel >= config.energyLevel.RAMPART_MIDDLE) {

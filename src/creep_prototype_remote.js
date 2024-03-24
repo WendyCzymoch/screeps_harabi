@@ -142,7 +142,7 @@ Creep.prototype.avoidSourceKeepers = function () {
   })
 
   if (this.pos.findInRange(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE).length > 0) {
-    this.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE + 1)
+    this.fleeFrom(keeperLairs, KEEPER_LAIR_RANGE_TO_START_FLEE + 1, 1)
     return OK
   }
 
@@ -326,10 +326,10 @@ Creep.prototype.moveByRemotePath = function (path, options = {}) {
   this.heap.lastPos = this.pos
   this.heap.lastPosTick = Game.time
 
-  // if (this.heap.stuck > 5) {
-  //   this.say('😣', true)
-  //   this.heap.useMoveMy = Game.time + 20
-  // }
+  if (this.heap.stuck > 5) {
+    this.say('😣', true)
+    this.heap.useMoveMy = Game.time + 20
+  }
 
   return OK
 }

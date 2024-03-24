@@ -85,7 +85,7 @@ Creep.prototype.blinkyFight = function (targetRoomName, options = {}) {
     }
 
     if (range > idealRange) {
-      this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: false, staySafe: false })
+      this.moveMy({ pos: closestTarget.pos, range: idealRange }, { ignoreCreeps: true, staySafe: false })
       return
     }
 

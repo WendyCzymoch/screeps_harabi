@@ -153,12 +153,12 @@ Room.prototype.getFactoryTarget = function () {
     return this.memory.factoryTarget
   }
 
-  const targetCommodities = config.factoryObjectives || []
+  const targetCommodities = [...config.factoryObjectives] || []
 
-  if (this.energyLevel >= config.energyLevel.BATTERY_COOK) {
+  if (this.getTotalFreeCapacity() < 100000) {
     const target = { commodity: RESOURCE_BATTERY, amount: 1000 }
     targetCommodities.push(target)
-  } else if (this.energyLevel < config.energyLevel.BATTERY_EAT) {
+  } else if (this.getTotalFreeCapacity() > 200000) {
     const target = { commodity: RESOURCE_ENERGY, amount: 10000 }
     targetCommodities.push(target)
   }
@@ -273,28 +273,4 @@ Room.prototype.checkCommodity = function (resourceType, checked) {
   }
 
   return OK
-}
-
-Room.prototype.getResourceAmount = function (resourceType) {
-  const storage = this.storage
-  const factories = this.structures.factory
-  const terminal = this.terminal
-
-  let result = 0
-
-  if (storage) {
-    result += storage.store[resourceType] || 0
-  }
-
-  if (factories) {
-    for (const factory of factories) {
-      result += factory.store[resourceType] || 0
-    }
-  }
-
-  if (terminal) {
-    result += terminal.store[resourceType] || 0
-  }
-
-  return result
 }

@@ -90,9 +90,7 @@ function runBlinky(creep, targetRoomName) {
     .getEnemyCombatants()
     .filter((creep) => !creep.pos.isRampart && creep.owner.username !== 'Source Keeper')
 
-  if (creep.hits < creep.hitsMax || enemyCombatants.length > 0) {
-    creep.activeHeal()
-  }
+  creep.activeHeal()
 
   if (enemyCombatants.length > 0) {
     creep.activeRangedAttack()
@@ -134,12 +132,14 @@ function runBlinky(creep, targetRoomName) {
   const hostileCreeps = creep.room.findHostileCreeps().filter((creep) => !creep.pos.isRampart)
 
   if (hostileCreeps.length > 0) {
-    creep.heap.enemyLastDetectionTick = Game.time
     const goals = hostileCreeps.map((creep) => {
-      return { pos: creep.pos, range: 1 }
+      return { pos: creep.pos, range: 2 }
     })
-    creep.moveMy(goals, { staySafe: false }) // staySafe should be false for my own room defense
-    return
+    if (creep.moveMy(goals, { staySafe: false }) === OK) {
+      creep.heap.enemyLastDetectionTick = Game.time
+      // staySafe should be false for my own room defense
+      return
+    }
   }
 
   if (creep.heap.enemyLastDetectionTick !== undefined && Game.time < creep.heap.enemyLastDetectionTick + 5) {

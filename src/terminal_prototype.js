@@ -64,7 +64,7 @@ StructureTerminal.prototype.run = function () {
         return
       }
 
-      this.send(RESOURCE_ENERGY, 10 * ENERGY_AMOUNT_TO_FUNNEL, balanceTarget.room.name)
+      this.send(RESOURCE_ENERGY, ENERGY_AMOUNT_TO_FUNNEL, balanceTarget.room.name)
       simpleAllies.endRun()
       return
     }
@@ -74,6 +74,10 @@ StructureTerminal.prototype.run = function () {
     if (COMMODITIES_TO_SELL.includes(resourceType)) {
       Business.sell(resourceType, this.store[resourceType], roomName)
     }
+  }
+
+  if (this.store[RESOURCE_BATTERY] > 100000) {
+    Business.sell(RESOURCE_BATTERY, 5000, roomName)
   }
 
   if (this.store[RESOURCE_POWER] > 10000) {

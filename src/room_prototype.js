@@ -66,7 +66,7 @@ Object.defineProperties(Room.prototype, {
         ) {
           this._structures.damaged.push(structure)
         }
-        if (structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL) {
+        if (structure.structureType === STRUCTURE_RAMPART) {
           if (structure.hits < this._structures.minProtectionHits || this._structures.minProtectionHits === 0) {
             this._structures.minProtectionHits = structure.hits
           }
@@ -206,7 +206,7 @@ Object.defineProperties(Room.prototype, {
         }
 
         for (const cs of this.constructionSites) {
-          if (OBSTACLE_OBJECT_TYPES.includes(cs.structureType)) {
+          if (cs.my && OBSTACLE_OBJECT_TYPES.includes(cs.structureType)) {
             costs.set(cs.pos.x, cs.pos.y, 255)
           } else {
             if (cs.pos.terrain !== TERRAIN_MASK_WALL && costs.get(cs.pos.x, cs.pos.y) < 20) {
@@ -439,17 +439,50 @@ Room.prototype.getUpgradeUpperLimit = function () {
 }
 
 Room.prototype.getTotalEnergy = function () {
-  if (this._totalEnergy !== undefined) {
-    return this._totalEnergy
+  return this.getResourceAmount(RESOURCE_ENERGY) + 10 * this.getResourceAmount(RESOURCE_BATTERY)
+}
+
+Room.prototype.getTotalFreeCapacity = function () {
+  if (this._totalFreeCapacity !== undefined) {
+    return this._totalFreeCapacity
   }
-  let totalEnergy = 0
+
+  let result = 0
   if (this.storage) {
-    totalEnergy += this.storage.store[RESOURCE_ENERGY]
+    result += this.storage.store.getFreeCapacity()
   }
   if (this.terminal) {
-    totalEnergy += this.terminal.store[RESOURCE_ENERGY]
+    result += this.terminal.store.getFreeCapacity()
   }
-  return (this._totalEnergy = totalEnergy)
+  if (this.structures.factory[0]) {
+    result += this.structures.factory[0].store.getFreeCapacity()
+  }
+
+  return (this._totalFreeCapacity = result)
+}
+
+Room.prototype.getResourceAmount = function (resourceType) {
+  const storage = this.storage
+  const factories = this.structures.factory
+  const terminal = this.terminal
+
+  let result = 0
+
+  if (storage) {
+    result += storage.store[resourceType] || 0
+  }
+
+  if (factories) {
+    for (const factory of factories) {
+      result += factory.store[resourceType] || 0
+    }
+  }
+
+  if (terminal) {
+    result += terminal.store[resourceType] || 0
+  }
+
+  return result
 }
 
 Room.prototype.getEnergyLevel = function () {

@@ -56,8 +56,6 @@ Creep.prototype.moveMy = function (goals, options = {}) {
     return ERR_INVALID_TARGET
   }
 
-  const mainTargetPos = goals[0].pos
-
   if (!ignoreOrder && this._moved) {
     this.say(`❌`, true)
     return ERR_BUSY
@@ -68,6 +66,9 @@ Creep.prototype.moveMy = function (goals, options = {}) {
     if (Game.time < this.heap.stay) {
       // this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' })
       this.say(`🛌${this.heap.stay - Game.time}`, true)
+      if (goals[0].pos.roomName === this.pos.roomName) {
+        this.room.visual.line(goals[0].pos, this.pos)
+      }
       return ERR_NO_PATH
     } else {
       delete this.heap.stay

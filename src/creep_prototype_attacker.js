@@ -13,10 +13,10 @@ Creep.prototype.attackRoom = function (request) {
   const healerStatus = healer && !healer.spawning ? healer.hits / healer.hitsMax : 0
 
   // check status. action only if status is good
-  if (!(status > 0.9 && healerStatus > 0.9) && !(this.room.controller && this.room.controller.safeMode)) {
+  if (status < 0.9 || healerStatus < 0.9 || (this.room.controller && this.room.controller.safeMode)) {
     this.attackNear()
     this.say('🚑', true)
-    this.retreat()
+    this.retreatFrom(roomName)
     return
   }
 
@@ -72,7 +72,7 @@ Creep.prototype.attackRoom = function (request) {
   if (this.room.controller.safeMode > 0) {
     this.say('🚑', true)
     this.attackNear()
-    this.retreat()
+    this.retreatFrom(roomName)
     return
   }
 
@@ -83,7 +83,7 @@ Creep.prototype.attackRoom = function (request) {
   if (path === ERR_NOT_FOUND) {
     this.say('🚑', true)
     this.attackNear()
-    this.retreat()
+    this.retreatFrom(roomName)
     return
   }
 
@@ -365,22 +365,28 @@ Creep.prototype.attackNear = function () {
   }
 }
 
-Creep.prototype.retreat = function () {
+Creep.prototype.retreatFrom = function (roomName) {
   this.say('🏃‍♂️', true)
   const healer = Game.creeps[this.memory.healer]
-
-  if (healer && this.pos.getRangeTo(healer) > 1) {
-    this.moveMy({ pos: healer.pos, range: 1 })
-    this.attackNear()
-    return
-  }
 
   if (!healer) {
     const exitPositions = this.room.find(FIND_EXIT)
     const goals = exitPositions.map((pos) => {
-      return { pos, range: 2 }
+      return { pos, range: 0 }
     })
     this.moveMy(goals)
+    return
+  }
+
+  if (healer.room.name !== roomName) {
+    healer.moveToRoom(healer.room.name)
+    this.follow(healer)
+    return
+  }
+
+  if (this.pos.getRangeTo(healer) > 1) {
+    this.moveMy({ pos: healer.pos, range: 1 })
+    this.attackNear()
     return
   }
 
@@ -388,43 +394,11 @@ Creep.prototype.retreat = function () {
     return
   }
 
-  const damageArray = this.room.getDamageArray()
-  const packedNow = packCoord(healer.pos.x, healer.pos.y)
-  const damageNow = damageArray[packedNow]
-
-  const adjacentPositions = healer.pos.getAtRange(1)
-  const adjacentPositionsFiltered = adjacentPositions.filter((pos) => {
-    if (!pos.walkable) {
-      return false
-    }
-    const packed = packCoord(pos.x, pos.y)
-    const damage = damageArray[packed]
-    if (damage > damageNow) {
-      return false
-    }
-    return true
+  const exitPositions = this.room.find(FIND_EXIT)
+  const goals = exitPositions.map((pos) => {
+    return { pos, range: 0 }
   })
-
-  const posToRetreat = Util.getMinObject(adjacentPositionsFiltered, (pos) => {
-    const packed = packCoord(pos.x, pos.y)
-    const addition = pos.isSwamp ? 100 : 0
-    return damageArray[packed] + addition
-  })
-
-  if (!posToRetreat) {
-    this.say('noPos')
-    const exitPositions = this.room.find(FIND_EXIT)
-    const goals = exitPositions.map((pos) => {
-      return { pos, range: 2 }
-    })
-    healer.moveMy(goals)
-    this.follow(healer)
-    return
-  }
-
-  const direction = healer.pos.getDirectionTo(posToRetreat)
-  this.room.visual.circle(posToRetreat, { radius: 0.5, fill: COLOR_NEON_YELLOW })
-  healer.move(direction)
+  healer.moveMy(goals)
   this.follow(healer)
 }
 

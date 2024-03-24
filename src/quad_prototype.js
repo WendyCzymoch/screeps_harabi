@@ -830,11 +830,14 @@ Quad.prototype.isAbleToStep = function (pos) {
   }
 
   const structures = this.room.lookForAtArea(LOOK_STRUCTURES, minY, minX, maxY, maxX, true)
-  const structuresFiltered = structures.filter((looked) =>
-    ENEMY_OBSTACLE_OBJECT_TYPES.includes(looked.structure.structureType)
-  )
-  if (structuresFiltered.length > 0) {
-    return false
+  for (const looked of structures) {
+    const structure = looked.structure
+    if (OBSTACLE_OBJECT_TYPES.includes(structure.structureType)) {
+      return false
+    }
+    if (structure.structureType === STRUCTURE_RAMPART && !structure.my && !structure.isPublic) {
+      return false
+    }
   }
 
   return true

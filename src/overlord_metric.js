@@ -60,12 +60,14 @@ Overlord.findPath = function (startPos, goals, options = {}) {
     if (maxRooms > 1) {
       const intel = Overlord.getIntel(targetRoomName)
       if (ignoreMap === 0 && intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
+        console.log(`inaccessible ${startPos}`)
         return ERR_NO_PATH
       }
       routes = this.findRoute(startPos.roomName, targetRoomName)
     }
 
     if (routes === ERR_NO_PATH) {
+      console.log(`${startPos}`)
       return ERR_NO_PATH
     }
   }
@@ -138,7 +140,6 @@ Overlord.findPath = function (startPos, goals, options = {}) {
               }
             }
           }
-
           return costs
         }
 
@@ -154,11 +155,10 @@ Overlord.findPath = function (startPos, goals, options = {}) {
             costs.set(powerCreep.pos.x, powerCreep.pos.y, creepCost)
           }
         }
-
         return costs
       },
       maxRooms: maxRoomsNow,
-      maxOps: maxRoomsNow > 1 ? 40000 : 5000,
+      maxOps: maxRoomsNow > 1 ? 60000 : 5000,
     })
 
     if (search.incomplete) {
