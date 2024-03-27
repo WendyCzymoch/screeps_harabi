@@ -95,6 +95,7 @@ Creep.prototype.setNextPos = function (pos) {
     this.room.visual.arrow(this.pos, pos)
   }
   this._nextPos = pos
+  this._moved = true
 }
 
 Creep.prototype.getNextPos = function () {

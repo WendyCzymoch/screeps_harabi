@@ -5,6 +5,7 @@ const METHODS_BY_CATEGORY = {
   quad: 'manageQuadTasks',
   duo: `manageDuoTasks`,
   siege: 'manageSiegeTasks',
+  siegeDuo: 'manageSiegeDuoTasks',
   blinky: 'manageBlinkyTasks',
   occupy: 'manageOccupyTasks',
   singleton: 'manageSingletonTasks',

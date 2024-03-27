@@ -67,7 +67,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
     }
 
     if (routes === ERR_NO_PATH) {
-      console.log(`${startPos}`)
+      console.log(`Cannot find route from ${startPos} to ${goals[0].pos}`)
       return ERR_NO_PATH
     }
   }

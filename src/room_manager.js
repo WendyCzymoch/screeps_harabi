@@ -461,6 +461,10 @@ Room.prototype.manageFactory = function () {
     return
   }
 
+  if (factory.cooldown) {
+    return
+  }
+
   this.factoryDistribution()
 
   this.getFactoryTarget()

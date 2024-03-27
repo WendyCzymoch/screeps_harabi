@@ -153,7 +153,11 @@ Room.prototype.getFactoryTarget = function () {
     return this.memory.factoryTarget
   }
 
-  const targetCommodities = [...config.factoryObjectives] || []
+  const targetCommodities = []
+
+  for (const resourceType of config.factoryObjectives) {
+    targetCommodities.push({ commodity: resourceType, amount: COMMODITIES[resourceType].amount })
+  }
 
   if (this.getTotalFreeCapacity() < 100000) {
     const target = { commodity: RESOURCE_BATTERY, amount: 1000 }

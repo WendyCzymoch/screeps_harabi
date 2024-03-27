@@ -32,7 +32,7 @@ if (shardName === 'swc') {
     XKHO2: 3000,
     XLHO2: 4000,
     XZHO2: 2000,
-    XGHO2: 1000,
+    XGHO2: 2000,
 
     KHO2: 1500,
     LHO2: 1000,
@@ -79,7 +79,7 @@ if (shardName === 'swc') {
     XKHO2: 3000,
     XLHO2: 4000,
     XZHO2: 2000,
-    XGHO2: 1000,
+    XGHO2: 2000,
 
     KHO2: 1500,
     LHO2: 1000,
@@ -158,7 +158,7 @@ if (shardName === 'swc') {
     XKHO2: 6000,
     XLHO2: 8000,
     XZHO2: 4000,
-    XGHO2: 2000,
+    XGHO2: 4000,
 
     KHO2: 1500,
     LHO2: 1000,
@@ -229,7 +229,7 @@ if (shardName === 'swc') {
     XKHO2: 6000,
     XLHO2: 8000,
     XZHO2: 4000,
-    XGHO2: 2000,
+    XGHO2: 4000,
 
     KHO2: 1500,
     LHO2: 1000,

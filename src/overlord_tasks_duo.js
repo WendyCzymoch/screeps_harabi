@@ -56,7 +56,10 @@ Room.prototype.runDuoTask = function (request) {
     return
   }
 
-  request.ticksToLive = attacker && healer ? Math.min(attacker.ticksToLive || 1500, healer.ticksToLive || 1500) : 1500
+  request.ticksToLive =
+    attacker && healer
+      ? Math.min(attacker.ticksToLive || CREEP_LIFE_TIME, healer.ticksToLive || CREEP_LIFE_TIME)
+      : CREEP_LIFE_TIME
 
   if (boost > 0 && !request.boosted) {
     request.boosted = attacker.memory.boosted !== false && healer.memory.boosted !== false
@@ -89,6 +92,7 @@ const DuoRequest = function (room, targetRoomName, options) {
   this.healerName = `${targetRoomName} healer ${Game.time}`
   this.species = species
   this.boost = boost
+  this.ticksToLive = CREEP_LIFE_TIME
 }
 
 global.sendDuo = function (targetRoomName, species, boost = undefined) {
@@ -304,4 +308,8 @@ const DUO_HEALER_BOOST_RESOURCES = {
   1: ['ZO', 'LO'],
   2: ['ZHO2', 'LHO2'],
   3: ['XGHO2', 'XZHO2', 'XLHO2'],
+}
+
+module.exports = {
+  DuoRequest,
 }

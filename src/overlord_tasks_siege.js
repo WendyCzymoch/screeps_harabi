@@ -100,9 +100,12 @@ Room.prototype.runSiegeTask = function (request) {
 
   if (targetRoom) {
     const spawns = targetRoom.structures.spawn
-    if (spawns.length === 0) {
+    if (spawns.length === 0 && targetRoom.structures.tower.length === 0) {
       request.result = `${targetRoomName} has no spawn. stop to seige ${targetRoomName}`
       request.complete = true
+      if (targetRoom.controller.level) {
+        occupy(targetRoomName)
+      }
       return
     }
     if (targetRoom.controller.safeMode) {

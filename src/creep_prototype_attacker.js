@@ -12,12 +12,33 @@ Creep.prototype.attackRoom = function (request) {
   const status = this.hits / this.hitsMax
   const healerStatus = healer && !healer.spawning ? healer.hits / healer.hitsMax : 0
 
-  // check status. action only if status is good
-  if (status < 0.9 || healerStatus < 0.9 || (this.room.controller && this.room.controller.safeMode)) {
+  if (this.memory.retreat && status === 1 && healerStatus === 1) {
+    this.memory.retreat = false
+  } else if (
+    !this.memory.retreat &&
+    (status < 0.9 || healerStatus < 0.9 || (this.room.controller && this.room.controller.safeMode))
+  ) {
+    this.memory.retreat = true
+  }
+
+  if (this.memory.retreat || this.memory.forceRetreat > Game.time) {
     this.attackNear()
     this.say('🚑', true)
     this.retreatFrom(roomName)
     return
+  }
+
+  if (Math.random() < 0.1) {
+    const targetRoom = Game.rooms[roomName]
+    if (targetRoom) {
+      const nukes = targetRoom.find(FIND_NUKES)
+      for (const nuke of nukes) {
+        if (nuke.timeToLand < 50) {
+          this.memory.forceRetreat = Math.max(this.memory.forceRetreat || 0, Game.time + nuke.timeToLand)
+          return
+        }
+      }
+    }
   }
 
   // check healer position. action only if healer is near
@@ -37,6 +58,15 @@ Creep.prototype.attackRoom = function (request) {
     }
   } else {
     this.moveMy(healer.pos)
+  }
+
+  if (healer.room.name === roomName && isEdgeCoord(healer.pos.x, healer.pos.y)) {
+    const adjacents = healer.pos.getAtRange(1).sort((a, b) => Math.random() - 0.5)
+    const nextPos = adjacents.find((pos) => pos.walkable)
+    healer.move(healer.pos.getDirectionTo(nextPos))
+    this.attackNear()
+    this.follow(healer)
+    return
   }
 
   // move to target room
@@ -202,7 +232,7 @@ Creep.prototype.getCachedPathToAttack = function () {
     return undefined
   }
 
-  if (this.pos.getRangeTo(cachedPath[0]) === 1) {
+  if (this.pos.getRangeTo(cachedPath[0]) === 1 && !isEdgeCoord(cachedPath[0].x, cachedPath[0].y)) {
     return cachedPath
   }
 
@@ -335,7 +365,9 @@ RoomPosition.prototype.getTotalHits = function () {
 
 Creep.prototype.attackNear = function () {
   if (this.attackPower > 0) {
-    const nearHostileCreep = this.room.findHostileCreeps().find((creep) => this.pos.getRangeTo(creep) <= 1)
+    const nearHostileCreep = this.room
+      .findHostileCreeps()
+      .find((creep) => this.pos.getRangeTo(creep) <= 1 && !creep.pos.isRampart)
 
     if (nearHostileCreep) {
       this.attack(nearHostileCreep)
@@ -367,6 +399,9 @@ Creep.prototype.attackNear = function () {
 
 Creep.prototype.retreatFrom = function (roomName) {
   this.say('🏃‍♂️', true)
+
+  this.attackNear()
+
   const healer = Game.creeps[this.memory.healer]
 
   if (!healer) {
@@ -374,19 +409,18 @@ Creep.prototype.retreatFrom = function (roomName) {
     const goals = exitPositions.map((pos) => {
       return { pos, range: 0 }
     })
-    this.moveMy(goals)
+    this.moveMy(goals, { ignoreCreeps: false })
+    return
+  }
+
+  if (this.room.name === healer.room.name && this.pos.getRangeTo(healer) > 1) {
+    this.moveMy({ pos: healer.pos, range: 1 }, { ignoreCreeps: false })
     return
   }
 
   if (healer.room.name !== roomName) {
     healer.moveToRoom(healer.room.name)
     this.follow(healer)
-    return
-  }
-
-  if (this.pos.getRangeTo(healer) > 1) {
-    this.moveMy({ pos: healer.pos, range: 1 })
-    this.attackNear()
     return
   }
 
@@ -398,7 +432,8 @@ Creep.prototype.retreatFrom = function (roomName) {
   const goals = exitPositions.map((pos) => {
     return { pos, range: 0 }
   })
-  healer.moveMy(goals)
+
+  healer.moveMy(goals, { ignoreCreeps: false })
   this.follow(healer)
 }
 

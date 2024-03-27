@@ -7,6 +7,19 @@ Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
 
   const target = new RoomPosition(25, 25, goalRoomName)
 
+  if (this.room.name !== goalRoomName) {
+    this.moveMy({ pos: target, range: 24 }, { ignoreMap })
+    return
+  }
+
+  if (isEdgeCoord(this.pos.x, this.pos.y)) {
+    const nextPos = this.pos.getAtRange(1).find((pos) => pos.walkable)
+    if (nextPos) {
+      this.setNextPos(nextPos)
+    }
+    return
+  }
+
   return this.moveMy({ pos: target, range: 15 }, { ignoreMap })
 }
 
@@ -210,7 +223,6 @@ Creep.prototype.moveByPathMy = function (path) {
   this.setNextPos(nextPos)
 
   this.heap._pathIndex = index
-  this._moved = true
 
   return OK
 }
@@ -251,7 +263,6 @@ Creep.prototype.moveByPathMyReverse = function (path) {
   this.setNextPos(nextPos)
 
   this.heap._pathIndex = index
-  this._moved = true
 
   return OK
 }
