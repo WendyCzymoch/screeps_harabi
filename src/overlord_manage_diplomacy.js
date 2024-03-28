@@ -34,15 +34,7 @@ Overlord.manageDiplomacy = function () {
       continue
     }
 
-    const roomNames = [...userIntel.roomNames].sort((a, b) => getDepth(a) - getDepth(b))
-
-    function getDepth(roomName) {
-      const roomIntel = Overlord.getIntel(roomName)
-      if (!roomIntel) {
-        return Infinity
-      }
-      return roomIntel[scoutKeys.depth] || Infinity
-    }
+    const roomNames = [...userIntel.roomNames].sort((a, b) => Math.random() - 0.5)
 
     const maxNum = Math.floor(userIntel.hateLevel / config.hateLevel.toHarass)
 

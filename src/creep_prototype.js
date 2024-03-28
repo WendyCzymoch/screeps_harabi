@@ -8,8 +8,7 @@ Creep.prototype.moveToRoom = function (goalRoomName, ignoreMap) {
   const target = new RoomPosition(25, 25, goalRoomName)
 
   if (this.room.name !== goalRoomName) {
-    this.moveMy({ pos: target, range: 24 }, { ignoreMap })
-    return
+    return this.moveMy({ pos: target, range: 24 }, { ignoreMap })
   }
 
   if (isEdgeCoord(this.pos.x, this.pos.y)) {

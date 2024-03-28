@@ -1,5 +1,4 @@
 const { config } = require('./config')
-const { Util } = require('./util')
 
 const IGNORE_TOWER_DAMAGE = config.duo.IGNORE_TOWER_DAMAGE
 const IMPORTANT_STRUCTURE_TYPES = config.IMPORTANT_STRUCTURE_TYPES
@@ -83,6 +82,7 @@ Creep.prototype.attackRoom = function (request) {
   if (isEdgeCoord(this.pos.x, this.pos.y)) {
     const nextPos = healer.pos
       .getAtRange(1)
+      .sort((a, b) => Math.random() - 0.5)
       .find((pos) => this.pos.isNearTo(pos) && !isEdgeCoord(pos.x, pos.y) && pos.walkable)
     this.attackNear()
     this.moveMy(nextPos)

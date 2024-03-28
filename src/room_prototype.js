@@ -183,7 +183,7 @@ Object.defineProperties(Room.prototype, {
         return this.heap.basicCostmatrix
       }
 
-      const costs = this.basicExitCostMatrix
+      const costs = this.basicExitCostMatrix.clone()
 
       for (const structure of this.structures[STRUCTURE_ROAD]) {
         costs.set(structure.pos.x, structure.pos.y, 1)
