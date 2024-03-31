@@ -100,7 +100,7 @@ Room.prototype.runOccupyTask = function (request) {
   }
 
   const tasks = Overlord.getTasksByRoomInCharge(this.name)
-  const blinkyTasks = Object.values(tasks['blinky'])
+  const blinkyTasks = Object.values(tasks['blinky']).filter((task) => task.roomName === targetRoomName)
 
   if (!blinkyTasks.some((request) => request.ticksToLive > 600)) {
     const request = new BlinkyRequest(this, targetRoomName, { number: 1, boost: 3 })

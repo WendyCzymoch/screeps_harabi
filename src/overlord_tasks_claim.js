@@ -94,7 +94,7 @@ Room.prototype.runClaimTask = function (request) {
   const tasks = Overlord.getTasksByRoomInCharge(this.name)
   const blinkyTasks = Object.values(tasks['blinky'])
 
-  if (!blinkyTasks.some((request) => request.ticksToLive > 900)) {
+  if (!blinkyTasks.some((request) => request.roomName === roomName && request.ticksToLive > 900)) {
     const boost = config.isWorld ? 3 : 0
     const request = new BlinkyRequest(this, roomName, { number: 1, boost })
     Overlord.registerTask(request)
@@ -204,7 +204,9 @@ Room.prototype.runClaimTask = function (request) {
     }
   }
 
-  if (targetRoom && spawn && towerActive.length > 0 && request.isCleared) {
+  const towerThreshold = config.isWorld ? 2 : 1
+
+  if (targetRoom && spawn && towerActive.length >= towerThreshold && request.isCleared) {
     request.complete = true
     request.result = 'success'
     return
