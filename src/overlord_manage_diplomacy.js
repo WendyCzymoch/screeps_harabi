@@ -21,7 +21,7 @@ Overlord.manageDiplomacy = function () {
 
   const tasks = Object.values(Overlord.getTasksWithCategory('harass'))
 
-  const usernames = Object.keys(Memory.users).sort((a, b) => Math.random() - 1)
+  const usernames = Object.keys(Memory.users).sort((a, b) => Math.random() - 0.5)
 
   user: for (const username of usernames) {
     const userIntel = this.getUserIntel(username)
@@ -64,7 +64,7 @@ Overlord.manageDiplomacy = function () {
         continue room
       }
 
-      if (tasks.some((task) => task.roomNameInCharge === closestMyRoom.name)) {
+      if (tasks.filter((task) => task.roomNameInCharge === closestMyRoom.name) > 2) {
         continue room
       }
 

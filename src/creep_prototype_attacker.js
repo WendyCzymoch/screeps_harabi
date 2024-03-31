@@ -52,7 +52,7 @@ Creep.prototype.attackRoom = function (request) {
 
     if (range > 1) {
       this.attackNear()
-      healer.moveMy({ pos: this.pos, range: 1 }, { ignoreCreeps: false })
+      healer.moveMy({ pos: this.pos, range: 1 })
       return
     }
   } else {
@@ -70,7 +70,7 @@ Creep.prototype.attackRoom = function (request) {
 
   // move to target room
   if (this.room.name !== roomName) {
-    if (this.fatigue === 0) {
+    if (healer.fatigue === 0) {
       healer.moveToRoom(roomName, 2)
       healer.say('🐛', true)
     }
@@ -138,6 +138,8 @@ Creep.prototype.attackRoom = function (request) {
       return
     }
 
+    this.attackNear()
+
     if (healer.fatigue === 0) {
       this.setNextPos(path[0])
     }
@@ -168,7 +170,7 @@ Creep.prototype.attackRoom = function (request) {
 Creep.prototype.getPathToAttackImportantStructures = function (names) {
   const cachedPath = this.getCachedPathToAttack()
 
-  if (cachedPath !== undefined) {
+  if (cachedPath !== undefined && Math.random() < 0.95) {
     return cachedPath
   }
 
@@ -202,7 +204,7 @@ Creep.prototype.getPathToAttackImportantStructures = function (names) {
     }
   }
 
-  const creepsToAvoid = this.room.find(FIND_CREEPS).filter((creep) => {
+  const creepsToAvoid = this.room.find(FIND_MY_CREEPS).filter((creep) => {
     if (!names.includes(creep.name)) {
       return true
     }
@@ -469,6 +471,11 @@ Creep.prototype.care = function (target) {
 
   const alliesNear = this.pos.findInRange(allies, 3)
   const wounded = alliesNear.find((creep) => creep.hits < creep.hitsMax)
+
+  if (this.rangedAttackPower) {
+    this.activeRangedAttack()
+  }
+
   if (wounded) {
     if (this.pos.getRangeTo(wounded) > 1) {
       this.rangedHeal(wounded)

@@ -633,6 +633,10 @@ function getLaborerModel(energyCapacity, maxWork) {
     break
   }
 
+  if (work === 0) {
+    return { body: [], numWork: work, cost }
+  }
+
   const body = parseBody(`${work - 1}w${carry}c${move}m1w`)
 
   return { body, numWork: work, cost }

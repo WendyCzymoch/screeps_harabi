@@ -306,7 +306,9 @@ global.parseBody = function (str) {
     if (str[i] === 'l') {
       label += str[i++]
     }
-    while (count--) res.push(shorts[label])
+    while (count-- > 0) {
+      res.push(shorts[label])
+    }
   }
   return res
 }

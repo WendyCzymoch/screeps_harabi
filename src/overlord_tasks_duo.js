@@ -93,6 +93,8 @@ const DuoRequest = function (room, targetRoomName, options) {
   this.species = species
   this.boost = boost
   this.ticksToLive = CREEP_LIFE_TIME
+
+  this.status = 'produce'
 }
 
 global.sendDuo = function (targetRoomName, species, boost = undefined) {
@@ -282,14 +284,14 @@ const DUO_WORM_BODY = {
   0: parseBody('25w25m'),
   1: parseBody('32w16m'),
   2: parseBody('36w12m'),
-  3: parseBody('15t25w10m'),
+  3: parseBody('12t28w10m'),
 }
 
 const DUO_HEALER_BODY = {
   0: parseBody('18m18h'),
   1: parseBody('10m20h'),
   2: parseBody('7m21h'),
-  3: parseBody('15t25h10m'),
+  3: parseBody('12t5r22h10m1h'),
 }
 
 const DUO_ANT_BOOST_RESOURCES = {
@@ -307,7 +309,7 @@ const DUO_WORM_BOOST_RESOURCES = {
 const DUO_HEALER_BOOST_RESOURCES = {
   1: ['ZO', 'LO'],
   2: ['ZHO2', 'LHO2'],
-  3: ['XGHO2', 'XZHO2', 'XLHO2'],
+  3: ['XGHO2', 'XZHO2', 'XLHO2', 'XKHO2'],
 }
 
 module.exports = {

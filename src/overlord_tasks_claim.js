@@ -1,3 +1,4 @@
+const { config } = require('./config')
 const { BlinkyRequest } = require('./overlord_tasks_blinky')
 
 global.claimRoom = function (targetRoomName, baseName = undefined) {
@@ -94,7 +95,8 @@ Room.prototype.runClaimTask = function (request) {
   const blinkyTasks = Object.values(tasks['blinky'])
 
   if (!blinkyTasks.some((request) => request.ticksToLive > 900)) {
-    const request = new BlinkyRequest(this, roomName, { number: 1, boost: 0 })
+    const boost = config.isWorld ? 3 : 0
+    const request = new BlinkyRequest(this, roomName, { number: 1, boost })
     Overlord.registerTask(request)
   }
 

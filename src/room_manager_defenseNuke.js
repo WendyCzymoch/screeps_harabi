@@ -158,6 +158,13 @@ Room.prototype.defenseNuke = function () {
   }
 
   if (status.state === 'end') {
+    if (nukes.length < status.nukes.length) {
+      this.memory.level = this.controller.level - 1
+      delete status.nukes
+      status.state = 'init'
+      return
+    }
+
     for (const nuke of nukes) {
       if (!status.nukes || status.nukes.length === 0) {
         status.state = 'init'

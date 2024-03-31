@@ -75,9 +75,9 @@ Creep.prototype.moveMy = function (goals, options = {}) {
 
   // stay 중이면 return
   if (this.heap.stay) {
-    if (Game.time < this.heap.stay) {
+    if (Math.random() < 0.9) {
       // this.room.visual.line(this.pos, mainTargetPos, { color: 'red', lineStyle: 'dashed' })
-      this.say(`🛌${this.heap.stay - Game.time}`, true)
+      this.say(`🛌`, true)
       if (goals[0].pos.roomName === this.pos.roomName) {
         this.room.visual.line(goals[0].pos, this.pos)
       }
@@ -93,14 +93,24 @@ Creep.prototype.moveMy = function (goals, options = {}) {
   if (this.needNewPath(goals)) {
     this.resetPath()
 
-    const result = this.searchPath(goals, { ignoreCreeps, staySafe, ignoreMap, moveCost })
-    // 도착지까지 길이 안찾아지는 경우
+    let result = this.searchPath(goals, { ignoreCreeps, staySafe, ignoreMap, moveCost })
+
     if (result === ERR_NO_PATH) {
+      result = this.searchPath(goals, {
+        staySafe,
+        ignoreMap,
+        moveCost,
+        routeFirst: false,
+      })
+    }
+
+    if (result === ERR_NO_PATH) {
+      // 도착지까지 길이 안찾아지는 경우
       this.heap.noPath = this.heap.noPath || 0
       this.heap.noPath++
       this.say(`❓${this.heap.noPath}`, true)
       if (this.heap.noPath > 1) {
-        this.heap.stay = Game.time + 10
+        this.heap.stay = true
       }
       return ERR_NO_PATH
     }
@@ -121,13 +131,19 @@ Creep.prototype.moveMy = function (goals, options = {}) {
   if (this.heap.stuck >= 5) {
     this.say(`😣`, true)
     const doIgnoreCreeps = Math.random() < 0.2
-    const result = this.searchPath(goals, { staySafe, ignoreMap, ignoreCreeps: doIgnoreCreeps, moveCost })
+    const result = this.searchPath(goals, {
+      staySafe,
+      ignoreMap,
+      ignoreCreeps: doIgnoreCreeps,
+      moveCost,
+      routeFirst: false,
+    })
     if (result === ERR_NO_PATH) {
       this.heap.noPath = this.heap.noPath || 0
       this.heap.noPath++
       this.say(`❓${this.heap.noPath}`, true)
       if (this.heap.noPath > 1) {
-        this.heap.stay = Game.time + 10
+        this.heap.stay = true
       }
       return ERR_NO_PATH
     }

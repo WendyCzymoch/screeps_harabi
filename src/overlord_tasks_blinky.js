@@ -90,10 +90,12 @@ function runBlinky(creep, targetRoomName) {
     .getEnemyCombatants()
     .filter((creep) => !creep.pos.isRampart && creep.owner.username !== 'Source Keeper')
 
-  creep.activeHeal()
-
   if (enemyCombatants.length > 0) {
     creep.activeRangedAttack()
+  }
+
+  if (enemyCombatants.length > 0 || creep.room.structures.tower.length > 0) {
+    creep.activeHeal()
   }
 
   if (creep.memory.flee) {
@@ -125,16 +127,25 @@ function runBlinky(creep, targetRoomName) {
   }
 
   if (creep.room.name !== targetRoomName || isEdgeCoord(creep.pos.x, creep.pos.y)) {
-    creep.moveToRoom(targetRoomName, 2)
+    if (Game.rooms[targetRoomName]) {
+      const controller = Game.rooms[targetRoomName].controller
+      creep.moveMy({ pos: controller.pos, range: 5 })
+    } else {
+      creep.moveToRoom(targetRoomName, 2)
+    }
+
     return
   }
 
   const hostileCreeps = creep.room.findHostileCreeps().filter((creep) => !creep.pos.isRampart)
 
   if (hostileCreeps.length > 0) {
+    creep.activeRangedAttack()
+
     const goals = hostileCreeps.map((creep) => {
       return { pos: creep.pos, range: 2 }
     })
+
     if (creep.moveMy(goals, { staySafe: false }) === OK) {
       creep.heap.enemyLastDetectionTick = Game.time
       // staySafe should be false for my own room defense

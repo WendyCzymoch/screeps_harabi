@@ -114,7 +114,7 @@ Room.prototype.runSiegeDuoTask = function (request) {
 
   const duoTasks = Overlord.getTasksWithCategory('duo')
   const activeDuoTasks = Object.values(duoTasks).filter(
-    (task) => task.roomName === targetRoomName && task.ticksToLive > 500
+    (task) => task.roomName === targetRoomName && task.ticksToLive > 1000
   )
 
   if (activeDuoTasks.length < 1 && this.canProduceSquad()) {

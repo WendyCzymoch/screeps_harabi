@@ -40,6 +40,10 @@ Room.prototype.runRoomManager = function () {
     this.manageWork()
   }
 
+  this.manageRemotes()
+
+  this.manageLab() // boosting이 우선이라 밑에 둠
+
   // 여기서부터는 전시에는 안함
   this.heap.powerProcessing = false
   if (!this.memory.militaryThreat) {
@@ -52,10 +56,6 @@ Room.prototype.runRoomManager = function () {
     this.fillNuker()
     this.managePowerSpawn()
   }
-
-  this.manageRemotes()
-
-  this.manageLab() // boosting이 우선이라 밑에 둠
 
   this.manageEnergy()
   this.manageSource()

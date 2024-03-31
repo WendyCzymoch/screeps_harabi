@@ -41,34 +41,47 @@ Overlord.findRouteLength = function (route) {
 }
 
 Overlord.findPath = function (startPos, goals, options = {}) {
-  const defaultOptions = { ignoreCreeps: true, staySafe: false, ignoreMap: 1, moveCost: 0.5, route: undefined }
+  const defaultOptions = {
+    ignoreCreeps: true,
+    staySafe: false,
+    ignoreMap: 1,
+    moveCost: 0.5,
+    route: undefined,
+    routeFirst: true,
+  }
 
   const mergedOptions = { ...defaultOptions, ...options }
 
-  const { ignoreCreeps, staySafe, ignoreMap, moveCost, route } = mergedOptions
+  const { ignoreCreeps, staySafe, ignoreMap, moveCost, route, routeFirst } = mergedOptions
 
   const mainTargetPos = goals[0].pos
   const targetRoomName = mainTargetPos.roomName
 
-  const maxRooms = startPos.roomName === targetRoomName ? 1 : 16
+  const maxRooms = 16
 
-  let routes = undefined
-  if (route) {
-    routes = [route]
-  } else {
-    routes = [[startPos.roomName]]
-    if (maxRooms > 1) {
-      const intel = Overlord.getIntel(targetRoomName)
-      if (ignoreMap === 0 && intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
-        console.log(`inaccessible ${startPos}`)
-        return ERR_NO_PATH
+  let routes = [undefined]
+
+  if (routeFirst) {
+    if (route) {
+      routes = [route]
+    } else {
+      if (startPos.roomName === targetRoomName) {
+        routes = [[startPos.roomName]]
+      } else {
+        const intel = Overlord.getIntel(targetRoomName)
+
+        if (ignoreMap === 0 && intel[scoutKeys.inaccessible] && intel[scoutKeys.inaccessible] > Game.time) {
+          console.log(`inaccessible ${targetRoomName}`)
+          return ERR_NO_PATH
+        }
+
+        routes = this.findRoute(startPos.roomName, targetRoomName)
+
+        if (routes === ERR_NO_PATH) {
+          console.log(`Cannot find route from ${startPos} to ${goals[0].pos}`)
+          return ERR_NO_PATH
+        }
       }
-      routes = this.findRoute(startPos.roomName, targetRoomName)
-    }
-
-    if (routes === ERR_NO_PATH) {
-      console.log(`Cannot find route from ${startPos} to ${goals[0].pos}`)
-      return ERR_NO_PATH
     }
   }
 
@@ -79,14 +92,14 @@ Overlord.findPath = function (startPos, goals, options = {}) {
   let posNow = startPos
   while (routes.length > 0) {
     const routeNow = routes.shift()
-    const routeNowLastRoomName = routeNow[routeNow.length - 1]
+    const routeNowLastRoomName = routeNow ? routeNow[routeNow.length - 1] : undefined
 
     const routeNext = routes[0]
     const toPortal = !!routeNext
 
-    const goalsNow = toPortal > 0 ? getPortalPositions(routeNowLastRoomName, routeNext[0]) : goals
+    const goalsNow = toPortal ? getPortalPositions(routeNowLastRoomName, routeNext[0]) : goals
 
-    const maxRoomsNow = routeNow.length
+    const maxRoomsNow = routeNow ? routeNow.length : maxRooms
 
     const search = PathFinder.search(posNow, goalsNow, {
       plainCost: Math.max(1, Math.ceil(2 * Number(moveCost))),
@@ -94,7 +107,7 @@ Overlord.findPath = function (startPos, goals, options = {}) {
       heuristicWeight: 1.01,
       roomCallback: function (roomName) {
         // route에 있는 방만 써라
-        if (routeNow !== undefined && !routeNow.includes(roomName)) {
+        if (routeNow && !routeNow.includes(roomName)) {
           return false
         }
 
