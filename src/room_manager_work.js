@@ -277,7 +277,6 @@ Creep.prototype.repairMy = function (target) {
     this.moveMy({ pos: target.pos, range: 3 })
     return
   }
-
   this.setWorkingInfo(target.pos, 3)
   this.repair(target)
 }
@@ -288,13 +287,14 @@ Creep.prototype.upgradeRCL = function () {
     console.log(`${this.room.name} has weird laborer`)
     return
   }
-  if (!controller.sign || controller.sign.username !== this.owner.username) {
-    if (this.pos.getRangeTo(controller.pos) > 1) {
-      this.moveMy({ pos: controller.pos, range: 1 })
-      return
-    }
-    this.signController(controller, 'A creep can do what he wants, but not want what he wants.')
-  }
+
+  // if (!controller.sign || controller.sign.username !== this.owner.username) {
+  //   if (this.pos.getRangeTo(controller.pos) > 1) {
+  //     this.moveMy({ pos: controller.pos, range: 1 })
+  //     return
+  //   }
+  //   this.signController(controller, 'A creep can do what he wants, but not want what he wants.')
+  // }
 
   if (this.pos.getRangeTo(controller) > 3) {
     this.moveMy({ pos: controller.pos, range: 3 })

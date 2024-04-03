@@ -56,7 +56,7 @@ Overlord.manageOccupyTasks = function () {
 Room.prototype.runOccupyTask = function (request) {
   const targetRoomName = request.roomName
 
-  if (Game.time > request.endTime) {
+  if (request.endTime && Game.time > request.endTime) {
     request.result = `Time to stop. stop to occupy ${targetRoomName}`
     request.complete = true
     return
@@ -109,7 +109,7 @@ Room.prototype.runOccupyTask = function (request) {
 }
 
 const OccupyRequest = function (room, targetRoomName, options) {
-  const defaultOptions = { duration: 10000 }
+  const defaultOptions = {}
   const mergedOptions = { ...defaultOptions, ...options }
   const { duration } = mergedOptions
 
@@ -118,5 +118,7 @@ const OccupyRequest = function (room, targetRoomName, options) {
 
   this.roomName = targetRoomName
   this.roomNameInCharge = room.name
-  this.endTime = Game.time + duration
+  if (duration) {
+    this.endTime = Game.time + duration
+  }
 }

@@ -1,4 +1,8 @@
 Room.prototype.defenseNuke = function () {
+  if (!this.storage || this.controller.level < 6) {
+    return
+  }
+
   const nukes = this.find(FIND_NUKES)
   if (nukes.length === 0) {
     if (this.memory.defenseNuke) {

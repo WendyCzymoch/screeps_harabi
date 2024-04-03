@@ -122,10 +122,6 @@ function runBlinky(creep, targetRoomName) {
     }
   }
 
-  if (creep.heap.enemyLastDetectionTick !== undefined && Game.time < creep.heap.enemyLastDetectionTick + 2) {
-    return
-  }
-
   if (creep.room.name !== targetRoomName || isEdgeCoord(creep.pos.x, creep.pos.y)) {
     if (Game.rooms[targetRoomName]) {
       const controller = Game.rooms[targetRoomName].controller

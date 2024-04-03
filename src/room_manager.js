@@ -13,14 +13,17 @@ Room.prototype.runRoomManager = function () {
 
   if (this.abandon) {
     this.abandonRoom()
-  }
-
-  if (
+  } else if (
     this.memory.vacate ||
     (config.seasonNumber === 6 && Overlord.getSecondsToClose(this.name) < config.secondsToStartEmpty)
   ) {
     this.memory.vacate = true
     this.vacate()
+  } else if (Math.random() < 0.01 && this.structures.spawn.length === 0) {
+    this.memory.level = this.controller.level - 1
+    if (claimRoom(this.name, { clear: false }) !== OK) {
+      console.log(`Cannot help to build spawn ${this.name}`)
+    }
   }
 
   if (data.visualize) {
@@ -277,7 +280,7 @@ Room.prototype.abandonRoom = function () {
   if (this.vacate() === OK) {
     data.recordLog(`DEPLETED`, this.name)
     const pos = new RoomPosition(25, 25, this.name)
-    // pos.createFlag(`${this.name} clearAll`, COLOR_PURPLE)
+    pos.createFlag(`${this.name} clearAll`, COLOR_PURPLE)
     Memory.abandon = Memory.abandon.filter((roomName) => roomName !== this.name)
   }
 }

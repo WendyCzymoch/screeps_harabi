@@ -1,7 +1,10 @@
 const { config } = require('./config')
 const { BlinkyRequest } = require('./overlord_tasks_blinky')
 
-global.claimRoom = function (targetRoomName, baseName = undefined) {
+global.claimRoom = function (targetRoomName, options) {
+  const defaultOptions = { clear: true, baseName: undefined }
+  const mergedOptions = { ...defaultOptions, ...options }
+  const { clear, baseName } = mergedOptions
   targetRoomName = targetRoomName.toUpperCase()
   const tasks = Overlord.getTasksWithCategory('claim')
   if (tasks[targetRoomName]) {
@@ -14,7 +17,7 @@ global.claimRoom = function (targetRoomName, baseName = undefined) {
     return ERR_NOT_IN_RANGE
   }
 
-  const request = new ClaimRequest(base, targetRoomName)
+  const request = new ClaimRequest(base, targetRoomName, { clear })
 
   Overlord.registerTask(request)
 
@@ -237,9 +240,9 @@ Room.prototype.runClaimTask = function (request) {
 }
 
 const ClaimRequest = function (room, targetRoomName, options) {
-  const defaultOptions = {}
+  const defaultOptions = { clear: true }
   const mergedOptions = { ...defaultOptions, ...options }
-  const {} = mergedOptions
+  const { clear } = mergedOptions
 
   this.category = 'claim'
 
@@ -250,6 +253,11 @@ const ClaimRequest = function (room, targetRoomName, options) {
   this.roomName = targetRoomName
 
   this.roomNameInCharge = room.name
+
+  if (!clear) {
+    this.isCleared = true
+    this.isClearedOnce = true
+  }
 }
 
 module.exports = {
