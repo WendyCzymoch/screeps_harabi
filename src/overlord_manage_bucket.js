@@ -42,7 +42,7 @@ Overlord.manageBucket = function () {
 
   if (averageCpu > cpuThreshold && Game.cpu.bucket < BUCKET_THRESHOLD) {
     const diff = averageCpu - cpuThreshold
-    const number = Math.clamp(Math.ceil(diff / 3), 1, Overlord.myRooms.length)
+    const number = Math.clamp(Math.ceil(diff / 10), 1, Overlord.myRooms.length)
     this.removeRemote(number)
     Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
     return

@@ -466,11 +466,19 @@ Room.prototype.getClaimScore = function () {
 
   for (const roomName of roomNamesInRange) {
     const intel = Overlord.getIntel(roomName)
-    if (intel[scoutKeys.isEnemy] || myRoomNames.includes(roomName)) {
+    if (intel[scoutKeys.isEnemy]) {
       neighborScore -= (5 - Game.map.getRoomLinearDistance(roomName, this.name)) * 0.25
+      continue
     }
+
+    if (myRoomNames.includes(roomName)) {
+      neighborScore -= (5 - Game.map.getRoomLinearDistance(roomName, this.name)) * 0.1
+      continue
+    }
+
     if (intel[scoutKeys.reservationOwner]) {
       neighborScore -= (5 - Game.map.getRoomLinearDistance(roomName, this.name)) * 0.1
+      continue
     }
   }
 
