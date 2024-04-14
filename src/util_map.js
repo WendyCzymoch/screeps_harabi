@@ -82,7 +82,13 @@ class MapUtil {
   }
 
   static getAdjacents(roomName) {
-    const neighbors = Object.values(Game.map.describeExits(roomName))
+    const describeExits = Game.map.describeExits(roomName)
+
+    if (!describeExits) {
+      return []
+    }
+
+    const neighbors = Object.values(describeExits)
 
     if (!Memory.rooms[roomName]) {
       return neighbors
