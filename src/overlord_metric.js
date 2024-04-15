@@ -374,22 +374,24 @@ function getRoomCost(startRoomName, goalRoomName, roomName) {
     return Infinity
   }
 
-  const intel = Overlord.getIntel(roomName)
+  if (Memory.rooms[roomName]) {
+    const intel = Overlord.getIntel(roomName)
 
-  if (intel[scoutKeys.isMy]) {
-    return 1
-  }
+    if (intel[scoutKeys.isMy]) {
+      return 1
+    }
 
-  if (allies.includes(intel[scoutKeys.owner])) {
-    return 1
-  }
+    if (allies.includes(intel[scoutKeys.owner])) {
+      return 1
+    }
 
-  if (intel[scoutKeys.numTower] > 0) {
-    return Infinity
-  }
+    if (intel[scoutKeys.numTower] > 0) {
+      return Infinity
+    }
 
-  if (Game.time < intel[scoutKeys.inaccessible]) {
-    return 3.1
+    if (Game.time < intel[scoutKeys.inaccessible]) {
+      return 3.1
+    }
   }
 
   if (Overlord.remotes.includes(roomName)) {
@@ -406,7 +408,7 @@ function getRoomCost(startRoomName, goalRoomName, roomName) {
     return 1.2
   }
 
-  return 1.1
+  return 1.11
 }
 
 Overlord.getIntel = function (roomName) {

@@ -101,7 +101,7 @@ Overlord.mapInfo = function () {
       Memory.showMapInfo = 0
     }
 
-    // even if Memory.shoaMapInfo === 0, do mapInfo for every 1000 ticks
+    // even if Memory.showMapInfo === 0, do mapInfo for every 1000 ticks
     // this is for deleting outdated memories
     if (Memory.showMapInfo === 0 && Game.time % 1000 !== 0) {
       return

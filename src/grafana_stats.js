@@ -9,6 +9,7 @@ Overlord.exportStats = function () {
   Memory.stats.rooms = {}
   Memory.stats.gpl = {}
   Memory.stats.cpu = Memory.stats.cpu || {}
+  Memory.stats.heap = {}
 
   Memory.stats.time = Game.time
 
@@ -75,6 +76,11 @@ Overlord.exportStats = function () {
 
   // Collect credit stats
   Memory.stats.credit = Game.market.credits
+
+  // Collect Heap stats
+  const heapStatistics = Game.cpu.getHeapStatistics()
+  const heaSize = heapStatistics.total_heap_size + heapStatistics.externally_allocated_size
+  Memory.stats.heap.used = heaSize / heapStatistics.heap_size_limit
 
   // Collect CPU stats
   Memory.stats.cpu.bucket = Game.cpu.bucket

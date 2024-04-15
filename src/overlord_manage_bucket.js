@@ -1,4 +1,5 @@
 const { Util } = require('./util')
+const MinHeap = require('./util_min_heap')
 
 const CPU_THRESHOLD_UP = 1
 const CPU_THRESHOLD_DOWN = 0.85
@@ -47,7 +48,9 @@ Overlord.manageBucket = function () {
     Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
     return
   } else if (averageCpu < cpuThreshold - 10 && Game.cpu.bucket === 10000) {
-    this.addRemote()
+    const diff = cpuThreshold - 10 - averageCpu
+    const number = Math.clamp(Math.ceil(diff / 10), 1, Overlord.myRooms.length)
+    this.addRemotes(number)
     Memory._nextManageBucketTime = Game.time + CREEP_LIFE_TIME / 2
     return
   }
@@ -129,36 +132,42 @@ Overlord.getWorstRemotes = function (number = 1) {
   return Util.getMinObjects(candidates, (element) => element.score, number)
 }
 
-Overlord.addRemote = function () {
-  const bestRemote = this.getBestRemote()
-  if (!bestRemote) {
+Overlord.addRemotes = function (number = 1) {
+  const bestRemotes = this.getBestRemotes(number)
+
+  if (bestRemotes.length === 0) {
     return
   }
 
-  const roomNameInCharge = bestRemote.roomNameInCharge
-  const roomInCharge = Game.rooms[roomNameInCharge]
+  while (bestRemotes.length) {
+    const remoteInfo = bestRemotes.pop()
 
-  if (!roomInCharge) {
-    return
+    const roomNameInCharge = remoteInfo.roomNameInCharge
+    const roomInCharge = Game.rooms[roomNameInCharge]
+
+    if (!roomInCharge || !roomInCharge.isMy) {
+      return
+    }
+
+    const remoteName = remoteInfo.remoteName
+
+    const remoteStatus = roomInCharge.getRemoteStatus(remoteName)
+
+    if (!remoteStatus) {
+      return
+    }
+
+    data.recordLog(`BUCKET: add ${remoteName} from ${roomNameInCharge}`, remoteName)
+
+    delete remoteStatus.block
   }
-
-  const remoteName = bestRemote.remoteName
-
-  const remoteStatus = roomInCharge.getRemoteStatus(remoteName)
-
-  if (!remoteStatus) {
-    return
-  }
-
-  data.recordLog(`BUCKET: add ${remoteName} from ${roomNameInCharge}`, remoteName)
-  delete remoteStatus.block
 }
 
-Overlord.getBestRemote = function () {
+Overlord.getBestRemotes = function (number = 1) {
   const myRooms = this.myRooms
-  let score = undefined
-  let result = undefined
-  let roomNameInCharge = undefined
+
+  const minHeap = new MinHeap((remoteInfo) => remoteInfo.score)
+
   for (const room of myRooms) {
     const remoteNames = room.getRemoteNames()
     for (const remoteName of remoteNames) {
@@ -168,14 +177,22 @@ Overlord.getBestRemote = function () {
       }
       const value = room.getRemoteValue(remoteName).total
       const weight = room.getRemoteSpawnUsage(remoteName).total
-      if (!score || score < value / weight) {
-        score = value / weight
-        result = remoteName
-        roomNameInCharge = room.name
+
+      const score = value / weight
+
+      const scoreThreshold = minHeap.getSize() < number ? 0 : minHeap.getMin().score
+
+      if (score <= scoreThreshold) {
+        continue
       }
+
+      const roomNameInCharge = room.name
+      const remoteInfo = { roomNameInCharge, remoteName, score }
+
+      minHeap.remove()
+      minHeap.insert(remoteInfo)
     }
   }
-  if (roomNameInCharge && result) {
-    return { roomNameInCharge, remoteName: result }
-  }
+
+  return minHeap.toArray()
 }
