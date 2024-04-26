@@ -12,6 +12,7 @@ const ENERGY_LEVEL_TO_FUNNEL = config.energyLevel.FUNNEL
 const ENERGY_LEVEL_TO_HELP = config.energyLevel.HELP
 const ENERGY_LEVEL_TO_BE_HELPED = config.energyLevel.BE_HELPED
 const ENERGY_LEVEL_TO_BALANCE = config.energyLevel.BALANCE
+const ENERGY_LEVEL_TO_POWERBANK = config.energyLevel.POWERBANK
 
 StructureTerminal.prototype.run = function () {
   const roomName = this.room.name
@@ -116,7 +117,11 @@ StructureTerminal.prototype.run = function () {
     Business.buy(RESOURCE_ENERGY, 20000, roomName)
   }
 
-  if (config.creditGoal && Game.market.credits > config.creditGoal && this.room.energyLevel < 180) {
+  if (
+    config.creditGoal &&
+    Game.market.credits > config.creditGoal &&
+    this.room.energyLevel < ENERGY_LEVEL_TO_POWERBANK
+  ) {
     Business.buy(RESOURCE_ENERGY, 20000, roomName)
   }
 

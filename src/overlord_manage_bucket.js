@@ -175,24 +175,35 @@ Overlord.getBestRemotes = function (number = 1) {
       if (!remoteStatus.block) {
         continue
       }
+
       const value = room.getRemoteValue(remoteName).total
       const weight = room.getRemoteSpawnUsage(remoteName).total
 
-      const score = value / weight
+      const score = value / weight // higher is better
 
-      const scoreThreshold = minHeap.getSize() < number ? 0 : minHeap.getMin().score
+      if (minHeap.getSize() < number) {
+        const remoteInfo = { roomNameInCharge: room.name, remoteName, score }
+        minHeap.insert(remoteInfo)
+        continue
+      }
+
+      const scoreThreshold = minHeap.getMin().score
+
+      console.log(`score:${score}, threshold:${scoreThreshold}, number:${minHeap.getSize()}`)
 
       if (score <= scoreThreshold) {
         continue
       }
 
       const roomNameInCharge = room.name
-      const remoteInfo = { roomNameInCharge, remoteName, score }
+      const remoteInfo = { roomNameInCharge: room.name, remoteName, score }
 
       minHeap.remove()
       minHeap.insert(remoteInfo)
     }
   }
+
+  console.log(JSON.stringify(minHeap))
 
   return minHeap.toArray()
 }

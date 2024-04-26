@@ -154,28 +154,25 @@ Room.prototype.manageSpawn = function () {
   const numWorkEach = Math.ceil(maxWork / maxNumLaborer)
 
   // source 가동률만큼만 생산
-  if (config.trafficTest) {
-    if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
-      this.requestLaborer({ maxWork: 1 })
-    }
-  } else if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
+  if (numLaborer < this.controller.available && this.laborer.numWork < maxWork) {
     let boost = undefined
 
     if (canBoost) {
       const funnelRequest = Overlord.getBestFunnelRequest()
 
-      if (this.controller.level < 8) {
-        if (!funnelRequest || funnelRequest.roomName === this.name) {
-          const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
+      if (
+        (this.controller.level < 8 && funnelRequest && funnelRequest.roomName === this.name) ||
+        (this.controller.level === 8 && !funnelRequest)
+      ) {
+        const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
 
-          if (resourceAmountsTotal) {
-            if ((resourceAmountsTotal['XGH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
-              boost = 'XGH2O'
-            } else if ((resourceAmountsTotal['GH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
-              boost = 'GH2O'
-            } else if ((resourceAmountsTotal['GH'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
-              boost = 'GH'
-            }
+        if (resourceAmountsTotal) {
+          if ((resourceAmountsTotal['XGH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
+            boost = 'XGH2O'
+          } else if ((resourceAmountsTotal['GH2O'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
+            boost = 'GH2O'
+          } else if ((resourceAmountsTotal['GH'] || 0) >= numWorkEach * LAB_BOOST_MINERAL) {
+            boost = 'GH'
           }
         }
       }

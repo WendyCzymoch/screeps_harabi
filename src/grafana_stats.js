@@ -14,27 +14,8 @@ Overlord.exportStats = function () {
   Memory.stats.time = Game.time
 
   // Collect room stats
-  const resources = {
-    power: 0,
-    O: 0,
-    H: 0,
-    Z: 0,
-    L: 0,
-    U: 0,
-    K: 0,
-    X: 0,
-    G: 0,
-    XKHO2: 0,
-    UH: 0,
-    UH2O: 0,
-    XUH2O: 0,
-    XLH2O: 0,
-    XLHO2: 0,
-    XZH2O: 0,
-    XZHO2: 0,
-    XGH2O: 0,
-    XGHO2: 0,
-  }
+  const resources = {}
+
   for (const room of Overlord.myRooms) {
     let roomStats = (Memory.stats.rooms[room.name] = {})
     roomStats.storageEnergy = room.storage ? room.storage.store.energy : 0
