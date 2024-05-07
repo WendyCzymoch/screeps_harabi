@@ -16,6 +16,19 @@ Room.prototype.checkMineral = function (targetRoomName) {
     return
   }
 
+  const status = this.getRemoteStatus(targetRoomName)
+
+  const intermediates = status ? status.intermediates : []
+
+  if (intermediates) {
+    for (const intermediateName of intermediates) {
+      const intermediateStatus = this.getRemoteStatus(intermediateName)
+      if ((intermediateStatus && intermediateStatus.block) || isStronghold(intermediateName)) {
+        return
+      }
+    }
+  }
+
   if (Game.map.getRoomLinearDistance(this.name, targetRoomName) > 1) {
     return
   }
@@ -114,6 +127,19 @@ Room.prototype.runMineralTask = function (request) {
     request.complete = true
     request.result = 'stronghold'
     return
+  }
+
+  const status = this.getRemoteStatus(targetRoomName)
+
+  const intermediates = status ? status.intermediates || [] : []
+
+  for (const intermediateName of intermediates) {
+    const intermediateStatus = this.getRemoteStatus(intermediateName)
+    if (intermediateStatus.block || isStronghold(intermediateName)) {
+      request.complete = true
+      request.result = 'stronghold'
+      return
+    }
   }
 
   const mineralId = request.mineralId

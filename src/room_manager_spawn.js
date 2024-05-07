@@ -158,11 +158,13 @@ Room.prototype.manageSpawn = function () {
     let boost = undefined
 
     if (canBoost) {
-      const funnelRequest = Overlord.getBestFunnelRequest()
+      const funnelRequests = Overlord.getMyFunnelList()
 
       if (
-        (this.controller.level < 8 && funnelRequest && funnelRequest.roomName === this.name) ||
-        (this.controller.level === 8 && !funnelRequest)
+        (this.controller.level < 8 &&
+          funnelRequests.length &&
+          funnelRequests.some((request) => request.roomName === this.name)) ||
+        (this.controller.level === 8 && funnelRequests.length === 0)
       ) {
         const resourceAmountsTotal = Overlord.getResourceAmountsTotal()
 
