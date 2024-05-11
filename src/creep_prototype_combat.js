@@ -35,7 +35,9 @@ Creep.prototype.blinkyFight = function (targetRoomName, options = {}) {
   }
 
   if (this.room.name !== targetRoomName) {
-    this.moveToRoom(targetRoomName)
+    if (this.moveToRoom(targetRoomName) === ERR_NO_PATH) {
+      return ERR_NO_PATH
+    }
     return
   }
 

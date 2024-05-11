@@ -504,11 +504,8 @@ function remoteMiner(creep) {
 
   const source = Game.getObjectById(creep.memory.sourceId)
 
-  if (path) {
-    if (!source || creep.pos.getRangeTo(source) > 5) {
-      creep.moveByRemotePath(path, { reverse: true })
-      return
-    }
+  if (path && (!source || creep.pos.getRangeTo(source) > 1) && creep.moveByRemotePath(path, { reverse: true }) === OK) {
+    return
   } else {
     if (!source) {
       creep.moveToRoom(targetRoomName)
@@ -922,8 +919,9 @@ function harasser(creep) {
   // engage phase. fight!
   if (task.engage) {
     const options = { ignoreSourceKeepers: true, friendlies: task.members }
-
-    creep.blinkyFight(task.current, options)
+    if (creep.blinkyFight(task.current, options) === ERR_NO_PATH) {
+      delete task.current
+    }
   }
 }
 

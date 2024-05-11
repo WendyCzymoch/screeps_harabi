@@ -326,7 +326,7 @@ Creep.prototype.moveByRemotePath = function (path, options = {}) {
   this.heap.lastPos = this.pos
   this.heap.lastPosTick = Game.time
 
-  if (this.heap.stuck > 5) {
+  if (this.heap.stuck > 10) {
     this.say('😣', true)
     this.heap.useMoveMy = Game.time + 20
   }

@@ -56,7 +56,11 @@ class MapUtil {
 
         depthCache[adjacent] = depthCurrent + 1
 
-        const status = Game.map.getRoomStatus(roomName)
+        if (depthCache[adjacent] >= maxDepth) {
+          continue
+        }
+
+        const status = Game.map.getRoomStatus(adjacent)
 
         if (status && status.status !== 'normal') {
           continue
@@ -64,10 +68,6 @@ class MapUtil {
 
         if (roomCallback(adjacent)) {
           return adjacent
-        }
-
-        if (depthCache[adjacent] >= maxDepth) {
-          continue
         }
 
         if (!this.isSafe(adjacent)) {
